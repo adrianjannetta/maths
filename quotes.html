@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Random Quote</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      font-size: 1.2em;
+      padding: 1em;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="quoteDisplay">Loading quote...</div>
+
+  <script>
+    var quotes = [
+      "The important thing is not to stop questioning. – Albert Einstein",
+      "Education is the passport to the future. – Malcolm X",
+      "Science is a way of thinking. – Carl Sagan",
+      "Learning never exhausts the mind. – Leonardo da Vinci"
+    ];
+    var randomIndex = Math.floor(Math.random() * quotes.length);
+    document.getElementById("quoteDisplay").innerText = quotes[randomIndex];
+  </script>
+</body>
+</html>
