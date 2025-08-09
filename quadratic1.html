@@ -1,0 +1,200 @@
+import React, { useMemo, useState } from "react";
+
+// Default export so you can import this file and render <QuadraticGrapher />
+export default function QuadraticGrapher() {
+  // Coefficients
+  const [a, setA] = useState(1);
+  const [b, setB] = useState(0);
+  const [c, setC] = useState(0);
+
+  // World (math) coordinates
+  const xMin = -10, xMax = 10;
+  const yMin = -10, yMax = 10;
+
+  // SVG viewport
+  const width = 700; // px
+  const height = 450; // px
+  const padding = 40; // px
+
+  // Helpers: scale functions (math -> screen)
+  const xScale = (x) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
+  const yScale = (y) => height - padding - ((y - yMin) / (yMax - yMin)) * (height - 2 * padding);
+
+  // Generate curve points
+  const curvePoints = useMemo(() => {
+    const n = 400; // samples
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const x = xMin + (i / n) * (xMax - xMin);
+      const y = a * x * x + b * x + c;
+      pts.push(`${xScale(x)},${yScale(y)}`);
+    }
+    return pts.join(" ");
+  }, [a, b, c]);
+
+  // Derived features
+  const discriminant = b * b - 4 * a * c;
+  const hasRealRoots = discriminant >= 0 && a !== 0;
+  const sqrtD = Math.sqrt(Math.max(0, discriminant));
+  const x1 = hasRealRoots ? (-b - sqrtD) / (2 * a) : null;
+  const x2 = hasRealRoots ? (-b + sqrtD) / (2 * a) : null;
+  const vertexX = a !== 0 ? -b / (2 * a) : null;
+  const vertexY = a !== 0 ? a * vertexX * vertexX + b * vertexX + c : null;
+
+  const toFixedSmart = (v) => {
+    if (v === null || v === undefined || Number.isNaN(v)) return "–";
+    const abs = Math.abs(v);
+    const dp = abs < 1 ? 3 : abs < 10 ? 2 : 1;
+    return Number(v.toFixed(dp)).toString();
+  };
+
+  const axisPath = (x1, y1, x2, y2, dash = false) => (
+    <line x1={xScale(x1)} y1={yScale(y1)} x2={xScale(x2)} y2={yScale(y2)}
+      stroke="#888" strokeWidth={1} strokeDasharray={dash ? "4 4" : undefined} />
+  );
+
+  const ticks = (min, max, step) => {
+    const arr = [];
+    for (let t = Math.ceil(min / step) * step; t <= max; t += step) arr.push(Number(t.toFixed(10)));
+    return arr;
+  };
+
+  const gridXS = ticks(xMin, xMax, 1);
+  const gridYS = ticks(yMin, yMax, 1);
+
+  const reset = () => { setA(1); setB(0); setC(0); };
+
+  return (
+    <div style={{ fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif", lineHeight: 1.4, color: "#111", maxWidth: 980, margin: "0 auto", padding: 16 }}>
+      <h2 style={{ fontSize: 24, marginBottom: 8 }}>Interactive Quadratic: ax² + bx + c</h2>
+      <p style={{ marginTop: 0, color: "#444" }}>
+        Adjust <strong>a</strong>, <strong>b</strong>, and <strong>c</strong> to explore the graph of <em>y = ax² + bx + c</em>. The plot shows axes, grid, vertex, y-intercept, and real roots (if any).
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+        <div style={{ background: "#fafafa", border: "1px solid #e8e8e8", borderRadius: 12, padding: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", gap: 12, alignItems: "center" }}>
+            <label style={{ gridColumn: "span 1" }}>a</label>
+            <input type="range" min={-5} max={5} step={0.1} value={a} onChange={(e)=>setA(parseFloat(e.target.value))} style={{ gridColumn: "span 9" }} />
+            <output style={{ gridColumn: "span 2", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{toFixedSmart(a)}</output>
+
+            <label style={{ gridColumn: "span 1" }}>b</label>
+            <input type="range" min={-10} max={10} step={0.1} value={b} onChange={(e)=>setB(parseFloat(e.target.value))} style={{ gridColumn: "span 9" }} />
+            <output style={{ gridColumn: "span 2", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{toFixedSmart(b)}</output>
+
+            <label style={{ gridColumn: "span 1" }}>c</label>
+            <input type="range" min={-10} max={10} step={0.1} value={c} onChange={(e)=>setC(parseFloat(e.target.value))} style={{ gridColumn: "span 9" }} />
+            <output style={{ gridColumn: "span 2", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{toFixedSmart(c)}</output>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <button onClick={reset} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ddd", background: "white", cursor: "pointer" }}>Reset</button>
+            <div style={{ marginLeft: "auto", color: "#333" }}>
+              <strong>y</strong> = {toFixedSmart(a)}x² {b>=0? "+":""}{toFixedSmart(b)}x {c>=0? "+":""}{toFixedSmart(c)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <svg width={width} height={height} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12 }}>
+            {/* Grid */}
+            {gridXS.map((gx, i) => (
+              <line key={`gx${i}`} x1={xScale(gx)} y1={yScale(yMin)} x2={xScale(gx)} y2={yScale(yMax)} stroke="#f2f2f2" />
+            ))}
+            {gridYS.map((gy, i) => (
+              <line key={`gy${i}`} x1={xScale(xMin)} y1={yScale(gy)} x2={xScale(xMax)} y2={yScale(gy)} stroke="#f2f2f2" />
+            ))}
+
+            {/* Axes */}
+            {axisPath(xMin, 0, xMax, 0)}
+            {axisPath(0, yMin, 0, yMax)}
+
+            {/* Tick labels */}
+            {gridXS.map((gx, i) => (
+              <g key={`xt${i}`}> 
+                <line x1={xScale(gx)} y1={yScale(0)-4} x2={xScale(gx)} y2={yScale(0)+4} stroke="#888" />
+                {gx !== 0 && (
+                  <text x={xScale(gx)} y={yScale(0)+16} fontSize={11} textAnchor="middle" fill="#666">{gx}</text>
+                )}
+              </g>
+            ))}
+            {gridYS.map((gy, i) => (
+              <g key={`yt${i}`}>
+                <line x1={xScale(0)-4} y1={yScale(gy)} x2={xScale(0)+4} y2={yScale(gy)} stroke="#888" />
+                {gy !== 0 && (
+                  <text x={xScale(0)-8} y={yScale(gy)+4} fontSize={11} textAnchor="end" fill="#666">{gy}</text>
+                )}
+              </g>
+            ))}
+
+            {/* Labels */}
+            <text x={xScale(xMax)} y={yScale(0)-8} fontSize={12} textAnchor="end" fill="#444">x</text>
+            <text x={xScale(0)+8} y={yScale(yMax)} fontSize={12} fill="#444">y</text>
+
+            {/* Quadratic curve */}
+            <polyline points={curvePoints} fill="none" stroke="#2563eb" strokeWidth={2.5} />
+
+            {/* y-intercept (0, c) if in view */}
+            {(c >= yMin && c <= yMax) && (
+              <g>
+                <circle cx={xScale(0)} cy={yScale(c)} r={4} fill="#16a34a" />
+                <text x={xScale(0)+6} y={yScale(c)-6} fontSize={11} fill="#16a34a">(0, {toFixedSmart(c)})</text>
+              </g>
+            )}
+
+            {/* Vertex */}
+            {a !== 0 && vertexX >= xMin && vertexX <= xMax && vertexY >= yMin && vertexY <= yMax && (
+              <g>
+                <circle cx={xScale(vertexX)} cy={yScale(vertexY)} r={4.5} fill="#dc2626" />
+                <text x={xScale(vertexX)+6} y={yScale(vertexY)-6} fontSize={11} fill="#dc2626">V({toFixedSmart(vertexX)}, {toFixedSmart(vertexY)})</text>
+              </g>
+            )}
+
+            {/* Roots */}
+            {hasRealRoots && x1 >= xMin && x1 <= xMax && (
+              <g>
+                <circle cx={xScale(x1)} cy={yScale(0)} r={4} fill="#7c3aed" />
+                <text x={xScale(x1)+6} y={yScale(0)-6} fontSize={11} fill="#7c3aed">x₁={toFixedSmart(x1)}</text>
+              </g>
+            )}
+            {hasRealRoots && x2 !== x1 && x2 >= xMin && x2 <= xMax && (
+              <g>
+                <circle cx={xScale(x2)} cy={yScale(0)} r={4} fill="#7c3aed" />
+                <text x={xScale(x2)+6} y={yScale(0)-6} fontSize={11} fill="#7c3aed">x₂={toFixedSmart(x2)}</text>
+              </g>
+            )}
+
+          </svg>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+          <InfoCard title="Key facts">
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              <li>Discriminant D = b² − 4ac = <strong>{toFixedSmart(discriminant)}</strong></li>
+              <li>Vertex V = (<strong>{toFixedSmart(vertexX)}</strong>, <strong>{toFixedSmart(vertexY)}</strong>)</li>
+              <li>Axis of symmetry: x = <strong>{toFixedSmart(vertexX)}</strong></li>
+              <li>Opens {a > 0 ? "upwards" : a < 0 ? "downwards" : "(a = 0, line)"}</li>
+            </ul>
+          </InfoCard>
+          <InfoCard title="Roots">
+            {a === 0 ? (
+              <p style={{ margin: 0 }}>a = 0 → Not a quadratic (line y = {toFixedSmart(b)}x + {toFixedSmart(c)}).</p>
+            ) : hasRealRoots ? (
+              <p style={{ margin: 0 }}>Real roots at x = {toFixedSmart(x1)} and x = {toFixedSmart(x2)}.</p>
+            ) : (
+              <p style={{ margin: 0 }}>No real roots (D &lt; 0). Complex roots: x = ({toFixedSmart(-b/(2*a))}) ± i·{toFixedSmart(Math.sqrt(-discriminant)/(2*Math.abs(a)))}.</p>
+            )}
+          </InfoCard>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({ title, children }) {
+  return (
+    <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 12 }}>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{title}</div>
+      <div style={{ color: "#333" }}>{children}</div>
+    </div>
+  );
+}
