@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,7 +51,7 @@
 
       <div class="bar" style="grid-column: 1 / -1;">
         <button class="btn" id="reset">Reset</button>
-        <div class="eq"><b>y</b> = <span id="eqA">1</span>x² + <span id="eqB">0</span>x + <span id="eqC">0</span></div>
+        <div class="eq"><b>y</b> = <span id="eqA">1</span>x² <span id="eqB">+ 0</span>x <span id="eqC">+ 0</span></div>
       </div>
       <div class="legend" style="grid-column: 1 / -1;">
         <div><span class="dot" style="background:var(--vertex)"></span>Vertex</div>
@@ -136,8 +137,8 @@
     bVal.textContent = b;
     cVal.textContent = c;
     eqA.textContent = fmt(a);
-    eqB.textContent = (b >= 0 ? "+" : "") + fmt(b);
-    eqC.textContent = (c >= 0 ? "+" : "") + fmt(c);
+    eqB.textContent = (b >= 0 ? " + " : " ") + fmt(b);
+    eqC.textContent = (c >= 0 ? " + " : " ") + fmt(c);
 
     svg.innerHTML = "";
 
@@ -175,7 +176,7 @@
     }
     add("polyline", { points: pts, fill:"none", stroke:"var(--primary)", "stroke-width":"2.5" });
 
-    // y-intercept at (0,c)
+    // y-intercept
     if (c >= yMin && c <= yMax){
       add("circle", { cx:xScale(0), cy:yScale(c), r:4, fill:"var(--yint)" });
       add("text", { x:xScale(0)+6, y:yScale(c)-6, "font-size":"11", fill:"var(--yint)" }).textContent = "(0, "+fmt(c)+")";
@@ -208,8 +209,7 @@
       }
     }
 
-    // info panel values
-    const D = b*b - 4*a*c;
+    // info panel
     discEl.textContent = fmt(D);
     if (a === 0){
       axisEl.textContent = "–";
@@ -235,7 +235,7 @@
         const s = Math.sqrt(D);
         const r1 = (-b - s)/(2*a);
         const r2 = (-b + s)/(2*a);
-        rootsText.textContent = "Real roots at x = " + fmt(r1) + " and x = " + fmt(r2) + ".";
+        rootsText.textContent = "Real roots at x = " + fmt(r1) + " and " + fmt(r2) + ".";
       }
     }
   }
