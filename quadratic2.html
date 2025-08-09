@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quadratic (Completed Square Form) Grapher</title>
+<style>
+  :root { --card:#fff; --muted:#666; --grid:#f2f2f2; --axis:#888; --primary:#2563eb; --vertex:#dc2626; --root:#7c3aed; --yint:#16a34a; }
+  html,body { margin:0; padding:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#111; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h2 { margin: 0 0 6px 0; font-size: 1.25rem; }
+  p  { margin: 0 0 10px 0; color:#444; }
+  .controls { display:grid; grid-template-columns: auto 1fr auto; gap:.6rem .8rem; align-items:center; background:#fafafa; border:1px solid #e8e8e8; border-radius:12px; padding:12px; }
+  .row { display: contents; }
+  label { font-weight:600; }
+  output { font-variant-numeric: tabular-nums; text-align:right; }
+  .bar { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .btn { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+  .eq { margin-left:auto; color:#333; white-space:nowrap; }
+  svg { background:#fff; border:1px solid #eee; border-radius:12px; display:block; max-width:100%; height:auto; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-top:12px; }
+  .card { background:var(--card); border:1px solid #eee; border-radius:12px; padding:12px; }
+  .card h3 { margin:0 0 6px 0; font-size:1rem; }
+  .card p  { margin:0; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:.9rem; color:#333; margin-top:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; vertical-align:middle; margin-right:6px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Quadratic: y = p(x + q)² + r</h2>
+    <p>Move the sliders for <b>p</b>, <b>q</b>, and <b>r</b>. The plot shows the vertex, y‑intercept, and real roots (if they exist). Discriminant for this form simplifies to D = −4pr.</p>
+
+    <div class="controls">
+      <div class="row">
+        <label for="p">p</label>
+        <input type="range" id="p" min="-5" max="5" step="0.1" value="1">
+        <output id="pVal">1</output>
+      </div>
+      <div class="row">
+        <label for="q">q</label>
+        <input type="range" id="q" min="-10" max="10" step="0.1" value="0">
+        <output id="qVal">0</output>
+      </div>
+      <div class="row">
+        <label for="r">r</label>
+        <input type="range" id="r" min="-10" max="10" step="0.1" value="0">
+        <output id="rVal">0</output>
+      </div>
+
+      <div class="bar" style="grid-column: 1 / -1;">
+        <button class="btn" id="reset">Reset</button>
+        <div class="eq"><b>y</b> = <span id="eqP">1</span>(x <span id="eqQ">+ 0</span>)² <span id="eqR">+ 0</span></div>
+      </div>
+      <div class="legend" style="grid-column: 1 / -1;">
+        <div><span class="dot" style="background:var(--vertex)"></span>Vertex</div>
+        <div><span class="dot" style="background:var(--root)"></span>Real roots</div>
+        <div><span class="dot" style="background:var(--yint)"></span>y‑intercept</div>
+      </div>
+    </div>
+
+    <svg id="graph" width="760" height="460" viewBox="0 0 760 460" preserveAspectRatio="xMidYMid meet" aria-label="Quadratic graph"></svg>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Key facts</h3>
+        <p>Standard form: a = <b><span id="aStd">1</span></b>, b = <b><span id="bStd">0</span></b>, c = <b><span id="cStd">0</span></b></p>
+        <p>Discriminant D = <b><span id="disc">0</span></b> (D = −4pr)</p>
+        <p>Axis of symmetry: x = <b><span id="axis">0</span></b></p>
+        <p>Vertex V = (<b><span id="vx">0</span></b>, <b><span id="vy">0</span></b>)</p>
+        <p>Opens: <b><span id="opens">upwards</span></b></p>
+      </div>
+      <div class="card">
+        <h3>Intercepts & Roots</h3>
+        <p>y‑intercept: (<b>0</b>, <b><span id="yint">0</span></b>)</p>
+        <p id="rootsText">p = 0 → Not a quadratic (line).</p>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  const svg = document.getElementById("graph");
+  const pSlider = document.getElementById("p");
+  const qSlider = document.getElementById("q");
+  const rSlider = document.getElementById("r");
+  const pVal = document.getElementById("pVal");
+  const qVal = document.getElementById("qVal");
+  const rVal = document.getElementById("rVal");
+  const resetBtn = document.getElementById("reset");
+
+  const eqP = document.getElementById("eqP");
+  const eqQ = document.getElementById("eqQ");
+  const eqR = document.getElementById("eqR");
+
+  const aStdEl = document.getElementById("aStd");
+  const bStdEl = document.getElementById("bStd");
+  const cStdEl = document.getElementById("cStd");
+
+  const discEl = document.getElementById("disc");
+  const axisEl = document.getElementById("axis");
+  const vxEl = document.getElementById("vx");
+  const vyEl = document.getElementById("vy");
+  const opensEl = document.getElementById("opens");
+  const yintEl = document.getElementById("yint");
+  const rootsText = document.getElementById("rootsText");
+
+  const width = 760;
+  const height = 460;
+  const padding = 44;
+  const xMin = -10, xMax = 10;
+  const yMin = -10, yMax = 10;
+
+  const NS = "http://www.w3.org/2000/svg";
+
+  function xScale(x){ return padding + ((x - xMin) / (xMax - xMin)) * (width - 2*padding); }
+  function yScale(y){ return height - padding - ((y - yMin) / (yMax - yMin)) * (height - 2*padding); }
+
+  function add(tag, attrs, parent=svg){
+    const el = document.createElementNS(NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    parent.appendChild(el);
+    return el;
+  }
+
+  function fmt(v){
+    if (!isFinite(v)) return "–";
+    const a = Math.abs(v);
+    const dp = a < 1 ? 3 : a < 10 ? 2 : 1;
+    return (+v.toFixed(dp)).toString();
+  }
+
+  function within(x, y){
+    return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+  }
+
+  function draw(){
+    const p = parseFloat(pSlider.value);
+    const q = parseFloat(qSlider.value);
+    const r = parseFloat(rSlider.value);
+
+    pVal.textContent = p;
+    qVal.textContent = q;
+    rVal.textContent = r;
+
+    // Update equation display
+    eqP.textContent = fmt(p);
+    eqQ.textContent = (q >= 0 ? " + " : " ") + fmt(q);
+    eqR.textContent = (r >= 0 ? " + " : " ") + fmt(r);
+
+    svg.innerHTML = "";
+
+    // grid
+    for (let gx = Math.ceil(xMin); gx <= xMax; gx++) {
+      add("line", { x1:xScale(gx), y1:yScale(yMin), x2:xScale(gx), y2:yScale(yMax), stroke:"#f2f2f2" });
+    }
+    for (let gy = Math.ceil(yMin); gy <= yMax; gy++) {
+      add("line", { x1:xScale(xMin), y1:yScale(gy), x2:xScale(xMax), y2:yScale(gy), stroke:"#f2f2f2" });
+    }
+
+    // axes
+    add("line", { x1:xScale(xMin), y1:yScale(0), x2:xScale(xMax), y2:yScale(0), stroke:"#888" });
+    add("line", { x1:xScale(0), y1:yScale(yMin), x2:xScale(0), y2:yScale(yMax), stroke:"#888" });
+
+    // ticks and labels
+    for (let gx = Math.ceil(xMin); gx <= xMax; gx++) {
+      add("line", { x1:xScale(gx), y1:yScale(0)-4, x2:xScale(gx), y2:yScale(0)+4, stroke:"#888" });
+      if (gx !== 0) add("text", { x:xScale(gx), y:yScale(0)+16, "font-size":"11", "text-anchor":"middle", fill:"#666" }).textContent = gx;
+    }
+    for (let gy = Math.ceil(yMin); gy <= yMax; gy++) {
+      add("line", { x1:xScale(0)-4, y1:yScale(gy), x2:xScale(0)+4, y2:yScale(gy), stroke:"#888" });
+      if (gy !== 0) add("text", { x:xScale(0)-8, y:yScale(gy)+4, "font-size":"11", "text-anchor":"end", fill:"#666" }).textContent = gy;
+    }
+    add("text", { x:xScale(xMax)-6, y:yScale(0)-8, "font-size":"12", fill:"#444" }).textContent = "x";
+    add("text", { x:xScale(0)+8, y:yScale(yMax)+4, "font-size":"12", fill:"#444" }).textContent = "y";
+
+    // curve y = p(x+q)^2 + r
+    const n = 500;
+    let pts = "";
+    for (let i=0;i<=n;i++){
+      const x = xMin + (i/n)*(xMax-xMin);
+      const y = p*(x+q)*(x+q) + r;
+      pts += (i? " ":"") + xScale(x)+","+yScale(y);
+    }
+    add("polyline", { points: pts, fill:"none", stroke:"var(--primary)", "stroke-width":"2.5" });
+
+    // y-intercept
+    const y0 = p*q*q + r;
+    if (y0 >= yMin && y0 <= yMax){
+      add("circle", { cx:xScale(0), cy:yScale(y0), r:4, fill:"var(--yint)" });
+      add("text", { x:xScale(0)+6, y:yScale(y0)-6, "font-size":"11", fill:"var(--yint)" }).textContent = "(0, "+fmt(y0)+")";
+    }
+    yintEl.textContent = fmt(y0);
+
+    // vertex
+    const vx = -q;
+    const vy = r;
+    if (within(vx, vy)){
+      add("circle", { cx:xScale(vx), cy:yScale(vy), r:4.5, fill:"var(--vertex)" });
+      add("text", { x:xScale(vx)+6, y:yScale(vy)-6, "font-size":"11", fill:"var(--vertex)" }).textContent = "V("+fmt(vx)+", "+fmt(vy)+")";
+    }
+
+    // standard form coefficients
+    const a = p;
+    const b = 2*p*q;
+    const c = p*q*q + r;
+    aStdEl.textContent = fmt(a);
+    bStdEl.textContent = fmt(b);
+    cStdEl.textContent = fmt(c);
+
+    // discriminant (simplifies to -4pr)
+    const D = b*b - 4*a*c;
+    discEl.textContent = fmt(D);
+    axisEl.textContent = fmt(-q);
+    vxEl.textContent = fmt(vx);
+    vyEl.textContent = fmt(vy);
+    opensEl.textContent = (p === 0) ? "(p = 0, line)" : (p > 0 ? "upwards" : "downwards");
+
+    // roots
+    if (p === 0){
+      rootsText.textContent = "p = 0 → Not a quadratic.";
+    } else if (D < 0){
+      rootsText.textContent = "No real roots (D < 0).";
+    } else {
+      const s = Math.sqrt(D);
+      const x1 = (-b - s)/(2*a);
+      const x2 = (-b + s)/(2*a);
+      if (x1 >= xMin && x1 <= xMax){
+        add("circle", { cx:xScale(x1), cy:yScale(0), r:4, fill:"var(--root)" });
+        add("text", { x:xScale(x1)+6, y:yScale(0)-6, "font-size":"11", fill:"var(--root)" }).textContent = "x₁="+fmt(x1);
+      }
+      if (x2 !== x1 && x2 >= xMin && x2 <= xMax){
+        add("circle", { cx:xScale(x2), cy:yScale(0), r:4, fill:"var(--root)" });
+        add("text", { x:xScale(x2)+6, y:yScale(0)-6, "font-size":"11", fill:"var(--root)" }).textContent = "x₂="+fmt(x2);
+      }
+      rootsText.textContent = D === 0 ? "One repeated real root at x = " + fmt(x1) : "Real roots at x = " + fmt(x1) + " and " + fmt(x2);
+    }
+  }
+
+  function reset(){
+    pSlider.value = 1;
+    qSlider.value = 0;
+    rSlider.value = 0;
+    draw();
+  }
+
+  pSlider.addEventListener("input", draw);
+  qSlider.addEventListener("input", draw);
+  rSlider.addEventListener("input", draw);
+  resetBtn.addEventListener("click", reset);
+
+  draw();
+})();
+</script>
+</body>
+</html>
