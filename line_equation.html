@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Straight Line Grapher</title>
+<style>
+  :root { --card:#fff; --muted:#666; --grid:#f2f2f2; --axis:#888; --primary:#2563eb; --xint:#7c3aed; --yint:#16a34a; }
+  html,body { margin:0; padding:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:#111; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 16px; }
+  h2 { margin: 0 0 6px 0; font-size: 1.25rem; }
+  p  { margin: 0 0 10px 0; color:#444; }
+  .controls { display:grid; grid-template-columns: auto 1fr auto; gap:.6rem .8rem; align-items:center; background:#fafafa; border:1px solid #e8e8e8; border-radius:12px; padding:12px; }
+  .row { display: contents; }
+  label { font-weight:600; }
+  output { font-variant-numeric: tabular-nums; text-align:right; }
+  .bar { display:flex; gap:8px; align-items:center; margin-top:8px; }
+  .btn { padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer; }
+  .eq { margin-left:auto; color:#333; white-space:nowrap; }
+  svg { background:#fff; border:1px solid #eee; border-radius:12px; display:block; max-width:100%; height:auto; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin-top:12px; }
+  .card { background:var(--card); border:1px solid #eee; border-radius:12px; padding:12px; }
+  .card h3 { margin:0 0 6px 0; font-size:1rem; }
+  .card p  { margin:0; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; font-size:.9rem; color:#333; margin-top:6px; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; vertical-align:middle; margin-right:6px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Straight Line: y = m x + c</h2>
+    <p>Move the sliders for <b>m</b> (gradient) and <b>c</b> (y‑intercept). The plot shows the x- and y‑intercepts if visible.</p>
+
+    <div class="controls">
+      <div class="row">
+        <label for="m">m</label>
+        <input type="range" id="m" min="-5" max="5" step="0.1" value="1">
+        <output id="mVal">1</output>
+      </div>
+      <div class="row">
+        <label for="c">c</label>
+        <input type="range" id="c" min="-10" max="10" step="0.1" value="0">
+        <output id="cVal">0</output>
+      </div>
+
+      <div class="bar" style="grid-column: 1 / -1;">
+        <button class="btn" id="reset">Reset</button>
+        <div class="eq"><b>y</b> = <span id="eqM">1</span>x <span id="eqC">+ 0</span></div>
+      </div>
+      <div class="legend" style="grid-column: 1 / -1;">
+        <div><span class="dot" style="background:var(--xint)"></span>x‑intercept</div>
+        <div><span class="dot" style="background:var(--yint)"></span>y‑intercept</div>
+      </div>
+    </div>
+
+    <svg id="graph" width="760" height="460" viewBox="0 0 760 460" preserveAspectRatio="xMidYMid meet" aria-label="Line graph"></svg>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Intercepts</h3>
+        <p>x‑intercept: (<span id="xint">0</span>, 0)</p>
+        <p>y‑intercept: (0, <span id="yint">0</span>)</p>
+      </div>
+      <div class="card">
+        <h3>Gradient</h3>
+        <p>m = <span id="mDisp">1</span></p>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function() {
+  const svg = document.getElementById("graph");
+  const mSlider = document.getElementById("m");
+  const cSlider = document.getElementById("c");
+  const mVal = document.getElementById("mVal");
+  const cVal = document.getElementById("cVal");
+  const resetBtn = document.getElementById("reset");
+
+  const eqM = document.getElementById("eqM");
+  const eqC = document.getElementById("eqC");
+
+  const mDisp = document.getElementById("mDisp");
+  const xintEl = document.getElementById("xint");
+  const yintEl = document.getElementById("yint");
+
+  const width = 760;
+  const height = 460;
+  const padding = 44;
+  const xMin = -10, xMax = 10;
+  const yMin = -10, yMax = 10;
+
+  const NS = "http://www.w3.org/2000/svg";
+
+  function xScale(x){ return padding + ((x - xMin) / (xMax - xMin)) * (width - 2*padding); }
+  function yScale(y){ return height - padding - ((y - yMin) / (yMax - yMin)) * (height - 2*padding); }
+
+  function add(tag, attrs, parent=svg){
+    const el = document.createElementNS(NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    parent.appendChild(el);
+    return el;
+  }
+
+  function fmt(v){
+    if (!isFinite(v)) return "–";
+    const a = Math.abs(v);
+    const dp = a < 1 ? 3 : a < 10 ? 2 : 1;
+    return (+v.toFixed(dp)).toString();
+  }
+
+  function draw(){
+    const m = parseFloat(mSlider.value);
+    const c = parseFloat(cSlider.value);
+    mVal.textContent = m;
+    cVal.textContent = c;
+
+    eqM.textContent = fmt(m);
+    eqC.textContent = (c >= 0 ? " + " : " ") + fmt(c);
+    mDisp.textContent = fmt(m);
+
+    svg.innerHTML = "";
+
+    // grid
+    for (let gx = Math.ceil(xMin); gx <= xMax; gx++) {
+      add("line", { x1:xScale(gx), y1:yScale(yMin), x2:xScale(gx), y2:yScale(yMax), stroke:"#f2f2f2" });
+    }
+    for (let gy = Math.ceil(yMin); gy <= yMax; gy++) {
+      add("line", { x1:xScale(xMin), y1:yScale(gy), x2:xScale(xMax), y2:yScale(gy), stroke:"#f2f2f2" });
+    }
+
+    // axes
+    add("line", { x1:xScale(xMin), y1:yScale(0), x2:xScale(xMax), y2:yScale(0), stroke:"#888" });
+    add("line", { x1:xScale(0), y1:yScale(yMin), x2:xScale(0), y2:yScale(yMax), stroke:"#888" });
+
+    // ticks + labels
+    for (let gx = Math.ceil(xMin); gx <= xMax; gx++) {
+      add("line", { x1:xScale(gx), y1:yScale(0)-4, x2:xScale(gx), y2:yScale(0)+4, stroke:"#888" });
+      if (gx !== 0) add("text", { x:xScale(gx), y:yScale(0)+16, "font-size":"11", "text-anchor":"middle", fill:"#666" }).textContent = gx;
+    }
+    for (let gy = Math.ceil(yMin); gy <= yMax; gy++) {
+      add("line", { x1:xScale(0)-4, y1:yScale(gy), x2:xScale(0)+4, y2:yScale(gy), stroke:"#888" });
+      if (gy !== 0) add("text", { x:xScale(0)-8, y:yScale(gy)+4, "font-size":"11", "text-anchor":"end", fill:"#666" }).textContent = gy;
+    }
+    add("text", { x:xScale(xMax)-6, y:yScale(0)-8, "font-size":"12", fill:"#444" }).textContent = "x";
+    add("text", { x:xScale(0)+8, y:yScale(yMax)+4, "font-size":"12", fill:"#444" }).textContent = "y";
+
+    // line y = mx + c
+    const x1 = xMin;
+    const y1 = m*x1 + c;
+    const x2 = xMax;
+    const y2 = m*x2 + c;
+    add("line", { x1:xScale(x1), y1:yScale(y1), x2:xScale(x2), y2:yScale(y2), stroke:"var(--primary)", "stroke-width":"2.5" });
+
+    // y-intercept
+    if (c >= yMin && c <= yMax){
+      add("circle", { cx:xScale(0), cy:yScale(c), r:4, fill:"var(--yint)" });
+      add("text", { x:xScale(0)+6, y:yScale(c)-6, "font-size":"11", fill:"var(--yint)" }).textContent = "(0, "+fmt(c)+")";
+    }
+    yintEl.textContent = fmt(c);
+
+    // x-intercept
+    if (m !== 0){
+      const xi = -c/m;
+      if (xi >= xMin && xi <= xMax){
+        add("circle", { cx:xScale(xi), cy:yScale(0), r:4, fill:"var(--xint)" });
+        add("text", { x:xScale(xi)+6, y:yScale(0)-6, "font-size":"11", fill:"var(--xint)" }).textContent = "("+fmt(xi)+", 0)";
+      }
+      xintEl.textContent = fmt(xi);
+    } else {
+      xintEl.textContent = "–";
+    }
+  }
+
+  function reset(){
+    mSlider.value = 1;
+    cSlider.value = 0;
+    draw();
+  }
+
+  mSlider.addEventListener("input", draw);
+  cSlider.addEventListener("input", draw);
+  resetBtn.addEventListener("click", reset);
+
+  draw();
+})();
+</script>
+</body>
+</html>
