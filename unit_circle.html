@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unit Circle ↔ sin, cos, tan (degrees)</title>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#121a2b; --ink:#e8eefc; --muted:#90a2c0;
+      --sin:#e25555; --cos:#4e8cf7; --tan:#3fbf7f; --accent:#ffd166;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
+      color:var(--ink); background:radial-gradient(1200px 800px at 10% -10%, #16223a, var(--bg));
+      display:flex; flex-direction:column; gap:12px; padding:18px;
+    }
+    header{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
+    h1{font-size:18px; margin:0; font-weight:600; letter-spacing:.2px}
+    .controls{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00));
+      border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:14px; box-shadow:0 6px 24px rgba(0,0,0,.25);
+    }
+    .layout{display:grid; grid-template-columns:1fr 2fr; gap:14px; min-height:0}
+    @media (max-width:1000px){.layout{grid-template-columns:1fr}}
+    .row{display:grid; grid-template-rows:auto 1fr; gap:10px}
+    label{font-size:14px; color:var(--muted)}
+    input[type=range]{width:min(70vw,520px)}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:#0e172a; border:1px solid rgba(255,255,255,.06)}
+    .legend{display:flex; gap:10px; flex-wrap:wrap}
+    .key{display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--muted)}
+    .dot{width:11px; height:11px; border-radius:50%}
+    .sin{background:var(--sin)} .cos{background:var(--cos)} .tan{background:var(--tan)}
+    .grid{stroke:#2a3552; stroke-width:1}
+    .axis{stroke:#4b5d82; stroke-width:1.2}
+    .guide{stroke:var(--accent); stroke-width:1.5; stroke-dasharray:5 4}
+    .point{fill:var(--accent); stroke:#000; stroke-width:0.5}
+    .proj{stroke:var(--accent); stroke-width:1; stroke-dasharray:4 4}
+    .curve-sin{fill:none; stroke:var(--sin); stroke-width:2}
+    .curve-cos{fill:none; stroke:var(--cos); stroke-width:2}
+    .curve-tan{fill:none; stroke:var(--tan); stroke-width:2}
+    .asym{stroke:#996; stroke-width:1; stroke-dasharray:6 6; opacity:.7}
+    .tick{stroke:#6379a4; stroke-width:.9}
+    .label{fill:var(--muted); font-size:12px}
+    .badge{font-weight:600; font-variant-numeric:tabular-nums}
+    footer{color:var(--muted); font-size:12px; margin-top:6px}
+    .mono{font-variant-numeric:tabular-nums; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
+    /* new controls */
+    .btn{appearance:none; border:1px solid rgba(255,255,255,.14); background:#0f1830; color:var(--ink); padding:6px 10px; border-radius:10px; cursor:pointer}
+    .btn:hover{background:#132041}
+    .btn[data-state="playing"]{background:#1d2a4d; border-color:#2d3f6f}
+    .controls .sep{width:1px; height:24px; background:rgba(255,255,255,.12); margin:0 6px}
+    .controls .toggles{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .controls .toggles label{display:inline-flex; align-items:center; gap:6px; cursor:pointer}
+    select{background:#0f1830; color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:6px 8px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Unit Circle ↔ <span style="color:var(--sin)">sin</span>, <span style="color:var(--cos)">cos</span>, <span style="color:var(--tan)">tan</span> (degrees)</h1>
+    <div class="controls card">
+      <label for="deg">Angle x (°)</label>
+      <input id="deg" type="range" min="-360" max="360" step="1" value="30" />
+      <span class="pill"><span>θ =</span> <span id="degOut" class="badge mono">30.0°</span> <span>≡</span> <span id="radOut" class="mono">0.524 rad</span></span>
+
+      <span class="sep"></span>
+
+      <button id="btnPlay" class="btn" aria-pressed="false" title="Play/Pause animation">▶ Play</button>
+      <label class="key" for="speed">Speed</label>
+      <select id="speed" aria-label="Animation speed (deg/s)">
+        <option value="15">15°/s</option>
+        <option value="30" selected>30°/s</option>
+        <option value="60">60°/s</option>
+        <option value="120">120°/s</option>
+      </select>
+
+      <span class="sep"></span>
+
+      <div class="toggles">
+        <label class="key"><input type="checkbox" id="chkSin" checked /> <span class="dot sin"></span>sin(x)</label>
+        <label class="key"><input type="checkbox" id="chkCos" checked /> <span class="dot cos"></span>cos(x)</label>
+        <label class="key"><input type="checkbox" id="chkTan" checked /> <span class="dot tan"></span>tan(x)</label>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT: Unit circle -->
+    <section class="card row">
+      <label>Unit circle (radius = 1)</label>
+      <svg id="circleSvg" viewBox="-140 -140 280 280" role="img" aria-label="Unit circle diagram" style="width:100%; height:100%; min-height:320px">
+        <!-- grid -->
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" class="grid"/>
+          </pattern>
+        </defs>
+        <rect x="-140" y="-140" width="280" height="280" fill="url(#grid)"/>
+        <!-- axes -->
+        <line x1="-120" y1="0" x2="120" y2="0" class="axis"/>
+        <line x1="0" y1="-120" x2="0" y2="120" class="axis"/>
+        <text x="122" y="-4" class="label">x</text>
+        <text x="4" y="-124" class="label">y</text>
+        <!-- circle -->
+        <circle cx="0" cy="0" r="100" fill="none" stroke="#6a7fb0" stroke-width="1.5"/>
+        <!-- angle guide -->
+        <line id="angleGuide" x1="0" y1="0" x2="100" y2="0" class="guide"/>
+        <!-- projections to axes -->
+        <line id="projX" class="proj" x1="0" y1="0" x2="0" y2="0"/>
+        <line id="projY" class="proj" x1="0" y1="0" x2="0" y2="0"/>
+        <!-- point on circle -->
+        <circle id="P" r="4" class="point" cx="86" cy="-50"/>
+        <text id="ptLabel" x="8" y="-8" class="label mono"></text>
+        <!-- cos and sin braces/labels -->
+        <text id="cosLabel" x="0" y="14" class="label mono"></text>
+        <text id="sinLabel" x="4" y="-4" class="label mono"></text>
+      </svg>
+    </section>
+
+    <!-- RIGHT: Graphs -->
+    <section class="card row">
+      <label>y = sin(x), y = cos(x), y = tan(x)</label>
+      <svg id="graphSvg" viewBox="0 0 900 540" role="img" aria-label="Graphs of sine, cosine, tangent" style="width:100%; height:100%; min-height:320px">
+        <!-- Three stacked plots: each 160px high + 20px gap -->
+        <g id="plot-sin" transform="translate(40,20)"></g>
+        <g id="plot-cos" transform="translate(40,200)"></g>
+        <g id="plot-tan" transform="translate(40,380)"></g>
+      </svg>
+    </section>
+  </div>
+
+  <footer>
+    Drag the slider or use arrow keys. Values clamp visually for tan outside ±4 to keep it readable; asymptotes are shown at 90° + k·180°.
+  </footer>
+
+  <script>
+    // ==== Utilities ====
+    const d2r = deg => deg * Math.PI / 180;
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+    // ==== DOM handles ====
+    const degInput = document.getElementById('deg');
+    const degOut = document.getElementById('degOut');
+    const radOut = document.getElementById('radOut');
+
+    const angleGuide = document.getElementById('angleGuide');
+    const projX = document.getElementById('projX');
+    const projY = document.getElementById('projY');
+    const P = document.getElementById('P');
+    const ptLabel = document.getElementById('ptLabel');
+    const cosLabel = document.getElementById('cosLabel');
+    const sinLabel = document.getElementById('sinLabel');
+
+    const gSin = document.getElementById('plot-sin');
+    const gCos = document.getElementById('plot-cos');
+    const gTan = document.getElementById('plot-tan');
+
+    // New controls
+    const btnPlay = document.getElementById('btnPlay');
+    const speedSel = document.getElementById('speed');
+    const chkSin = document.getElementById('chkSin');
+    const chkCos = document.getElementById('chkCos');
+    const chkTan = document.getElementById('chkTan');
+
+    // ==== Plot setup ====
+    const WIDTH = 820, HEIGHT = 160; // per plot
+    const rangeDeg = {min: -360, max: 360};
+
+    function makePlot(group, colorClass, title){
+      // frame
+      const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      bg.setAttribute('x', 0); bg.setAttribute('y', 0); bg.setAttribute('width', WIDTH); bg.setAttribute('height', HEIGHT);
+      bg.setAttribute('fill', 'none');
+      group.appendChild(bg);
+
+      // horizontal grid lines for y = -1, 0, 1
+      const yMap = y => HEIGHT/2 - y * (HEIGHT/2 - 20);
+      [-1, -0.5, 0, 0.5, 1].forEach(y => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', 0); line.setAttribute('x2', WIDTH);
+        line.setAttribute('y1', yMap(y)); line.setAttribute('y2', yMap(y));
+        line.setAttribute('class', y === 0 ? 'axis' : 'grid');
+        group.appendChild(line);
+      });
+
+      // vertical grid every 90°
+      for(let deg=-360; deg<=360; deg+=90){
+        const x = (deg - rangeDeg.min) / (rangeDeg.max - rangeDeg.min) * WIDTH;
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', x); line.setAttribute('x2', x);
+        line.setAttribute('y1', 0); line.setAttribute('y2', HEIGHT);
+        line.setAttribute('class', deg===0 ? 'axis' : 'grid');
+        group.appendChild(line);
+
+        const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+        t.setAttribute('x', x+2); t.setAttribute('y', HEIGHT-6); t.setAttribute('class','label');
+        t.textContent = `${deg}°`;
+        group.appendChild(t);
+      }
+
+      // title label
+      const tlabel = document.createElementNS('http://www.w3.org/2000/svg','text');
+      tlabel.setAttribute('x', 6); tlabel.setAttribute('y', 14); tlabel.setAttribute('class','label');
+      tlabel.textContent = title;
+      group.appendChild(tlabel);
+
+      // current x guide
+      const vGuide = document.createElementNS('http://www.w3.org/2000/svg','line');
+      vGuide.setAttribute('y1', 0); vGuide.setAttribute('y2', HEIGHT);
+      vGuide.setAttribute('class','guide');
+      group.appendChild(vGuide);
+
+      // curve path
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class', colorClass);
+      group.appendChild(path);
+
+      // current point
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('r', 4); dot.setAttribute('class','point');
+      group.appendChild(dot);
+
+      return {path, dot, vGuide, yMap};
+    }
+
+    const plotSin = makePlot(gSin, 'curve-sin', 'y = sin(x)');
+    const plotCos = makePlot(gCos, 'curve-cos', 'y = cos(x)');
+
+    // Tan plot needs different y mapping and asymptotes
+    function makeTanPlot(group){
+      const WIDTH_T = WIDTH, HEIGHT_T = HEIGHT;
+      const yMap = y => HEIGHT_T/2 - (y/4) * (HEIGHT_T/2 - 20);
+      for(let gy=-4; gy<=4; gy+=1){
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1',0); line.setAttribute('x2',WIDTH_T);
+        line.setAttribute('y1', yMap(gy)); line.setAttribute('y2', yMap(gy));
+        line.setAttribute('class', gy===0 ? 'axis' : 'grid');
+        group.appendChild(line);
+      }
+      for(let deg=-360; deg<=360; deg+=90){
+        const x = (deg - rangeDeg.min) / (rangeDeg.max - rangeDeg.min) * WIDTH_T;
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', x); line.setAttribute('x2', x);
+        line.setAttribute('y1', 0); line.setAttribute('y2', HEIGHT_T);
+        line.setAttribute('class', deg===0 ? 'axis' : 'grid');
+        group.appendChild(line);
+
+        const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+        t.setAttribute('x', x+2); t.setAttribute('y', HEIGHT_T-6); t.setAttribute('class','label');
+        t.textContent = `${deg}°`;
+        group.appendChild(t);
+      }
+      // asymptotes at odd multiples of 90°: 90 + k·180
+      for(let k=-3; k<=3; k++){
+        const ad = 90 + 180*k;
+        const x = (ad - rangeDeg.min) / (rangeDeg.max - rangeDeg.min) * WIDTH_T;
+        const a = document.createElementNS('http://www.w3.org/2000/svg','line');
+        a.setAttribute('x1', x); a.setAttribute('x2', x); a.setAttribute('y1',0); a.setAttribute('y2',HEIGHT_T); a.setAttribute('class','asym');
+        group.appendChild(a);
+      }
+      const title = document.createElementNS('http://www.w3.org/2000/svg','text');
+      title.setAttribute('x', 6); title.setAttribute('y', 14); title.setAttribute('class','label');
+      title.textContent = 'y = tan(x)';
+      group.appendChild(title);
+
+      const vGuide = document.createElementNS('http://www.w3.org/2000/svg','line');
+      vGuide.setAttribute('y1', 0); vGuide.setAttribute('y2', HEIGHT_T); vGuide.setAttribute('class','guide');
+      group.appendChild(vGuide);
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','curve-tan');
+      group.appendChild(path);
+
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('r',4); dot.setAttribute('class','point');
+      group.appendChild(dot);
+
+      return {path, dot, vGuide, yMap};
+    }
+
+    const plotTan = makeTanPlot(gTan);
+
+    // Precompute curves
+    function buildPath(fn, yMap){
+      const step = 1; // 1°
+      let d = '';
+      let move = true;
+      for(let deg=-360; deg<=360; deg+=step){
+        let y = fn(d2r(deg));
+        if(!isFinite(y)) { move = true; continue; }
+        if (Math.abs(y) > 50) { move = true; continue; } // keep tan legible
+        const x = (deg - rangeDeg.min) / (rangeDeg.max - rangeDeg.min) * WIDTH;
+        const Y = yMap(y);
+        d += (move ? 'M' : ' L') + x.toFixed(2) + ' ' + Y.toFixed(2);
+        move = false;
+      }
+      return d;
+    }
+
+    function updateCurves(){
+      plotSin.path.setAttribute('d', buildPath(Math.sin, plotSin.yMap));
+      plotCos.path.setAttribute('d', buildPath(Math.cos, plotCos.yMap));
+      plotTan.path.setAttribute('d', buildPath(Math.tan, plotTan.yMap));
+    }
+    updateCurves();
+
+    // ==== Interaction ====
+    function update(thetaDeg){
+      // UI badges
+      degOut.textContent = thetaDeg.toFixed(1) + '°';
+      const rad = d2r(thetaDeg);
+      radOut.textContent = rad.toFixed(3) + ' rad';
+
+      // Point on unit circle
+      const x = Math.cos(rad) * 100;
+      const y = Math.sin(rad) * 100;
+      P.setAttribute('cx', x);
+      P.setAttribute('cy', -y);
+
+      // Angle guide
+      angleGuide.setAttribute('x2', x);
+      angleGuide.setAttribute('y2', -y);
+
+      // Projections
+      projX.setAttribute('x1', 0); projX.setAttribute('y1', 0);
+      projX.setAttribute('x2', x); projX.setAttribute('y2', 0);
+      projY.setAttribute('x1', x); projY.setAttribute('y1', 0);
+      projY.setAttribute('x2', x); projY.setAttribute('y2', -y);
+
+      // Labels near point
+      ptLabel.setAttribute('x', x + 8);
+      ptLabel.setAttribute('y', -y - 8);
+      ptLabel.textContent = `(${(x/100).toFixed(3)}, ${(y/100).toFixed(3)})`;
+      cosLabel.textContent = `cos x = ${(x/100).toFixed(3)}`;
+      sinLabel.textContent = `sin x = ${(y/100).toFixed(3)}`;
+
+      // Graph guides & dots
+      const xPix = (thetaDeg - rangeDeg.min) / (rangeDeg.max - rangeDeg.min) * WIDTH;
+
+      [plotSin, plotCos, plotTan].forEach(p => p.vGuide.setAttribute('x1', xPix));
+      [plotSin, plotCos, plotTan].forEach(p => p.vGuide.setAttribute('x2', xPix));
+
+      plotSin.dot.setAttribute('cx', xPix);
+      plotSin.dot.setAttribute('cy', plotSin.yMap(Math.sin(rad)));
+
+      plotCos.dot.setAttribute('cx', xPix);
+      plotCos.dot.setAttribute('cy', plotCos.yMap(Math.cos(rad)));
+
+      let ty = Math.tan(rad);
+      if (!isFinite(ty)) { ty = NaN; }
+      plotTan.dot.setAttribute('cx', xPix);
+      const clamped = clamp(ty, -4, 4);
+      plotTan.dot.setAttribute('cy', plotTan.yMap(clamped));
+      plotTan.dot.style.opacity = isNaN(ty) ? 0 : 1;
+    }
+
+    // show/hide graphs
+    function applyVisibility(){
+      gSin.style.display = chkSin.checked ? '' : 'none';
+      gCos.style.display = chkCos.checked ? '' : 'none';
+      gTan.style.display = chkTan.checked ? '' : 'none';
+    }
+
+    // Animation
+    let playing = false;
+    let rafId = null;
+    let prevTs = null;
+
+    function loop(ts){
+      if(!playing){ rafId = null; prevTs = null; return; }
+      if(prevTs === null) { prevTs = ts; }
+      const dt = (ts - prevTs) / 1000; // seconds
+      prevTs = ts;
+      const speed = parseFloat(speedSel.value) || 30; // deg/s
+      let deg = parseFloat(degInput.value);
+      deg += dt * speed;
+      // wrap into [-360, 360]
+      if(deg > 360) deg = -360 + (deg - 360);
+      if(deg < -360) deg = 360 - (-360 - deg);
+      degInput.value = deg;
+      update(deg);
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function setPlaying(state){
+      playing = state;
+      btnPlay.setAttribute('aria-pressed', state ? 'true' : 'false');
+      btnPlay.dataset.state = state ? 'playing' : '';
+      btnPlay.textContent = state ? '❚❚ Pause' : '▶ Play';
+      if(state && !rafId){ rafId = requestAnimationFrame(loop); }
+    }
+
+    // initialize and wire up events
+    update(parseFloat(degInput.value));
+    applyVisibility();
+
+    degInput.addEventListener('input', e => { setPlaying(false); update(parseFloat(e.target.value)); });
+    degInput.addEventListener('keydown', e => {
+      if(e.key === 'ArrowLeft'){ setPlaying(false); degInput.value = (+degInput.value - 1); update(+degInput.value); }
+      if(e.key === 'ArrowRight'){ setPlaying(false); degInput.value = (+degInput.value + 1); update(+degInput.value); }
+    });
+
+    btnPlay.addEventListener('click', () => setPlaying(!playing));
+    [chkSin, chkCos, chkTan].forEach(el => el.addEventListener('change', applyVisibility));
+
+    // (SVG is responsive via viewBox; no resize handler needed)
+  </script>
+</body>
+</html>
