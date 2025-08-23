@@ -232,6 +232,12 @@
     const bctx = balance.getContext('2d');
     const gctx = graph.getContext('2d');
 
+    // Helper to read CSS variables safely (works across browsers)
+    const cssVar = (name, fallback)=>{
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    };
+
     // Utilities
     const almost = (x,y,eps=1e-9)=>Math.abs(x-y) < eps;
 
@@ -407,16 +413,16 @@
     }
 
     function drawXTile(ctx,x,y,w,h,sign,frac){
-      const col = sign<0? 'var(--tile-neg)': 'var(--tile-x)';
-      ctx.save(); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(col); ctx.strokeStyle='#1c2738';
+      const color = sign<0 ? cssVar('--tile-neg','#fb7185') : cssVar('--tile-x','#4ade80');
+      ctx.save(); ctx.fillStyle = color; ctx.strokeStyle='#1c2738';
       roundRect(ctx,x,y,w,h,6,true,true); ctx.fillStyle='#0c1320'; ctx.font='bold 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
       const label = (sign<0?'-':'') + (frac? toNice(frac):'') + 'x';
       ctx.fillText(label, x+w/2, y+h/2);
       ctx.restore();
     }
     function drawNumTile(ctx,x,y,w,h,sign,frac){
-      const col = sign<0? 'var(--tile-neg)': 'var(--tile-num)';
-      ctx.save(); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(col); ctx.strokeStyle='#1c2738';
+      const color = sign<0 ? cssVar('--tile-neg','#fb7185') : cssVar('--tile-num','#fbbf24');
+      ctx.save(); ctx.fillStyle = color; ctx.strokeStyle='#1c2738';
       roundRect(ctx,x,y,w,h,6,true,true); ctx.fillStyle='#0c1320'; ctx.font='bold 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
       const val = (sign<0?'-':'') + (frac? toNice(frac):'1');
       ctx.fillText(val, x+w/2, y+h/2);
