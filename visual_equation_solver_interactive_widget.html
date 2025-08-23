@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Visual Equation Solver — Interactive Widget</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#121823;
+      --muted:#98a2b3;
+      --text:#e6edf3;
+      --accent:#7c3aed; /* purple */
+      --accent-2:#00d3a7; /* teal */
+      --danger:#ef4444;
+      --good:#10b981;
+      --tile-x:#4ade80; /* green */
+      --tile-num:#fbbf24; /* amber */
+      --tile-neg:#fb7185; /* rose */
+      --shadow: 0 6px 18px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji"; 
+      background: radial-gradient(1200px 1200px at 10% -10%, #1f2937 0%, var(--bg) 55%);
+      color:var(--text);
+    }
+    .wrap{max-width:1100px;margin:auto;padding:16px 20px 28px}
+    header{display:flex;gap:14px;align-items:center;justify-content:space-between;margin:4px 0 16px}
+    header h1{font-size:clamp(18px,3.2vw,28px);margin:0;font-weight:700;letter-spacing:.3px}
+    .sub{color:var(--muted);font-size:.95rem}
+
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:linear-gradient(180deg, #121823, #0f1520);padding:10px;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .toolbar .group{display:flex;gap:8px;align-items:center;background:#0e1420;border:1px solid #1f2a3a;padding:8px;border-radius:12px}
+    .toolbar label{color:var(--muted);font-size:.9rem;margin-right:6px}
+    .toolbar input[type=number]{width:70px;background:#0b111b;border:1px solid #283447;border-radius:10px;color:var(--text);padding:6px 8px}
+    .toolbar button,.toolbar select{background:#1b2432;color:var(--text);border:1px solid #2a364a;border-radius:12px;padding:8px 10px;cursor:pointer}
+    .toolbar button:hover{border-color:#3b4b66}
+    .toolbar button.primary{background:linear-gradient(180deg, #7c3aed, #5b21b6);border-color:#6d28d9}
+    .toolbar button.ghost{background:transparent;border-color:#2a364a}
+    .toolbar .danger{background:linear-gradient(180deg, #ef4444, #b91c1c);border-color:#ef4444}
+
+    .eqline{display:flex;align-items:center;justify-content:center;gap:12px;background:linear-gradient(180deg,#0f1520,#0b0f14);border:1px solid #1f2a3a;border-radius:var(--radius);padding:12px 14px;margin:16px 0;box-shadow:var(--shadow)}
+    .eq{font-size:clamp(18px,3.5vw,28px);font-weight:700;letter-spacing:0.2px}
+    .hint{color:var(--muted);font-size:.95rem}
+
+    .layout{display:grid;grid-template-columns:1.1fr .9fr;gap:14px}
+    @media (max-width: 950px){.layout{grid-template-columns:1fr}}
+
+    .card{background:linear-gradient(180deg, #111827, #0d131f);border:1px solid #1f2a3a;border-radius:var(--radius);padding:12px 12px 14px;box-shadow:var(--shadow)}
+    .card h3{margin:4px 0 10px;font-size:1rem;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+
+    /* Balance canvas */
+    #balance{width:100%;height:360px;background:linear-gradient(180deg,#0a0f17 0%,#0b1018 100%);border-radius:12px;border:1px solid #1f2a3a}
+    .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .key{display:flex;gap:8px;align-items:center;padding:4px 8px;border:1px dashed #2a364a;border-radius:10px}
+    .swatch{width:16px;height:16px;border-radius:4px}
+    .swatch.x{background:var(--tile-x)}
+    .swatch.num{background:var(--tile-num)}
+    .swatch.neg{background:var(--tile-neg)}
+
+    /* Graph */
+    #graph{width:100%;height:360px;background:linear-gradient(180deg,#090e16,#0b0f14);border-radius:12px;border:1px solid #1f2a3a}
+    .graph-legend{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+    .badge{border:1px solid #2a364a;border-radius:999px;padding:4px 10px;color:var(--muted);font-size:.9rem}
+
+    /* Ops Panel */
+    .ops{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .ops .group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-start;background:#0b111b;border:1px solid #223049;padding:10px;border-radius:12px}
+    .ops .group .title{min-width:110px;color:var(--muted);font-weight:600}
+    .ops button{background:#192232;color:var(--text);border:1px solid #2a364a;border-radius:12px;padding:8px 10px;cursor:pointer}
+    .ops button:hover{border-color:#3b4b66}
+    .ops select{background:#0b111b;color:var(--text);border:1px solid #2a364a;border-radius:12px;padding:8px 10px}
+
+    /* Steps */
+    .steps{max-height:340px;overflow:auto;background:#0b111b;border:1px solid #223049;border-radius:12px}
+    .steps .row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #1a2433}
+    .steps .row:last-child{border-bottom:none}
+    .steps .row b{color:#cbd5e1}
+    .steps .row .go{background:#12202b;border:1px solid #1e3346;color:#a0bcd6;border-radius:10px;padding:6px 8px;cursor:pointer}
+
+    .foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-top:12px}
+    .pill{border:1px solid #2a364a;border-radius:999px;padding:6px 10px;color:var(--muted)}
+    .ok{color:var(--good)} .warn{color:var(--danger)}
+
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}
+  </style>
+</head>
+<body>
+  <div class="wrap" role="application" aria-label="Visual Equation Solver">
+    <header>
+      <div>
+        <h1>Visual Equation Solver</h1>
+        <div class="sub">Explore the core moves of solving linear equations: add/subtract, multiply/divide, collect like terms, and check on a graph & balance scale.</div>
+      </div>
+      <div class="sub">Made for teaching • Keyboard-friendly • No external libraries</div>
+    </header>
+
+    <div class="toolbar" aria-label="Equation setup">
+      <div class="group" title="Edit the starting equation coefficients">
+        <label for="aL">LHS</label>
+        <input type="number" id="aL" step="1" value="2" aria-label="Left coefficient of x">
+        <span>x +</span>
+        <input type="number" id="bL" step="1" value="3" aria-label="Left constant">
+        <span>=</span>
+        <input type="number" id="aR" step="1" value="-1" aria-label="Right coefficient of x">
+        <span>x +</span>
+        <input type="number" id="bR" step="1" value="9" aria-label="Right constant">
+        <button id="applyEq" class="primary" aria-label="Apply new equation">Apply</button>
+      </div>
+      <div class="group">
+        <label for="mode">Mode</label>
+        <select id="mode" aria-label="Difficulty mode">
+          <option value="standard" selected>Standard: ax + b = cx + d</option>
+          <option value="easy">Easy: ax + b = d</option>
+        </select>
+        <button id="randomize" class="ghost" aria-label="Randomize equation">🎲 Random</button>
+        <button id="reset" class="ghost" aria-label="Reset to initial">↺ Reset</button>
+      </div>
+      <div class="group">
+        <button id="autoSolve" class="ghost" aria-label="Auto-solve step by step">▶ Auto-solve</button>
+        <button id="undo" class="ghost" aria-label="Undo last">⟲ Undo</button>
+        <button id="clearSteps" class="ghost" aria-label="Clear steps">🧹 Clear steps</button>
+      </div>
+    </div>
+
+    <div class="eqline" aria-live="polite">
+      <div class="eq" id="eqText">2x + 3 = -x + 9</div>
+      <div class="hint" id="status">Use the buttons below to perform the same operation on both sides.</div>
+    </div>
+
+    <div class="layout">
+      <section class="card" aria-label="Balance and graph">
+        <h3>Visuals</h3>
+        <canvas id="balance" aria-label="Balance scale visualization" tabindex="0"></canvas>
+        <div class="legend" aria-hidden="true">
+          <span class="key"><span class="swatch x"></span>x-tile</span>
+          <span class="key"><span class="swatch num"></span>+1 tile</span>
+          <span class="key"><span class="swatch neg"></span>−1 tile</span>
+        </div>
+        <div style="height:12px"></div>
+        <canvas id="graph" aria-label="Graph of both sides and their intersection" tabindex="0"></canvas>
+        <div class="graph-legend">
+          <span class="badge">Left: y = a<sub>L</sub>x + b<sub>L</sub></span>
+          <span class="badge">Right: y = a<sub>R</sub>x + b<sub>R</sub></span>
+          <span class="badge">Solution where Left = Right</span>
+        </div>
+      </section>
+
+      <section class="card" aria-label="Operations and steps">
+        <h3>Operations</h3>
+        <div class="ops">
+          <div class="group">
+            <span class="title">Add/Subtract</span>
+            <button data-op="add" data-x="0" data-c="1">+1 both sides</button>
+            <button data-op="add" data-x="0" data-c="-1">−1 both sides</button>
+            <button data-op="add" data-x="1" data-c="0">+x both sides</button>
+            <button data-op="add" data-x="-1" data-c="0">−x both sides</button>
+          </div>
+          <div class="group">
+            <span class="title">Multiply/Divide</span>
+            <select id="factor">
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="-1">−1</option>
+              <option value="0.5">1/2</option>
+              <option value="0.3333333333">1/3</option>
+            </select>
+            <button data-op="mul">× factor</button>
+            <button data-op="div">÷ factor</button>
+          </div>
+          <div class="group">
+            <span class="title">Collect/Isolate</span>
+            <button id="moveXLeft">Move x-terms ➜ left</button>
+            <button id="moveConstRight">Move constants ➜ right</button>
+            <button id="divideByCoeff">Divide both sides by x-coeff (left)</button>
+          </div>
+          <div class="group">
+            <span class="title">Check</span>
+            <label for="guessX" class="sr-only">Try a value for x</label>
+            <input type="number" id="guessX" step="0.1" value="0" />
+            <button id="check">Check x</button>
+          </div>
+        </div>
+
+        <h3 style="margin-top:16px">Steps</h3>
+        <div class="steps" id="steps" aria-live="polite"></div>
+        <div class="foot">
+          <span class="pill" id="solutionBadge">Solution: <b id="solutionVal">x = ?</b></span>
+          <span class="pill">Status: <b id="solutionStatus">In progress</b></span>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const $ = sel => document.querySelector(sel);
+
+    // State — equation: aL x + bL = aR x + bR
+    let eq = { aL:2, bL:3, aR:-1, bR:9 };
+    let initEq = structuredClone(eq);
+    let history = []; // {eq, desc}
+    let autoSolving = false;
+
+    const eqText = $('#eqText');
+    const status = $('#status');
+    const stepsEl = $('#steps');
+    const solutionVal = $('#solutionVal');
+    const solutionStatus = $('#solutionStatus');
+
+    // Inputs
+    const aL = $('#aL'), bL = $('#bL'), aR = $('#aR'), bR = $('#bR');
+    const applyBtn = $('#applyEq');
+    const resetBtn = $('#reset');
+    const randomBtn = $('#randomize');
+    const modeSel = $('#mode');
+    const undoBtn = $('#undo');
+    const clearStepsBtn = $('#clearSteps');
+    const factorSel = $('#factor');
+    const moveXLeftBtn = $('#moveXLeft');
+    const moveConstRightBtn = $('#moveConstRight');
+    const divideByCoeffBtn = $('#divideByCoeff');
+    const checkBtn = $('#check');
+    const guessX = $('#guessX');
+    const autoSolveBtn = $('#autoSolve');
+
+    // Canvases
+    const balance = $('#balance');
+    const graph = $('#graph');
+    const bctx = balance.getContext('2d');
+    const gctx = graph.getContext('2d');
+
+    // Utilities
+    const almost = (x,y,eps=1e-9)=>Math.abs(x-y) < eps;
+
+    function toNice(num){
+      const n = Number(num);
+      if (!isFinite(n)) return '∞';
+      const rounded = Math.round(n*1e6)/1e6;
+      const denoms = [1,2,3,4,5,6,8,10];
+      for (const d of denoms){
+        const k = Math.round(rounded*d);
+        if (Math.abs(rounded - k/d) < 1e-6){
+          if (d===1) return String(k);
+          return `${k}/${d}`;
+        }
+      }
+      return (Math.abs(rounded) < 1e-6) ? '0' : String(rounded);
+    }
+
+    function eqString(e){
+      const left = sideString(e.aL, e.bL);
+      const right = sideString(e.aR, e.bR);
+      return `${left} = ${right}`;
+    }
+    function sideString(a,b){
+      const parts = [];
+      if (!almost(a,0)){
+        const ax = almost(a,1) ? 'x' : (almost(a,-1) ? '-x' : `${toNice(a)}x`);
+        parts.push(ax);
+      }
+      if (!almost(b,0)){
+        const sign = b>=0 ? (parts.length? ' + ' : '') : (parts.length? ' - ' : '-');
+        parts.push(`${sign}${toNice(Math.abs(b))}`);
+      }
+      if (parts.length===0) return '0';
+      return parts.join('');
+    }
+
+    function pushHistory(desc){
+      history.push({ eq: structuredClone(eq), desc });
+      renderSteps();
+    }
+
+    function setEq(e, addHistoryDesc){
+      if (addHistoryDesc) pushHistory(addHistoryDesc);
+      eq = structuredClone(e);
+      refresh();
+    }
+
+    function refresh(){
+      // Update equation text
+      eqText.textContent = eqString(eq);
+      // Recompute solution status
+      const s = solveStatus();
+      solutionStatus.textContent = s.text;
+      solutionStatus.className = s.kind === 'ok' ? 'ok' : (s.kind==='warn'?'warn':'');
+      solutionVal.textContent = s.xText ? `x = ${s.xText}` : 'x = ?';
+      status.textContent = s.hint;
+      // Draw visuals
+      drawBalance();
+      drawGraph();
+      // Steps list
+      renderSteps();
+    }
+
+    function solveStatus(){
+      const A = eq.aL - eq.aR;
+      const B = eq.bL - eq.bR;
+      if (almost(A,0) && almost(B,0)) return {kind:'ok', text:'Infinite solutions (identical sides)', xText:'any real number', hint:'Both sides are the same for every x.'};
+      if (almost(A,0) && !almost(B,0)) return {kind:'warn', text:'No solution (parallel lines)', xText:'∅', hint:'No x makes the two sides equal.'};
+      const x = -B / A;
+      return {kind:'ok', text:'Unique solution', xText: toNice(x), hint:'Try collecting x-terms to one side, constants to the other, then divide.'};
+    }
+
+    // --- Operations ---
+    function addBoth(dx, dc){
+      setEq({
+        aL: eq.aL + dx,
+        bL: eq.bL + dc,
+        aR: eq.aR + dx,
+        bR: eq.bR + dc,
+      }, `Add ${term(dx,dc)} to both sides`);
+    }
+    function mulBoth(k){
+      if (!isFinite(k)) return;
+      setEq({ aL:eq.aL*k, bL:eq.bL*k, aR:eq.aR*k, bR:eq.bR*k }, `Multiply both sides by ${toNice(k)}`);
+    }
+    function divBoth(k){
+      if (!isFinite(k) || almost(k,0)) { status.textContent = 'Cannot divide by 0.'; return; }
+      setEq({ aL:eq.aL/k, bL:eq.bL/k, aR:eq.aR/k, bR:eq.bR/k }, `Divide both sides by ${toNice(k)}`);
+    }
+    function moveXLeft(){
+      if (almost(eq.aR,0)){ status.textContent='Right side has no x-term.'; return; }
+      addBoth(-eq.aR, 0);
+    }
+    function moveConstRight(){
+      if (almost(eq.bL,0)){ status.textContent='Left side has no constant.'; return; }
+      addBoth(0, -eq.bL);
+    }
+    function divideByLeftCoeff(){
+      if (almost(eq.aL,0)) { status.textContent='Left x-coefficient is 0; move x-terms to left first.'; return; }
+      divBoth(eq.aL);
+    }
+    function term(dx,dc){
+      const parts = [];
+      if (!almost(dx,0)) parts.push(`${dx<0?'-':''}${toNice(Math.abs(dx))}x`.replace(/^1x/,'x').replace(/^-1x/,'-x'));
+      if (!almost(dc,0)) parts.push(`${dc<0?'-':''}${toNice(Math.abs(dc))}`);
+      return parts.join(' + ').replace('+ -','- ');
+    }
+
+    // --- Visuals: Balance ---
+    function drawBalance(){
+      const W = balance.width = balance.clientWidth * devicePixelRatio;
+      const H = balance.height = balance.clientHeight * devicePixelRatio;
+      const dpr = devicePixelRatio;
+      const ctx = bctx; ctx.save(); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      // Base scale stand
+      const mid = balance.clientWidth / 2;
+      const baseY = balance.clientHeight - 40;
+      ctx.lineWidth = 2; ctx.strokeStyle = '#2a364a';
+      ctx.fillStyle = '#0c1320';
+      roundRect(ctx, mid-90, baseY, 180, 16, 8, true, true);
+      roundRect(ctx, mid-6, baseY-110, 12, 110, 6, true, true);
+      // Beam
+      const beamY = baseY-120; const beamW = 360; const leftX = mid-beamW/2; const rightX = mid+beamW/2;
+      roundRect(ctx, leftX, beamY-6, beamW, 12, 6, true, true);
+
+      // Pans
+      const panW = 180, panH = 14; const panY = beamY+10;
+      roundRect(ctx, leftX+10, panY, panW, panH, 10, true, true);
+      roundRect(ctx, rightX-panW-10, panY, panW, panH, 10, true, true);
+
+      // Tiles layout
+      const cell = {w:26, h:22};
+      const leftTiles = tilesFromSide(eq.aL, eq.bL);
+      const rightTiles = tilesFromSide(eq.aR, eq.bR);
+      drawTiles(ctx, leftX+14, panY-6, panW-8, leftTiles, cell);
+      drawTiles(ctx, rightX-panW-6, panY-6, panW-8, rightTiles, cell);
+
+      // Labels
+      ctx.fillStyle = '#a3b2c7'; ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto'; ctx.textAlign='center';
+      ctx.fillText('Left side', leftX+panW/2+10, panY+panH+18);
+      ctx.fillText('Right side', rightX-panW/2-10, panY+panH+18);
+
+      ctx.restore();
+    }
+
+    function tilesFromSide(ax, b){
+      const tiles = [];
+      const countX = Math.round(ax*1000)/1000;
+      const count1 = Math.round(b*1000)/1000;
+      const nX = Math.floor(Math.abs(countX));
+      for (let i=0;i<nX;i++) tiles.push({kind:'x', sign:Math.sign(countX)||1});
+      const fracX = Math.abs(countX) - nX;
+      if (fracX>1e-6) tiles.push({kind:'x', sign:Math.sign(countX)||1, frac: fracX});
+      const n1 = Math.floor(Math.abs(count1));
+      for (let i=0;i<n1;i++) tiles.push({kind:'1', sign:Math.sign(count1)||1});
+      const frac1 = Math.abs(count1) - n1;
+      if (frac1>1e-6) tiles.push({kind:'1', sign:Math.sign(count1)||1, frac: frac1});
+      return tiles;
+    }
+
+    function drawTiles(ctx, x, top, width, tiles, cell){
+      const perRow = Math.max(1, Math.floor(width / (cell.w+4)));
+      tiles.slice(0, 60).forEach((t,i)=>{
+        const r = Math.floor(i / perRow);
+        const c = i % perRow;
+        const px = x + c*(cell.w+4);
+        const py = top - r*(cell.h+6);
+        if (t.kind==='x') drawXTile(ctx, px, py, cell.w, cell.h, t.sign, t.frac);
+        else drawNumTile(ctx, px, py, cell.w, cell.h, t.sign, t.frac);
+      });
+    }
+
+    function drawXTile(ctx,x,y,w,h,sign,frac){
+      const col = sign<0? 'var(--tile-neg)': 'var(--tile-x)';
+      ctx.save(); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(col); ctx.strokeStyle='#1c2738';
+      roundRect(ctx,x,y,w,h,6,true,true); ctx.fillStyle='#0c1320'; ctx.font='bold 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const label = (sign<0?'-':'') + (frac? toNice(frac):'') + 'x';
+      ctx.fillText(label, x+w/2, y+h/2);
+      ctx.restore();
+    }
+    function drawNumTile(ctx,x,y,w,h,sign,frac){
+      const col = sign<0? 'var(--tile-neg)': 'var(--tile-num)';
+      ctx.save(); ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(col); ctx.strokeStyle='#1c2738';
+      roundRect(ctx,x,y,w,h,6,true,true); ctx.fillStyle='#0c1320'; ctx.font='bold 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const val = (sign<0?'-':'') + (frac? toNice(frac):'1');
+      ctx.fillText(val, x+w/2, y+h/2);
+      ctx.restore();
+    }
+    function roundRect(ctx,x,y,w,h,r,fill,stroke){
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    // --- Visuals: Graph ---
+    function drawGraph(){
+      const W = graph.width = graph.clientWidth * devicePixelRatio;
+      const H = graph.height = graph.clientHeight * devicePixelRatio;
+      const dpr = devicePixelRatio;
+      const ctx = gctx; ctx.save(); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+
+      const A = eq.aL - eq.aR; const B = eq.bL - eq.bR;
+      let x0 = 0; let hasRoot = true;
+      if (almost(A,0) && almost(B,0)) { x0 = 0; hasRoot = false; }
+      else if (almost(A,0)) { x0 = 0; hasRoot = false; }
+      else x0 = -B/A;
+
+      let xMin = Math.floor((x0-7)); let xMax = Math.ceil((x0+7));
+      if (!hasRoot){ xMin=-10; xMax=10; }
+      const yVals = [fLeft(xMin), fLeft(xMax), fRight(xMin), fRight(xMax)];
+      let yMin = Math.min(...yVals); let yMax = Math.max(...yVals);
+      if (yMin===yMax){ yMin-=5; yMax+=5; }
+      const pad = 0.2*(yMax-yMin); yMin-=pad; yMax+=pad;
+
+      const P = {l:42, r:14, t:12, b:28};
+      const X = x=> P.l + (x - xMin) * (graph.clientWidth - P.l - P.r) / (xMax - xMin);
+      const Y = y=> graph.clientHeight - P.b - (y - yMin) * (graph.clientHeight - P.t - P.b) / (yMax - yMin);
+
+      // grid
+      for (let xi=Math.ceil(xMin); xi<=Math.floor(xMax); xi++){
+        drawLine(ctx, X(xi), Y(yMin), X(xi), Y(yMax), '#152033');
+        drawLabel(ctx, X(xi), Y(0)+14, xi);
+      }
+      for (let yi=Math.ceil(yMin); yi<=Math.floor(yMax); yi++){
+        drawLine(ctx, X(xMin), Y(yi), X(xMax), Y(yi), '#152033');
+        if (yi!==0) drawLabel(ctx, X(0)-8, Y(yi)+4, yi, 'right');
+      }
+      // axes
+      drawLine(ctx, X(xMin), Y(0), X(xMax), Y(0), '#2a3b55', 1.5);
+      drawLine(ctx, X(0), Y(yMin), X(0), Y(yMax), '#2a3b55', 1.5);
+
+      // Left and Right lines
+      strokeLine(ctx, x=>fLeft(x), X,Y, xMin,xMax, '#7c3aed');
+      strokeLine(ctx, x=>fRight(x), X,Y, xMin,xMax, '#00d3a7');
+
+      // Intersection
+      if (hasRoot){
+        const xi = X(x0); const yi = Y(fLeft(x0));
+        ctx.fillStyle = '#eab308';
+        ctx.beginPath(); ctx.arc(xi, yi, 4, 0, Math.PI*2); ctx.fill();
+        ctx.font='12px system-ui'; ctx.fillStyle='#cbd5e1'; ctx.textAlign='left'; ctx.fillText(`x = ${toNice(x0)}`, xi+6, yi-6);
+      }
+
+      ctx.restore();
+    }
+    function drawLine(ctx,x1,y1,x2,y2,color,width){ ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=width||1; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore(); }
+    function drawLabel(ctx,x,y,text,align){ ctx.save(); ctx.fillStyle='#8da0b8'; ctx.font='11px system-ui'; ctx.textAlign=align||'center'; ctx.fillText(String(text), x, y); ctx.restore(); }
+    function strokeLine(ctx, fn, X,Y, xmin,xmax, color){
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth=2; ctx.beginPath();
+      const N = 128; for (let i=0;i<=N;i++){ const x = xmin + (i/N)*(xmax-xmin); const px = X(x); const py = Y(fn(x)); if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);} ctx.stroke(); ctx.restore();
+    }
+    const fLeft = x=> eq.aL*x + eq.bL;
+    const fRight = x=> eq.aR*x + eq.bR;
+
+    // Steps list
+    function renderSteps(){
+      stepsEl.innerHTML = history.map((h,i)=>`<div class="row"><span>${i+1}. <b>${h.desc}</b></span><button class="go" data-jump="${i}">Go here</button></div>`).join('');
+      stepsEl.querySelectorAll('button[data-jump]').forEach(btn=>{
+        btn.onclick = ()=>{ const idx = Number(btn.dataset.jump); const st = history[idx]; if (!st) return; eq = structuredClone(st.eq); history = history.slice(0, idx+1); refresh(); };
+      });
+    }
+
+    // Events
+    document.querySelectorAll('button[data-op="add"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const dx = Number(btn.dataset.x||0); const dc = Number(btn.dataset.c||0);
+        addBoth(dx, dc);
+      });
+    });
+    document.querySelector('button[data-op="mul"]').addEventListener('click', ()=>{
+      mulBoth(Number(factorSel.value));
+    });
+    document.querySelector('button[data-op="div"]').addEventListener('click', ()=>{
+      divBoth(Number(factorSel.value));
+    });
+    moveXLeftBtn.addEventListener('click', moveXLeft);
+    moveConstRightBtn.addEventListener('click', moveConstRight);
+    divideByCoeffBtn.addEventListener('click', divideByLeftCoeff);
+
+    applyBtn.addEventListener('click', ()=>{
+      const nv = { aL:Number(aL.value), bL:Number(bL.value), aR:Number(aR.value), bR:Number(bR.value) };
+      initEq = structuredClone(nv); setEq(nv, 'Apply new starting equation'); history = []; pushHistory('Start'); setInitialGuess(); refresh();
+    });
+
+    resetBtn.addEventListener('click', ()=>{ eq = structuredClone(initEq); history = []; pushHistory('Reset to start'); setInitialGuess(); refresh(); });
+    clearStepsBtn.addEventListener('click', ()=>{ history = []; pushHistory('Start'); refresh(); });
+    undoBtn.addEventListener('click', ()=>{ history.pop(); const last = history[history.length-1]; if (last){ eq = structuredClone(last.eq); } refresh(); });
+
+    randomBtn.addEventListener('click', ()=>{
+      const mode = modeSel.value;
+      function rInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+      let a1,a2,b1,b2;
+      if (mode==='easy'){
+        a1 = rInt(1,5) * (Math.random()<0.5?1:-1);
+        b1 = rInt(-9,9);
+        a2 = 0; // cx term absent on right
+        b2 = rInt(-12,12);
+      } else {
+        a1 = rInt(1,5) * (Math.random()<0.7?1:-1);
+        a2 = rInt(-5,5); if (a2===a1) a2 += (a2>=0?1:-1);
+        b1 = rInt(-9,9); b2 = rInt(-12,12);
+      }
+      aL.value=a1; bL.value=b1; aR.value=a2; bR.value=b2;
+      applyBtn.click();
+    });
+
+    checkBtn.addEventListener('click', ()=>{
+      const x = Number(guessX.value);
+      const L = fLeft(x), R = fRight(x);
+      const ok = Math.abs(L-R) < 1e-9;
+      status.textContent = ok? `✅ Correct: Left and Right both equal ${toNice(L)}` : `❌ Not equal: Left=${toNice(L)}, Right=${toNice(R)}`;
+    });
+
+    autoSolveBtn.addEventListener('click', ()=>{
+      if (autoSolving) return; autoSolving = true; status.textContent='Auto-solving...';
+      const steps = [];
+      if (!almost(eq.aR,0)) steps.push(()=>moveXLeft());
+      if (!almost(eq.bL,0)) steps.push(()=>moveConstRight());
+      if (!almost(eq.aL,1) && !almost(eq.aL,0)) steps.push(()=>divideByLeftCoeff());
+      let i=0; const tick=()=>{ if (i>=steps.length){ autoSolving=false; status.textContent='Done. You can keep exploring other moves.'; refresh(); return; } steps[i++](); setTimeout(tick, 600); };
+      tick();
+    });
+
+    // Initial render
+    pushHistory('Start');
+    setInitialGuess();
+    refresh();
+
+    // Resize redraw
+    let rs;
+    window.addEventListener('resize', ()=>{ clearTimeout(rs); rs = setTimeout(()=>{ refresh(); }, 80); });
+
+    // Helper to set initial guess to the (unique) solution when available
+    function setInitialGuess(){
+      const A = eq.aL - eq.aR; const B = eq.bL - eq.bR;
+      if (!almost(A,0)){
+        const x = -B/A; guessX.value = toNice(x);
+      } else {
+        guessX.value = '0';
+      }
+    }
+  })();
+  </script>
+</body>
+</html>
