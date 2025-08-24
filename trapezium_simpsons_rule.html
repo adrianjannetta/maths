@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Trapezium & Simpson’s Rule — Free-text Function (CSP-safe)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --accent:#38bdf8;
+    --good:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+  }
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;
+       color:var(--ink); background:linear-gradient(180deg,#0b1025,#0a0f1f);} 
+  header{padding:14px 18px; border-bottom:1px solid #1f2937; background:#0b1220; position:sticky; top:0; z-index:10}
+  h1{font-size:18px; margin:0; letter-spacing:.3px}
+  .wrap{display:grid; grid-template-columns: 360px 1fr; gap:16px; padding:16px; align-items:start}
+  @media (max-width: 900px){ .wrap{grid-template-columns:1fr} }
+  .card{background:var(--panel); border:1px solid #1f2937; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card h2{margin:0; font-size:16px; padding:12px 14px; border-bottom:1px solid #1f2937; color:#d1d5db}
+  .card .body{padding:12px 14px}
+  label{display:block; font-size:12px; color:var(--muted); margin:8px 0 4px}
+  input[type="text"],input[type="number"],select{
+    width:100%; padding:10px 10px; border-radius:10px; border:1px solid #273142; background:#0b1220; color:var(--ink)
+  }
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .methods{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px}
+  .methods label{display:flex; align-items:center; gap:6px; background:#0b1220; border:1px solid #273142; padding:8px 10px; border-radius:10px; cursor:pointer}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+  .chipBtn{padding:6px 10px; border-radius:999px; border:1px solid #273142; background:#0b1220; color:#cbd5e1; cursor:pointer; font-size:12px}
+  .chipBtn:hover{border-color:#334155}
+  button{padding:10px 14px; border-radius:10px; border:1px solid #273142; background:linear-gradient(180deg,#0e1a2e,#0b1425); color:var(--ink); cursor:pointer}
+  button:hover{border-color:#334155}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .out{font-variant-numeric: tabular-nums; background:#0b1220; border:1px solid #273142; padding:10px; border-radius:10px}
+  .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+  canvas{width:100%; height:460px; background:#0b1220; border-bottom-left-radius:14px; border-bottom-right-radius:14px; display:block}
+  .legend{display:flex; gap:14px; align-items:center; color:var(--muted); font-size:12px; margin-top:6px}
+  .chip{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:12px; height:12px; border-radius:999px; display:inline-block; border:2px solid transparent}
+  .dot.curve{border-color:var(--accent); background:transparent}
+  .dot.fill{background:#172554; border-color:#1d4ed8}
+  .dot.mesh{background:#0f766e; border-color:#0ea5a3}
+  details summary{cursor:pointer; color:#cbd5e1; margin:4px 0 8px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Ubuntu Mono",Consolas,monospace; color:#e2e8f0}
+  .note{color:var(--muted); font-size:12px; margin-top:6px}
+  .err{border-color:#ef4444 !important; box-shadow:0 0 0 2px rgba(239,68,68,.25) inset}
+  .errmsg{color:#ef4444; font-size:12px; min-height:1.2em}
+</style>
+</head>
+<body>
+<header><h1>Numerical Integration — Trapezium & Simpson’s Rule</h1></header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Controls</h2>
+    <div class="body">
+      <label for="expr">Function f(x)</label>
+      <input id="expr" type="text" value="sin(x)" spellcheck="false" autocomplete="off" />
+      <div id="fnError" class="errmsg"></div>
+      <div id="abError" class="errmsg"></div>
+      <div class="chips" aria-label="Examples">
+        <button class="chipBtn" data-ex="x^2">x^2</button>
+        <button class="chipBtn" data-ex="sin(x)">sin(x)</button>
+        <button class="chipBtn" data-ex="cos(x)+x">cos(x)+x</button>
+        <button class="chipBtn" data-ex="exp(-x^2)">exp(-x^2)</button>
+        <button class="chipBtn" data-ex="1/(1+x^2)">1/(1+x^2)</button>
+        <button class="chipBtn" data-ex="sqrt(1-x^2)">sqrt(1-x^2)</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="a">Lower limit a</label>
+          <input id="a" type="text" value="0" placeholder="e.g., 0 or -pi/2" />
+        </div>
+        <div>
+          <label for="b">Upper limit b</label>
+          <input id="b" type="text" value="pi" placeholder="e.g., pi or 3*pi/2" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="n">Subintervals n</label>
+          <input id="n" type="number" step="1" min="1" value="8" />
+        </div>
+        <div>
+          <label for="show">Show</label>
+          <select id="show">
+            <option value="both">Both rules</option>
+            <option value="trap">Trapezium only</option>
+            <option value="simp">Simpson only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="piTicksMode">x-axis ticks</label>
+          <select id="piTicksMode">
+            <option value="auto" selected>Auto π-ticks</option>
+            <option value="always">Always π-ticks</option>
+            <option value="never">Never π-ticks</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="methods" role="radiogroup" aria-label="Primary method (used for approximation value)">
+        <label><input type="radio" name="method" value="trap" checked /> Trapezium</label>
+        <label><input type="radio" name="method" value="simp" /> Simpson</label>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:10px">
+        <button id="plotBtn">Plot & Calculate</button>
+        <button id="fitBtn" title="Auto-fit y-scale to function range">Auto-fit Y</button>
+        <button id="resetBtn" title="Reset to defaults">Reset</button>
+      </div>
+
+      <details style="margin-top:10px">
+        <summary>Syntax help</summary>
+        <div class="note">
+          <p>Allowed: <code>+ - * / ^ ( )</code>, variable <code>x</code>, constants <code>pi</code>, <code>e</code>.</p>
+          <p>Functions (one argument): <code>sin, cos, tan, asin, acos, atan, sinh, cosh, tanh, exp, ln, log, log10, sqrt, abs</code>.</p>
+          <p>Implicit multiplication works: <code>2x</code>, <code>(x+1)(x-1)</code>, <code>3sin x</code> are OK.</p>
+          <p>Limits a and b can be expressions using <code>pi</code> (e.g., <code>pi/4</code>, <code>3*pi/2</code>, <code>-2pi</code>).</p>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Visualisation</h2>
+    <canvas id="cv" width="1000" height="460" aria-label="Plot of function and numerical integration shapes"></canvas>
+    <div class="body">
+      <div class="legend">
+        <span class="chip"><span class="dot curve"></span> Function y=f(x)</span>
+        <span class="chip"><span class="dot fill"></span> Trapezia</span>
+        <span class="chip"><span class="dot mesh"></span> Simpson parabolic arcs</span>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="out" id="outApprox">Approx: —</div>
+        <div class="out" id="outRef">Reference (adaptive Simpson): —</div>
+        <div class="out" id="outErr">Error: —</div>
+        <div class="out" id="outMeta">h, n, notes: —</div>
+      </div>
+
+      <details style="margin-top:10px">
+        <summary>Show working / weights</summary>
+        <div id="working" class="note"></div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Safe expression parser (shunting-yard) ----------
+  const funcs = {
+    sin: Math.sin, cos: Math.cos, tan: Math.tan,
+    asin: Math.asin, acos: Math.acos, atan: Math.atan,
+    sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
+    exp: Math.exp, ln: Math.log, log: Math.log, log10: Math.log10 || ((x)=>Math.log(x)/Math.LN10),
+    sqrt: Math.sqrt, abs: Math.abs
+  };
+  const isLetter = c => /[a-z]/i.test(c);
+  const isDigit  = c => /[0-9]/.test(c);
+  const isSpace  = c => /\s/.test(c);
+
+  function tokenize(expr){
+    const s = expr.replace(/\u2212/g,'-'); // normalize minus
+    const tokens = [];
+    let i=0;
+    function push(tok){ tokens.push(tok); }
+
+    while(i<s.length){
+      const c=s[i];
+      if (isSpace(c)){ i++; continue; }
+      if (c==='(' || c===')' || c===',' || '+-*/^'.includes(c)){
+        push({type: 'op', value:c}); i++; continue;
+      }
+      if (isDigit(c) || (c==='.' && isDigit(s[i+1]))){
+        let j=i, numStr='';
+        while(j<s.length && (isDigit(s[j]) || s[j]==='.' )){ numStr+=s[j++]; }
+        // exponent? 1.2e-3
+        if (j<s.length && (s[j]==='e' || s[j]==='E')){
+          let k=j+1, eStr='e';
+          if (s[k]==='+' || s[k]==='-'){ eStr+=s[k++]; }
+          let hasDig=false;
+          while(k<s.length && isDigit(s[k])){ hasDig=true; eStr+=s[k++]; }
+          if (hasDig){ numStr+=eStr; j=k; }
+        }
+        push({type:'num', value: parseFloat(numStr)}); i=j; continue;
+      }
+      if (isLetter(c)){
+        let j=i, name='';
+        while(j<s.length && /[a-z0-9_]/i.test(s[j])){ name+=s[j++]; }
+        const lname=name.toLowerCase();
+        if (lname==='x'){ push({type:'var', value:'x'}); i=j; continue; }
+        if (lname==='pi'){ push({type:'num', value: Math.PI}); i=j; continue; }
+        if (lname==='e'){ push({type:'num', value: Math.E}); i=j; continue; }
+        if (lname in funcs){ push({type:'func', value: lname}); i=j; continue; }
+        // allow 'ln' synonym caught above; otherwise unknown
+        throw new Error("Unknown symbol: " + name);
+      }
+      // implicit multiplication cases like ")(" handled later; reject others
+      throw new Error("Unexpected character: " + c);
+    }
+    // Insert implicit multiplication: [num|var|)] [num|var|func|(] => insert *
+    const out=[];
+    function isLeft(t){ return t && (t.type==='num' || t.type==='var' || (t.type==='op' && t.value===')')); }
+    function isRight(t){ return t && (t.type==='num' || t.type==='var' || t.type==='func' || (t.type==='op' && t.value==='(')); }
+    for(let k=0;k<tokens.length;k++){
+      const t=tokens[k], prev=out[out.length-1];
+      if (isLeft(prev) && isRight(t)){
+        out.push({type:'op', value:'*'});
+      }
+      out.push(t);
+    }
+    return out;
+  }
+
+  function toRPN(tokens){
+    // Shunting-yard with unary minus and functions
+    const output=[]; const stack=[];
+    const prec={ 'u-':5, '^':4, '*':3, '/':3, '+':2, '-':2 };
+    const rightAssoc={ '^':true, 'u-':true };
+
+    function peek(){ return stack[stack.length-1]; }
+
+    for(let i=0;i<tokens.length;i++){
+      const t=tokens[i];
+      if (t.type==='num' || t.type==='var'){ output.push(t); continue; }
+      if (t.type==='func'){ stack.push(t); continue; }
+      if (t.type==='op'){
+        if (t.value==='('){ stack.push(t); continue; }
+        if (t.value===')'){
+          while(stack.length && !(peek().type==='op' && peek().value==='(')){
+            output.push(stack.pop());
+          }
+          if (!stack.length) throw new Error("Mismatched parentheses");
+          stack.pop(); // pop '('
+          if (stack.length && stack[stack.length-1].type==='func'){
+            output.push(stack.pop()); // function call
+          }
+          continue;
+        }
+        if (t.value===','){ // single-arg functions only here
+          throw new Error("Commas not supported (use single-argument functions).");
+        }
+        // operator: determine unary minus
+        let op=t.value;
+        const prev = tokens[i-1];
+        const unary = (op==='-') && (!prev || (prev.type==='op' && prev.value!==')') || prev.type==='func');
+        op = unary ? 'u-' : op;
+
+        while(stack.length){
+          const top=peek();
+          if (top.type==='func'){ output.push(stack.pop()); continue; }
+          if (top.type==='op' && top.value!=='('){
+            const pTop=prec[top.value]??0, pOp=prec[op]??0;
+            if ( (rightAssoc[op] ? (pOp<pTop) : (pOp<=pTop)) ){
+              output.push(stack.pop()); continue;
+            }
+          }
+          break;
+        }
+        stack.push({type:'op', value:op});
+      }
+    }
+    while(stack.length){
+      const t=stack.pop();
+      if (t.type==='op' && (t.value==='(' || t.value===')')) throw new Error("Mismatched parentheses");
+      output.push(t);
+    }
+    return output;
+  }
+
+  function compile(expr){
+    const tokens = tokenize(expr);
+    const rpn = toRPN(tokens);
+    // Return a function f(x)
+    return function(x){
+      const st=[];
+      for(const t of rpn){
+        if (t.type==='num'){ st.push(t.value); continue; }
+        if (t.type==='var'){ st.push(x); continue; }
+        if (t.type==='func'){
+          const a = st.pop(); if (a===undefined) return NaN;
+          const fn = funcs[t.value]; const y = fn(a);
+          if (!Number.isFinite(y)) return NaN;
+          st.push(y); continue;
+        }
+        // operator
+        const op=t.value;
+        if (op==='u-'){ const a=st.pop(); st.push(-a); continue; }
+        const b=st.pop(), a=st.pop();
+        let y;
+        switch(op){
+          case '+': y=a+b; break;
+          case '-': y=a-b; break;
+          case '*': y=a*b; break;
+          case '/': y=a/b; break;
+          case '^': y=Math.pow(a,b); break;
+          default: return NaN;
+        }
+        if (!Number.isFinite(y)) return NaN;
+        st.push(y);
+      }
+      if (st.length!==1) return NaN;
+      return st[0];
+    };
+  }
+
+  // ---------- Numerical integration ----------
+  function adaptiveSimpson(f, a, b, eps=1e-10, maxDepth=20){
+    const simpson = (f,a,b) => {
+      const c=(a+b)/2, h=b-a;
+      return (h/6)*(f(a)+4*f(c)+f(b));
+    };
+    function recur(f,a,b,eps,whole,depth){
+      const c=(a+b)/2;
+      const left=simpson(f,a,c), right=simpson(f,c,b);
+      if (depth<=0) return left+right;
+      if (Math.abs(left+right-whole) <= 15*eps) return left+right+(left+right-whole)/15;
+      return recur(f,a,c,eps/2,left,depth-1) + recur(f,c,b,eps/2,right,depth-1);
+    }
+    const whole=simpson(f,a,b);
+    return recur(f,a,b,eps,whole,maxDepth);
+  }
+  function trapezium(f,a,b,n){
+    const h=(b-a)/n;
+    let sum=0;
+    for(let i=1;i<n;i++){ const yi=f(a+i*h); if (Number.isFinite(yi)) sum+=yi; }
+    return h*(0.5*f(a)+sum+0.5*f(b));
+  }
+  function simpsonRule(f,a,b,n){
+    if(n%2!==0) n+=1;
+    const h=(b-a)/n;
+    let s1=0,s2=0;
+    for(let i=1;i<n;i+=2){ const y=f(a+i*h); if (Number.isFinite(y)) s1+=y; }
+    for(let i=2;i<n;i+=2){ const y=f(a+i*h); if (Number.isFinite(y)) s2+=y; }
+    return { n, value: (h/3)*(f(a)+4*s1+2*s2+f(b)), h };
+  }
+
+  // ---------- Canvas plotting ----------
+  const cv=document.getElementById('cv');
+  const ctx=cv.getContext('2d');
+
+  function computeRange(f,a,b){
+    const samples=900;
+    let ymin=Infinity, ymax=-Infinity;
+    for(let i=0;i<=samples;i++){
+      const x=a+(b-a)*i/samples;
+      const y=f(x);
+      if (!Number.isFinite(y)) continue;
+      ymin=Math.min(ymin,y);
+      ymax=Math.max(ymax,y);
+    }
+    if (ymin===Infinity){ ymin=-1; ymax=1; }
+    if (ymax-ymin<1e-6){ ymax=ymin+1; ymin-=1; }
+    return {ymin, ymax};
+  }
+
+  function drawAxes(a,b,ymin,ymax){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const m=56; // margin for ticks & labels
+    const X = x => m + (x-a)*(cv.width-2*m)/(b-a || 1);
+    const Y = y => cv.height - (m + (y - ymin)*(cv.height-2*m)/((ymax-ymin) || 1));
+
+    // ---------- helpers ----------
+    function niceTicks(min,max,maxTicks){
+      const span = (max-min) || 1;
+      const step0 = span/Math.max(1,maxTicks||6);
+      const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+      const norm = step0/mag;
+      let step;
+      if (norm <= 1) step = 1*mag;
+      else if (norm <= 2) step = 2*mag;
+      else if (norm <= 2.5) step = 2.5*mag;
+      else if (norm <= 5) step = 5*mag;
+      else step = 10*mag;
+      const start = Math.ceil(min/step)*step;
+      const ticks=[];
+      for(let v=start; v<=max+1e-12; v+=step){
+        const vv = Math.abs(v) < 1e-14 ? 0 : v; // de-noise -0
+        ticks.push(+vv.toFixed(12));
+      }
+      return {ticks, step};
+    }
+    function fmtTick(v,step){
+      const abs=Math.abs(v);
+      if (abs>=1e5 || (abs>0 && abs<1e-4)) return v.toExponential(2);
+      const dec = Math.max(0, -Math.floor(Math.log10(step||1)) + 1);
+      return v.toFixed(Math.min(6, dec));
+    }
+    function shouldUsePiTicks(a,b){
+      const L = Math.abs(b-a);
+      return (L/Math.PI >= 0.75 && L/Math.PI <= 12);
+    }
+    function piTicks(a,b){
+      const steps = [Math.PI/4, Math.PI/2, Math.PI, 2*Math.PI, 4*Math.PI];
+      let chosen = steps[0];
+      for(const s of steps){
+        const c = Math.floor(b/s) - Math.ceil(a/s) + 1;
+        if (c <= 10 && c >= 4){ chosen = s; break; }
+      }
+      const start = Math.ceil(a/chosen)*chosen;
+      const ticks=[];
+      for(let v=start; v<=b+1e-12; v+=chosen){ ticks.push(+v.toFixed(12)); }
+      return {ticks, step: chosen};
+    }
+    function fmtPi(v){
+      const tol = 1e-10;
+      if (Math.abs(v) < tol) return '0';
+      const sgn = v < 0 ? '-' : '';
+      const k = Math.abs(v)/Math.PI;
+      const denoms = [1,2,4];
+      let best={den:1,num:Math.round(k),err:Math.abs(k-Math.round(k))};
+      for(const d of denoms){
+        const num = Math.round(k*d);
+        const err = Math.abs(k - num/d);
+        if (err < best.err - 1e-9) best={den:d,num,err};
+      }
+      if (best.num===0) return '0';
+      if (best.den===1){
+        return sgn + (best.num===1 ? 'π' : `${best.num}π`);
+      } else {
+        const numStr = (best.num===1 ? 'π' : `${best.num}π`);
+        return sgn + `${numStr}/${best.den}`;
+      }
+    }
+
+    // ---------- background grid ----------
+    ctx.lineWidth=1; ctx.strokeStyle='#1f2937';
+    for(let i=0;i<=10;i++){
+      const gx = m + i*(cv.width-2*m)/10;
+      ctx.beginPath(); ctx.moveTo(gx,m); ctx.lineTo(gx,cv.height-m); ctx.stroke();
+    }
+    for(let i=0;i<=8;i++){
+      const gy = m + i*(cv.height-2*m)/8;
+      ctx.beginPath(); ctx.moveTo(m,gy); ctx.lineTo(cv.width-m,gy); ctx.stroke();
+    }
+
+    // ---------- ticks & labels ----------
+    ctx.strokeStyle='#475569';
+    ctx.fillStyle='#9ca3af';
+    ctx.font='12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif';
+
+    const modeEl = document.getElementById('piTicksMode');
+    const mode = modeEl ? modeEl.value : 'auto';
+    const usePi = (mode==='always') || (mode==='auto' && shouldUsePiTicks(a,b));
+    const xt = usePi ? piTicks(a,b) : niceTicks(a,b,8);
+    xt.ticks.forEach(t=>{
+      const tx=X(t);
+      ctx.beginPath(); ctx.moveTo(tx, cv.height-m); ctx.lineTo(tx, cv.height-m+6); ctx.stroke();
+      ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillText(usePi ? fmtPi(t) : fmtTick(t, xt.step), tx, cv.height-m+8);
+    });
+
+    const yt = niceTicks(ymin,ymax,6);
+    yt.ticks.forEach(t=>{
+      const ty=Y(t);
+      ctx.beginPath(); ctx.moveTo(m-6, ty); ctx.lineTo(m, ty); ctx.stroke();
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText(fmtTick(t, yt.step), m-8, ty);
+    });
+
+    // ---------- axes lines ----------
+    ctx.lineWidth=1.5; ctx.strokeStyle='#334155';
+    if (ymin<0 && ymax>0){ const y0=Y(0); ctx.beginPath(); ctx.moveTo(m,y0); ctx.lineTo(cv.width-m,y0); ctx.stroke(); }
+    if (a<0 && b>0){ const x0=X(0); ctx.beginPath(); ctx.moveTo(x0,m); ctx.lineTo(x0,cv.height-m); ctx.stroke(); }
+
+    // ---------- axis titles ----------
+    ctx.fillStyle='#cbd5e1';
+    ctx.font='bold 13px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText('x', (cv.width)/2, cv.height - m + 28);
+    ctx.save();
+    ctx.translate(m - 36, cv.height/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('y = f(x)', 0, 0);
+    ctx.restore();
+
+    return {X,Y,m};
+  }
+
+  function plotFunction(f,a,b,ymin,ymax, X, Y){
+    ctx.lineWidth=2; ctx.strokeStyle='rgba(56,189,248,0.95)';
+    ctx.beginPath();
+    const steps=1200;
+    let moved=false;
+    for(let i=0;i<=steps;i++){
+      const x=a+(b-a)*i/steps, y=f(x);
+      const cx=X(x), cy=Y(y);
+      if (Number.isFinite(y)){
+        if (!moved){ ctx.moveTo(cx,cy); moved=true; } else ctx.lineTo(cx,cy);
+      } else {
+        moved=false; // break line across discontinuities
+      }
+    }
+    ctx.stroke();
+  }
+
+  function drawTrapezia(f,a,b,n,X,Y){
+    const h=(b-a)/n;
+    ctx.fillStyle='rgba(29,78,216,0.18)';
+    ctx.strokeStyle='rgba(59,130,246,0.9)';
+    ctx.lineWidth=1;
+    for(let i=0;i<n;i++){
+      const x0=a+i*h, x1=x0+h, y0=f(x0), y1=f(x1);
+      const p0={x:X(x0), y:Y(0)}, p1={x:X(x0), y:Y(y0)}, p2={x:X(x1), y:Y(y1)}, p3={x:X(x1), y:Y(0)};
+      ctx.beginPath();
+      ctx.moveTo(p0.x,p0.y); ctx.lineTo(p1.x,Number.isFinite(y0)?p1.y:Y(0));
+      ctx.lineTo(p2.x,Number.isFinite(y1)?p2.y:Y(0)); ctx.lineTo(p3.x,p3.y);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  function drawSimpsonArcs(f,a,b,n,X,Y){
+    if (n%2!==0) n+=1;
+    const h=(b-a)/n;
+    ctx.strokeStyle='rgba(14,165,233,0.95)'; ctx.lineWidth=1.5;
+    for(let i=0;i<n;i+=2){
+      const x0=a+i*h, x1=x0+h, x2=x0+2*h;
+      const y0=f(x0), y1=f(x1), y2=f(x2);
+      if (!Number.isFinite(y0) || !Number.isFinite(y1) || !Number.isFinite(y2)) continue;
+      ctx.beginPath();
+      const segSteps=80;
+      for(let k=0;k<=segSteps;k++){
+        const x = x0 + (x2-x0)*k/segSteps;
+        const L0 = ((x - x1)*(x - x2))/((x0 - x1)*(x0 - x2));
+        const L1 = ((x - x0)*(x - x2))/((x1 - x0)*(x1 - x2));
+        const L2 = ((x - x0)*(x - x1))/((x2 - x0)*(x2 - x1));
+        const y = y0*L0 + y1*L1 + y2*L2;
+        const cx=X(x), cy=Y(y);
+        if (k===0) ctx.moveTo(cx,cy); else ctx.lineTo(cx,cy);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // ---------- UI wiring ----------
+  const els = {
+    expr: document.getElementById('expr'),
+    fnError: document.getElementById('fnError'),
+    a: document.getElementById('a'),
+    b: document.getElementById('b'),
+    n: document.getElementById('n'),
+    show: document.getElementById('show'),
+    piTicksMode: document.getElementById('piTicksMode'),
+    plotBtn: document.getElementById('plotBtn'),
+    fitBtn: document.getElementById('fitBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    outApprox: document.getElementById('outApprox'),
+    outRef: document.getElementById('outRef'),
+    outErr: document.getElementById('outErr'),
+    outMeta: document.getElementById('outMeta'),
+    working: document.getElementById('working'),
+    abError: document.getElementById('abError'),
+  };
+
+  function fmt(x){
+    if (!Number.isFinite(x)) return '—';
+    const ax=Math.abs(x);
+    if (ax===0) return '0';
+    if (ax>=1e5 || ax<1e-4) return x.toExponential(6);
+    return x.toLocaleString(undefined,{maximumFractionDigits:10});
+  }
+
+  function parseFunction(){
+    try{
+      els.expr.classList.remove('err'); els.fnError.textContent='';
+      const f = compile(els.expr.value);
+      // quick sanity
+      const t = f(0);
+      if (!Number.isFinite(t)) { /* ok for some functions */ }
+      return f;
+    }catch(e){
+      els.expr.classList.add('err');
+      els.fnError.textContent = e.message;
+      throw e;
+    }
+  }
+
+  function parseLimitValue(str){
+    const s = (str||'').toString().trim();
+    if (s==='') throw new Error('Empty limit');
+    // Use the same safe expression compiler; must not depend on x
+    const f = compile(s);
+    const v0 = f(0), v1 = f(1);
+    if (!Number.isFinite(v0)) throw new Error('Invalid expression');
+    if (Math.abs(v0 - v1) > 1e-12) throw new Error('Limits must be constant (no x)');
+    return v0;
+  }
+  function clearLimitError(){
+    els.a.classList.remove('err');
+    els.b.classList.remove('err');
+    if (els.abError) els.abError.textContent='';
+  }
+  function parseLimitsOrShowError(){
+    clearLimitError();
+    try{
+      const a = parseLimitValue(els.a.value);
+      try{
+        const b = parseLimitValue(els.b.value);
+        return {a,b};
+      }catch(e2){ els.b.classList.add('err'); if (els.abError) els.abError.textContent='Upper limit: ' + e2.message; return null; }
+    }catch(e1){ els.a.classList.add('err'); if (els.abError) els.abError.textContent='Lower limit: ' + e1.message; return null; }
+  }
+
+  function recompute(autoFitY=false){
+    let f;
+    try { f=parseFunction(); }
+    catch{ return; }
+
+    const lims = parseLimitsOrShowError(); if (!lims) return; let {a,b} = lims;
+    let n=Math.max(1, Math.floor(parseFloat(els.n.value)||8));
+    if (b===a){ b=a+1; els.b.value=b; }
+    if (b<a){ const t=a; a=b; b=t; els.a.value=a; els.b.value=b; }
+    const h=(b-a)/n;
+
+    let {ymin,ymax}=computeRange(f,a,b);
+    if (autoFitY) lastYFit={ymin,ymax};
+    if (lastYFit) ({ymin,ymax}=lastYFit);
+
+    const {X,Y} = drawAxes(a,b,ymin,ymax);
+    plotFunction(f,a,b,ymin,ymax,X,Y);
+
+    const show=els.show.value;
+    if (show==='both' || show==='trap') drawTrapezia(f,a,b,n,X,Y);
+    if (show==='both' || show==='simp') drawSimpsonArcs(f,a,b,n,X,Y);
+
+    const method = document.querySelector('input[name="method"]:checked')?.value || 'trap';
+
+    const trapVal = trapezium(f,a,b,n);
+    const simRes = simpsonRule(f,a,b,n);
+    const simpVal = simRes.value;
+    const simpN = simRes.n;
+    const refVal = adaptiveSimpson(f,a,b,1e-11,24);
+
+    let approxVal, note='';
+    if (method==='simp'){
+      approxVal = simpVal;
+      if (simpN!==n){ note='(n adjusted to even: '+simpN+')'; n=simpN; }
+    } else {
+      approxVal = trapVal;
+    }
+
+    els.outApprox.innerHTML = `<strong>Approx (${method==='trap'?'Trapezium':'Simpson'}):</strong> <br>${fmt(approxVal)}`;
+    els.outRef.innerHTML = `<strong>Reference (adaptive Simpson):</strong> <br>${fmt(refVal)}`;
+
+    const absErr = Math.abs(approxVal - refVal);
+    const relErr = Math.abs(absErr/(Math.abs(refVal)||1));
+    const grade = absErr<1e-6 ? 'good' : absErr<1e-3 ? 'warn' : 'bad';
+    els.outErr.innerHTML = `<strong>Error:</strong> <br><span class="${grade}">|E| = ${fmt(absErr)}</span><br>rel = ${fmt(relErr)}`;
+    els.outMeta.innerHTML = `<strong>Step & notes:</strong><br>h = ${fmt(h)} &nbsp; • &nbsp; n = ${n} ${note}`;
+
+    // Working / weights
+    const xs=[], ys=[];
+    for(let i=0;i<=n;i++){ const x=a+i*(b-a)/n; xs.push(x); ys.push(f(x)); }
+    let workingHTML = '';
+    if (method==='trap'){
+      const w = ys.map((_,i)=> (i===0||i===n)?0.5:1);
+      const terms = ys.map((y,i)=> `${w[i]}·f(x${i})=${fmt(w[i]*y)}`);
+      workingHTML += `<p><strong>Weights (Trapezium):</strong> [${w.map(v=>v===0.5?'½':'1').join(', ')}]</p>`;
+      workingHTML += `<p><code>T = h × [ ${terms.join(' + ')} ]</code></p>`;
+    } else {
+      const w = ys.map((_,i)=> i===0||i===n ? 1 : (i%2===1?4:2));
+      const terms = ys.map((y,i)=> `${w[i]}·f(x${i})=${fmt(w[i]*y)}`);
+      workingHTML += `<p><strong>Weights (Simpson):</strong> [${w.join(', ')}]</p>`;
+      workingHTML += `<p><code>S = (h/3) × [ ${terms.join(' + ')} ]</code></p>`;
+    }
+    workingHTML += `<p class="note">x_i points are equally spaced between a and b.</p>`;
+    els.working.innerHTML = workingHTML;
+  }
+
+  let lastYFit=null;
+
+  // Buttons & events
+  document.querySelectorAll('.chipBtn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      els.expr.value = btn.dataset.ex;
+      els.expr.classList.remove('err'); els.fnError.textContent='';
+      recompute(true);
+    });
+  });
+  els.plotBtn.addEventListener('click', ()=>recompute(false));
+  els.fitBtn.addEventListener('click', ()=>recompute(true));
+  els.resetBtn.addEventListener('click', ()=>{
+    els.expr.value='sin(x)'; els.a.value=0; els.b.value='pi'; els.n.value=8;
+    document.querySelector('input[name="method"][value="trap"]').checked=true;
+    els.show.value='both'; els.piTicksMode.value='auto'; lastYFit=null; els.expr.classList.remove('err'); els.fnError.textContent='';
+    recompute(true);
+  });
+  ['expr','a','b','n','show','piTicksMode'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', ()=>recompute(false));
+  });
+  document.querySelectorAll('input[name="method"]').forEach(r=>{
+    r.addEventListener('change', ()=>recompute(false));
+  });
+  // Enter key in function field triggers plot
+  els.expr.addEventListener('keydown', (e)=>{ if(e.key==='Enter') { e.preventDefault(); recompute(false); } });
+
+  // Initial draw
+  recompute(true);
+})();
+</script>
+</body>
+</html>
