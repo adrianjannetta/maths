@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Triangle Solver</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#121a33;--ink:#e9edf7;--muted:#9fb0d1;--accent:#5aa9ff;--bad:#ff6b6b;--ok:#39d98a}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Helvetica,Arial,sans-serif;background:linear-gradient(135deg,#0b1020,#0e1430 60%,#0b1020);color:var(--ink);}
+    .wrap{max-width:1100px;margin:24px auto;padding:16px}
+    h1{font-size:clamp(1.4rem,2.2vw,2rem);letter-spacing:.3px;}
+    p.lead{color:var(--muted);margin-top:.25rem}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:16px}
+    .card{background:var(--panel);border:1px solid #1f2b56;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px}
+    .card h2{font-size:1rem;margin:.2rem 0 .8rem 0;color:#cfe1ff}
+    .inputs{grid-column:span 6}
+    .outputs{grid-column:span 6}
+    @media (max-width:900px){.inputs,.outputs{grid-column:span 12}}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{display:block;font-size:.9rem;color:#cbd6ef;margin-bottom:4px}
+    input[type="number"]{width:100%;box-sizing:border-box;padding:10px 12px;background:#0b132b;border:1px solid #2a386b;color:var(--ink);border-radius:10px;font-size:1rem}
+    input[readonly]{opacity:.9}
+    .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+    button{appearance:none;border:0;background:var(--accent);color:#061027;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+    button.secondary{background:#1c2a58;color:#cfe1ff;border:1px solid #2a386b}
+    .hint{font-size:.85rem;color:var(--muted)}
+    .status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid #2a386b;background:#0d1531;color:#dbe6ff}
+    .status.bad{border-color:#532; background:#2d0f12; color:#ffd7d7}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .solution{border:1px dashed #345;color:#e6f0ff;background:#0c1633;border-radius:12px;padding:12px;margin-top:12px}
+    .solution h3{margin:.2rem 0 .6rem 0;font-size:1rem;color:#cfe1ff}
+    .muted{color:var(--muted)}
+    .footer{margin-top:18px;color:var(--muted);font-size:.85rem}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Triangle Solver — sides (a,b,c) & angles (A,B,C)</h1>
+    <p class="lead">Enter any valid set of known values (minimum of 3, with at least 1 side). Angles are in degrees. The app handles the <span class="mono">SSA</span> ambiguous case and shows both solutions when they exist.</p>
+
+    <div class="grid">
+      <section class="card inputs">
+        <h2>Inputs</h2>
+        <div class="row">
+          <div>
+            <label for="a">Side a (opposite A)</label>
+            <input id="a" type="number" step="any" placeholder="e.g. 7" />
+          </div>
+          <div>
+            <label for="A">Angle A (°)</label>
+            <input id="A" type="number" step="any" placeholder="e.g. 35" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="b">Side b (opposite B)</label>
+            <input id="b" type="number" step="any" placeholder="e.g. 9.2" />
+          </div>
+          <div>
+            <label for="B">Angle B (°)</label>
+            <input id="B" type="number" step="any" placeholder="e.g. 78" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="c">Side c (opposite C)</label>
+            <input id="c" type="number" step="any" placeholder="e.g. 12" />
+          </div>
+          <div>
+            <label for="C">Angle C (°)</label>
+            <input id="C" type="number" step="any" placeholder="e.g. 67" />
+          </div>
+        </div>
+        <div class="controls">
+          <label class="hint">Decimal places: <input id="dp" type="number" min="0" max="10" value="2" style="width:70px;margin-left:6px"></label>
+          <button id="solve">Solve</button>
+          <button class="secondary" id="reset">Reset</button>
+          <span class="hint">Tip: For ASA/AAS, two angles + one side is enough. For SAS/SSS include relevant values.</span>
+        </div>
+        <div id="status" class="status muted">Ready. Unknowns will be computed when you click <b>Solve</b>.</div>
+      </section>
+
+      <section class="card outputs">
+        <h2>Results</h2>
+        <div id="solutions"></div>
+        <div class="footer">Conventions: angles A,B,C are opposite sides a,b,c respectively. Sum of angles = 180°. Triangle inequality is enforced.</div>
+      </section>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const ids = ['a','b','c','A','B','C'];
+  const el = id => document.getElementById(id);
+  const toRad = d => d*Math.PI/180;
+  const toDeg = r => r*180/Math.PI;
+
+  function round(x, dp){
+    if (!isFinite(x)) return x;
+    const f = Math.pow(10, dp);
+    return Math.round((x + Number.EPSILON)*f)/f;
+  }
+
+  function readInputs(){
+    const vals = {};
+    for(const id of ids){
+      const v = parseFloat(el(id).value);
+      vals[id] = isFinite(v) ? v : null;
+    }
+    return vals;
+  }
+
+  function countKnown(o){
+    return Object.values(o).filter(v => v !== null).length;
+  }
+
+  function triangleInequality(a,b,c){
+    return a+b>c && a+c>b && b+c>a;
+  }
+
+  function lawOfCosineAngle(a,b,c){
+    const num = b*b + c*c - a*a;
+    const den = 2*b*c;
+    let x = num/den;
+    x = Math.min(1, Math.max(-1, x));
+    return toDeg(Math.acos(x));
+  }
+
+  function lawOfCosineSide(b,c,A){
+    return Math.sqrt(b*b + c*c - 2*b*c*Math.cos(toRad(A)));
+  }
+
+  function lawOfSinesSide(knownSide, knownAngle, targetAngle){
+    const s = Math.sin(toRad(knownAngle));
+    if(Math.abs(s) < 1e-12) return NaN;
+    return knownSide * Math.sin(toRad(targetAngle)) / s;
+  }
+
+  function validateAngles(A,B,C){
+    const list = [A,B,C].filter(x=>x!==null);
+    for(const x of list){ if(x<=0 || x>=180) return false; }
+    if(list.length===3){ return Math.abs(A+B+C-180) < 1e-6; }
+    if(list.length===2){ return (A!==null && B!==null && A+B<180) || (A!==null && C!==null && A+C<180) || (B!==null && C!==null && B+C<180); }
+    return true;
+  }
+
+  function isIncludedAngle(known){
+    const have = s=> known[s]!==null;
+    if(have('a')&&have('b')&&have('C')) return 'C';
+    if(have('b')&&have('c')&&have('A')) return 'A';
+    if(have('c')&&have('a')&&have('B')) return 'B';
+    return null;
+  }
+
+  function detectSSA(known){
+    const have = s=> known[s]!==null;
+    const pairs = [
+      {side1:'a', side2:'b', ang:'A'},
+      {side1:'a', side2:'c', ang:'A'},
+      {side1:'b', side2:'a', ang:'B'},
+      {side1:'b', side2:'c', ang:'B'},
+      {side1:'c', side2:'a', ang:'C'},
+      {side1:'c', side2:'b', ang:'C'},
+    ];
+    for(const p of pairs){
+      if(have(p.side1) && have(p.side2) && have(p.ang)){
+        if(p.side1[0].toUpperCase() === p.ang){
+          const inc = isIncludedAngle(known);
+          if(inc===null || inc!==p.ang){
+            return {primarySide:p.side1, otherSide:p.side2, angle:p.ang};
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function completeAngles(A,B,C){
+    if(A===null && B!==null && C!==null) A = 180 - B - C;
+    if(B===null && A!==null && C!==null) B = 180 - A - C;
+    if(C===null && A!==null && B!==null) C = 180 - A - B;
+    return {A,B,C};
+  }
+
+  function heronArea(a,b,c){
+    const s = (a+b+c)/2;
+    const x = s*(s-a)*(s-b)*(s-c);
+    return x>0 ? Math.sqrt(x) : NaN;
+  }
+
+  function solveTriangle(known){
+    const {a,b,c,A,B,C} = known;
+    const results = [];
+
+    if(!validateAngles(A,B,C)){
+      return {error: 'Invalid angle inputs: angles must be between 0° and 180°, and two given angles must sum to less than 180°.'};
+    }
+
+    const nKnown = countKnown(known);
+    if(nKnown < 3){
+      return {error: 'Please provide at least 3 known values (with at least 1 side).'};
+    }
+
+    const have = s => known[s]!==null;
+
+    // SSS
+    if(have('a') && have('b') && have('c')){
+      if(!triangleInequality(a,b,c)) return {error:'Triangle inequality violated: sum of any two sides must exceed the third.'};
+      const A1 = lawOfCosineAngle(a,b,c);
+      const B1 = lawOfCosineAngle(b,c,a);
+      const C1 = 180 - A1 - B1;
+      results.push({a,b,c,A:A1,B:B1,C:C1});
+      return {solutions:results};
+    }
+
+    // ASA / AAS (two angles + one side)
+    const angleCount = ['A','B','C'].filter(k=>have(k)).length;
+    const sideCount  = ['a','b','c'].filter(k=>have(k)).length;
+    if(angleCount>=2 && sideCount>=1){
+      let A1=A, B1=B, C1=C;
+      ({A:A1,B:B1,C:C1} = completeAngles(A1,B1,C1));
+      if(Math.abs(A1+B1+C1-180)>1e-6) return {error:'Angles do not sum to 180° after completion.'};
+      if(have('a')){
+        const b1 = lawOfSinesSide(a,A1,B1);
+        const c1 = lawOfSinesSide(a,A1,C1);
+        results.push({a,b:b1,c:c1,A:A1,B:B1,C:C1});
+      } else if(have('b')){
+        const a1 = lawOfSinesSide(b,B1,A1);
+        const c1 = lawOfSinesSide(b,B1,C1);
+        results.push({a:a1,b,c:c1,A:A1,B:B1,C:C1});
+      } else if(have('c')){
+        const a1 = lawOfSinesSide(c,C1,A1);
+        const b1 = lawOfSinesSide(c,C1,B1);
+        results.push({a:a1,b:b1,c,A:A1,B:B1,C:C1});
+      }
+      return {solutions:results};
+    }
+
+    // SAS (two sides + included angle)
+    const included = isIncludedAngle(known);
+    if(included){
+      let a1=a,b1=b,c1=c,A1=A,B1=B,C1=C;
+      if(included==='A'){
+        a1 = lawOfCosineSide(b,c,A);
+        B1 = toDeg(Math.asin( Math.min(1,Math.max(-1, Math.sin(toRad(A)) * b/a1 )) ));
+        if(!isFinite(B1)) B1 = lawOfCosineAngle(b,a1,c);
+        C1 = 180 - A - B1;
+      } else if(included==='B'){
+        b1 = lawOfCosineSide(c,a,B);
+        C1 = toDeg(Math.asin( Math.min(1,Math.max(-1, Math.sin(toRad(B)) * c/b1 )) ));
+        if(!isFinite(C1)) C1 = lawOfCosineAngle(c,a,b1);
+        A1 = 180 - B - C1;
+      } else if(included==='C'){
+        c1 = lawOfCosineSide(a,b,C);
+        A1 = toDeg(Math.asin( Math.min(1,Math.max(-1, Math.sin(toRad(C)) * a/c1 )) ));
+        if(!isFinite(A1)) A1 = lawOfCosineAngle(a,b,c1);
+        B1 = 180 - C - A1;
+      }
+      results.push({a:a1,b:b1,c:c1,A:A1,B:B1,C:C1});
+      return {solutions:results};
+    }
+
+    // SSA (ambiguous case)
+    const ssa = detectSSA(known);
+    if(ssa){
+      const angName = ssa.angle;
+      const otherSideName = ssa.otherSide;
+
+      // Normalize mapping so known angle is A and opposite side is a
+      let map = {A:null,B:null,C:null,a:null,b:null,c:null};
+      if(angName==='A'){
+        map = {A:'A',B:(otherSideName==='b'?'B':'C'),C:(otherSideName==='b'?'C':'B'),a:'a',b:(otherSideName==='b'?'b':'c'),c:(otherSideName==='b'?'c':'b')};
+      } else if(angName==='B'){
+        map = {A:'B',B:(otherSideName==='a'?'A':'C'),C:(otherSideName==='a'?'C':'A'),a:'b',b:(otherSideName==='a'?'a':'c'),c:(otherSideName==='a'?'c':'a')};
+      } else { // C
+        map = {A:'C',B:(otherSideName==='a'?'A':'B'),C:(otherSideName==='a'?'B':'A'),a:'c',b:(otherSideName==='a'?'a':'b'),c:(otherSideName==='a'?'b':'a')};
+      }
+
+      const A_given = known[map.A];
+      const a_given = known[map.a];
+      const b_known = known[map.b];
+
+      if(!(A_given!==null && a_given!==null && b_known!==null)){
+        return {error:'For SSA, provide an angle and its opposite side, plus another side.'};
+      }
+
+      const sinB = (b_known * Math.sin(toRad(A_given))) / a_given;
+      if(sinB > 1 + 1e-12){
+        return {error:'No solution: the given values form an impossible SSA configuration (side too long for the given angle).'}
+      }
+
+      const clampSinB = Math.min(1, Math.max(-1, sinB));
+      const B1 = toDeg(Math.asin(clampSinB));
+      const B2 = 180 - B1;
+
+      const sols = [];
+      for(const Bcand of [B1,B2]){
+        const Ccand = 180 - A_given - Bcand;
+        if(Ccand <= 0) continue;
+        const c_norm = lawOfSinesSide(a_given, A_given, Ccand);
+        const a_norm = a_given;
+        const b_norm = b_known;
+        const sol = {A:null,B:null,C:null,a:null,b:null,c:null};
+        sol[map.A] = A_given;
+        sol[map.B] = Bcand;
+        sol[map.C] = Ccand;
+        sol[map.a] = a_norm;
+        sol[map.b] = b_norm;
+        sol[map.c] = c_norm;
+        sols.push(sol);
+      }
+
+      // Deduplicate identical solutions (e.g., right triangle)
+      const uniq = [];
+      for(const s of sols){
+        if(!uniq.some(t=> ['A','B','C'].every(k=> Math.abs((t[k]||0)-(s[k]||0)) < 1e-9 ))){
+          uniq.push(s);
+        }
+      }
+      if(uniq.length===0){
+        return {error:'No valid triangle arises from the given SSA values.'};
+      }
+      return {solutions:uniq};
+    }
+
+    return {error:'The combination of inputs is unsupported or insufficient. Provide a consistent set: SSS, SAS (included angle), ASA/AAS, or SSA (angle opposite one of the known sides).'}
+  }
+
+  function areaOfSolution(sol){
+    if([sol.a,sol.b,sol.c].some(v=>v==null || !isFinite(v))) return null;
+    return heronArea(sol.a,sol.b,sol.c);
+  }
+
+  function pretty(sol, dp){
+    const fmt = x => (x===null? '—' : String(round(x,dp)));
+    const area = areaOfSolution(sol);
+    const areaLine = isFinite(area) ? `<div><b>Area</b> = ${fmt(area)} <span class="muted">units²</span></div>` : '';
+    return `
+      <div class="two-col">
+        <div>
+          <div><b>a</b> = ${fmt(sol.a)}</div>
+          <div><b>b</b> = ${fmt(sol.b)}</div>
+          <div><b>c</b> = ${fmt(sol.c)}</div>
+        </div>
+        <div>
+          <div><b>A</b> = ${fmt(sol.A)}°</div>
+          <div><b>B</b> = ${fmt(sol.B)}°</div>
+          <div><b>C</b> = ${fmt(sol.C)}°</div>
+        </div>
+      </div>
+      <div style="margin-top:8px">${areaLine}</div>`;
+  }
+
+  function onSolve(){
+    const known = readInputs();
+    const dp = Math.max(0, Math.min(10, parseInt(el('dp').value)||2));
+    const {solutions, error} = solveTriangle(known);
+    const solEl = el('solutions');
+    const status = el('status');
+    solEl.innerHTML = '';
+    if(error){
+      status.className = 'status bad';
+      status.textContent = error;
+      return;
+    }
+    status.className = 'status';
+    status.textContent = solutions.length>1 ? 'Ambiguous SSA case: two valid solutions shown.' : 'Solved.';
+    solutions.forEach((s,i)=>{
+      const div = document.createElement('div');
+      div.className = 'solution';
+      div.innerHTML = `<h3>Solution ${i+1}</h3>${pretty(s, dp)}`;
+      solEl.appendChild(div);
+    });
+  }
+
+  function onReset(){
+    for(const id of ids){ el(id).value=''; }
+    el('solutions').innerHTML='';
+    el('status').className='status muted';
+    el('status').innerHTML='Ready. Unknowns will be computed when you click <b>Solve</b>.';
+  }
+
+  document.getElementById('solve').addEventListener('click', onSolve);
+  document.getElementById('reset').addEventListener('click', onReset);
+})();
+</script>
+</body>
+</html>
