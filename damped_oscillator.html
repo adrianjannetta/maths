@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Damped Harmonic Oscillator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f5f7fb;
+      color: #222;
+    }
+    .widget-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 1rem 1.25rem 1.5rem;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      text-align: center;
+    }
+    .equation {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-family: "Cambria Math", "Times New Roman", serif;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .control-group {
+      font-size: 0.9rem;
+    }
+    .control-group label {
+      display: block;
+      margin-bottom: 0.15rem;
+      font-weight: 500;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+    .value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      margin-left: 0.25rem;
+    }
+    .info {
+      font-size: 0.85rem;
+      margin-bottom: 0.4rem;
+      text-align: center;
+    }
+    canvas {
+      width: 100%;
+      max-width: 100%;
+      border: 1px solid #dde3f0;
+      border-radius: 6px;
+      background: #ffffff;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget-container">
+    <h2>Damped Harmonic Oscillator</h2>
+    <div class="equation">
+      \( m\,y'' + C\,y' + k\,y = 0 \)
+    </div>
+    <div class="info" id="regimeInfo">
+      Regime: (computing…)
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="mSlider">Mass \(m\)</label>
+        <input id="mSlider" type="range" min="0.5" max="5" step="0.1" value="1.0">
+        <span class="value" id="mValue"></span>
+      </div>
+      <div class="control-group">
+        <label for="CSlider">Damping \(C\)</label>
+        <input id="CSlider" type="range" min="0" max="5" step="0.1" value="0.5">
+        <span class="value" id="CValue"></span>
+      </div>
+      <div class="control-group">
+        <label for="kSlider">Stiffness \(k\)</label>
+        <input id="kSlider" type="range" min="0.5" max="10" step="0.1" value="4.0">
+        <span class="value" id="kValue"></span>
+      </div>
+      <div class="control-group">
+        <label for="y0Slider">Initial displacement \(y(0)\)</label>
+        <input id="y0Slider" type="range" min="-2" max="2" step="0.1" value="1.0">
+        <span class="value" id="y0Value"></span>
+      </div>
+      <div class="control-group">
+        <label for="v0Slider">Initial velocity \(y'(0)\)</label>
+        <input id="v0Slider" type="range" min="-5" max="5" step="0.1" value="0.0">
+        <span class="value" id="v0Value"></span>
+      </div>
+      <div class="control-group">
+        <label for="tMaxSlider">Time window \(t_{\max}\)</label>
+        <input id="tMaxSlider" type="range" min="5" max="30" step="1" value="20">
+        <span class="value" id="tMaxValue"></span>
+      </div>
+    </div>
+
+    <canvas id="oscCanvas" width="800" height="320"></canvas>
+  </div>
+
+  <script>
+    const mSlider   = document.getElementById('mSlider');
+    const CSlider   = document.getElementById('CSlider');
+    const kSlider   = document.getElementById('kSlider');
+    const y0Slider  = document.getElementById('y0Slider');
+    const v0Slider  = document.getElementById('v0Slider');
+    const tMaxSlider= document.getElementById('tMaxSlider');
+
+    const mValue    = document.getElementById('mValue');
+    const CValue    = document.getElementById('CValue');
+    const kValue    = document.getElementById('kValue');
+    const y0Value   = document.getElementById('y0Value');
+    const v0Value   = document.getElementById('v0Value');
+    const tMaxValue = document.getElementById('tMaxValue');
+
+    const regimeInfo = document.getElementById('regimeInfo');
+    const canvas = document.getElementById('oscCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function updateLabels() {
+      mValue.textContent    = mSlider.value;
+      CValue.textContent    = CSlider.value;
+      kValue.textContent    = kSlider.value;
+      y0Value.textContent   = y0Slider.value;
+      v0Value.textContent   = v0Slider.value;
+      tMaxValue.textContent = tMaxSlider.value;
+    }
+
+    function computeSolution() {
+      const m  = parseFloat(mSlider.value);
+      const C  = parseFloat(CSlider.value);
+      const k  = parseFloat(kSlider.value);
+      const y0 = parseFloat(y0Slider.value);
+      const v0 = parseFloat(v0Slider.value);
+      const tMax = parseFloat(tMaxSlider.value);
+
+      const gamma = C / (2 * m);
+      const omega0 = Math.sqrt(k / m);
+      const disc = gamma * gamma - omega0 * omega0;
+
+      let regimeText;
+      if (Math.abs(disc) < 1e-4) {
+        regimeText = "Regime: critically damped (γ ≈ ω₀)";
+      } else if (disc < 0) {
+        regimeText = "Regime: underdamped (oscillatory, γ < ω₀)";
+      } else {
+        regimeText = "Regime: overdamped (non-oscillatory, γ > ω₀)";
+      }
+      regimeInfo.textContent = regimeText +
+        ` | γ = ${gamma.toFixed(2)}, ω₀ = ${omega0.toFixed(2)}`;
+
+      const N = 800;
+      const dt = tMax / N;
+      const points = [];
+
+      for (let i = 0; i <= N; i++) {
+        const t = i * dt;
+        let y;
+
+        if (Math.abs(disc) < 1e-4) {
+          // Critical damping: y = (A + B t) e^{-γ t}
+          const A = y0;
+          const B = v0 + gamma * A;
+          y = (A + B * t) * Math.exp(-gamma * t);
+        } else if (disc < 0) {
+          // Underdamped: y = e^{-γ t} (A cos ω_d t + B sin ω_d t)
+          const omega_d = Math.sqrt(omega0 * omega0 - gamma * gamma);
+          const A = y0;
+          const B = (v0 + gamma * A) / omega_d;
+          const eTerm = Math.exp(-gamma * t);
+          y = eTerm * (A * Math.cos(omega_d * t) + B * Math.sin(omega_d * t));
+        } else {
+          // Overdamped: y = A e^{r1 t} + B e^{r2 t}
+          const alpha = Math.sqrt(disc);
+          const r1 = -gamma + alpha;
+          const r2 = -gamma - alpha;
+
+          if (Math.abs(r1 - r2) < 1e-6) {
+            // Fallback to critical if nearly equal
+            const A = y0;
+            const B = v0 + gamma * A;
+            y = (A + B * t) * Math.exp(-gamma * t);
+          } else {
+            const A = (v0 - r2 * y0) / (r1 - r2);
+            const B = y0 - A;
+            y = A * Math.exp(r1 * t) + B * Math.exp(r2 * t);
+          }
+        }
+
+        points.push({ t, y });
+      }
+
+      return { points, tMax };
+    }
+
+    function draw() {
+      updateLabels();
+      const { points, tMax } = computeSolution();
+
+      // Find y-range
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const p of points) {
+        if (!isFinite(p.y)) continue;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      }
+      if (!isFinite(minY) || !isFinite(maxY)) {
+        minY = -1;
+        maxY = 1;
+      }
+      const amp = Math.max(Math.abs(minY), Math.abs(maxY), 0.5);
+      minY = -1.1 * amp;
+      maxY =  1.1 * amp;
+
+      const marginLeft = 45;
+      const marginRight = 10;
+      const marginTop = 10;
+      const marginBottom = 30;
+
+      const width = canvas.width;
+      const height = canvas.height;
+
+      function xToCanvas(t) {
+        return marginLeft + (t / tMax) * (width - marginLeft - marginRight);
+      }
+      function yToCanvas(y) {
+        return marginTop + (maxY - y) * (height - marginTop - marginBottom) / (maxY - minY);
+      }
+
+      // Clear
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      // Axes
+      ctx.strokeStyle = "#ccd2e3";
+      ctx.lineWidth = 1;
+
+      // x-axis (y=0)
+      if (0 > minY && 0 < maxY) {
+        const y0c = yToCanvas(0);
+        ctx.beginPath();
+        ctx.moveTo(marginLeft, y0c);
+        ctx.lineTo(width - marginRight, y0c);
+        ctx.stroke();
+      }
+
+      // y-axis (t=0)
+      const x0c = xToCanvas(0);
+      ctx.beginPath();
+      ctx.moveTo(x0c, marginTop);
+      ctx.lineTo(x0c, height - marginBottom);
+      ctx.stroke();
+
+      // t labels (0 and tMax)
+      ctx.fillStyle = "#444";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("0", xToCanvas(0), height - 12);
+      ctx.fillText(`t = ${tMax.toFixed(0)}`, xToCanvas(tMax), height - 12);
+
+      // y labels (top and bottom)
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      ctx.fillText(maxY.toFixed(2), marginLeft - 4, yToCanvas(maxY));
+      ctx.fillText(minY.toFixed(2), marginLeft - 4, yToCanvas(minY));
+
+      // Plot y(t)
+      ctx.strokeStyle = "#2c7be5";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let first = true;
+      for (const p of points) {
+        const x = xToCanvas(p.t);
+        const y = yToCanvas(p.y);
+        if (first) {
+          ctx.moveTo(x, y);
+          first = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      // Mark initial condition point at t=0
+      const y0Val = parseFloat(y0Slider.value);
+      const ix = xToCanvas(0);
+      const iy = yToCanvas(y0Val);
+      ctx.fillStyle = "#e55353";
+      ctx.beginPath();
+      ctx.arc(ix, iy, 4, 0, 2 * Math.PI);
+      ctx.fill();
+
+      ctx.fillStyle = "#444";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("y(t)", marginLeft + 4, marginTop + 14);
+    }
+
+    // Attach listeners
+    [mSlider, CSlider, kSlider, y0Slider, v0Slider, tMaxSlider].forEach(el => {
+      el.addEventListener('input', draw);
+    });
+
+    // Initial draw
+    draw();
+  </script>
+</body>
+</html>
