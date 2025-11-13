@@ -24,10 +24,15 @@
       font-size: 1.1rem;
       text-align: center;
     }
-    .equation {
+    .equation, .equation-values {
       text-align: center;
-      margin-bottom: 0.5rem;
-      font-family: "Cambria Math", "Times New Roman", serif;
+      margin-bottom: 0.3rem;
+      font-family: "Cambria", "Times New Roman", serif;
+      font-size: 0.95rem;
+    }
+    .equation-values {
+      font-size: 0.9rem;
+      color: #444;
     }
     .controls {
       display: grid;
@@ -71,7 +76,10 @@
   <div class="widget-container">
     <h2>Damped Harmonic Oscillator</h2>
     <div class="equation">
-      \( m\,y'' + C\,y' + k\,y = 0 \)
+      General form: m y'' + C y' + k y = 0
+    </div>
+    <div class="equation-values" id="eqValues">
+      Current equation: (computing…)
     </div>
     <div class="info" id="regimeInfo">
       Regime: (computing…)
@@ -79,32 +87,32 @@
 
     <div class="controls">
       <div class="control-group">
-        <label for="mSlider">Mass \(m\)</label>
+        <label for="mSlider">Mass m</label>
         <input id="mSlider" type="range" min="0.5" max="5" step="0.1" value="1.0">
         <span class="value" id="mValue"></span>
       </div>
       <div class="control-group">
-        <label for="CSlider">Damping \(C\)</label>
+        <label for="CSlider">Damping C</label>
         <input id="CSlider" type="range" min="0" max="5" step="0.1" value="0.5">
         <span class="value" id="CValue"></span>
       </div>
       <div class="control-group">
-        <label for="kSlider">Stiffness \(k\)</label>
+        <label for="kSlider">Stiffness k</label>
         <input id="kSlider" type="range" min="0.5" max="10" step="0.1" value="4.0">
         <span class="value" id="kValue"></span>
       </div>
       <div class="control-group">
-        <label for="y0Slider">Initial displacement \(y(0)\)</label>
+        <label for="y0Slider">Initial displacement y(0)</label>
         <input id="y0Slider" type="range" min="-2" max="2" step="0.1" value="1.0">
         <span class="value" id="y0Value"></span>
       </div>
       <div class="control-group">
-        <label for="v0Slider">Initial velocity \(y'(0)\)</label>
+        <label for="v0Slider">Initial velocity y'(0)</label>
         <input id="v0Slider" type="range" min="-5" max="5" step="0.1" value="0.0">
         <span class="value" id="v0Value"></span>
       </div>
       <div class="control-group">
-        <label for="tMaxSlider">Time window \(t_{\max}\)</label>
+        <label for="tMaxSlider">Time window t_max</label>
         <input id="tMaxSlider" type="range" min="5" max="30" step="1" value="20">
         <span class="value" id="tMaxValue"></span>
       </div>
@@ -129,6 +137,7 @@
     const tMaxValue = document.getElementById('tMaxValue');
 
     const regimeInfo = document.getElementById('regimeInfo');
+    const eqValues   = document.getElementById('eqValues');
     const canvas = document.getElementById('oscCanvas');
     const ctx = canvas.getContext('2d');
 
@@ -149,20 +158,28 @@
       const v0 = parseFloat(v0Slider.value);
       const tMax = parseFloat(tMaxSlider.value);
 
+      // Update numeric equation display
+      eqValues.textContent =
+        "Current equation: " +
+        m.toFixed(2) + " y'' + " +
+        C.toFixed(2) + " y' + " +
+        k.toFixed(2) + " y = 0";
+
       const gamma = C / (2 * m);
       const omega0 = Math.sqrt(k / m);
       const disc = gamma * gamma - omega0 * omega0;
 
       let regimeText;
       if (Math.abs(disc) < 1e-4) {
-        regimeText = "Regime: critically damped (γ ≈ ω₀)";
+        regimeText = "Regime: critically damped (gamma ≈ omega_0)";
       } else if (disc < 0) {
-        regimeText = "Regime: underdamped (oscillatory, γ < ω₀)";
+        regimeText = "Regime: underdamped (oscillatory, gamma < omega_0)";
       } else {
-        regimeText = "Regime: overdamped (non-oscillatory, γ > ω₀)";
+        regimeText = "Regime: overdamped (non-oscillatory, gamma > omega_0)";
       }
-      regimeInfo.textContent = regimeText +
-        ` | γ = ${gamma.toFixed(2)}, ω₀ = ${omega0.toFixed(2)}`;
+      regimeInfo.textContent =
+        regimeText + " | gamma = " + gamma.toFixed(2) +
+        ", omega_0 = " + omega0.toFixed(2);
 
       const N = 800;
       const dt = tMax / N;
@@ -173,12 +190,12 @@
         let y;
 
         if (Math.abs(disc) < 1e-4) {
-          // Critical damping: y = (A + B t) e^{-γ t}
+          // Critical damping: y = (A + B t) e^{-gamma t}
           const A = y0;
           const B = v0 + gamma * A;
           y = (A + B * t) * Math.exp(-gamma * t);
         } else if (disc < 0) {
-          // Underdamped: y = e^{-γ t} (A cos ω_d t + B sin ω_d t)
+          // Underdamped: y = e^{-gamma t} (A cos(omega_d t) + B sin(omega_d t))
           const omega_d = Math.sqrt(omega0 * omega0 - gamma * gamma);
           const A = y0;
           const B = (v0 + gamma * A) / omega_d;
@@ -229,7 +246,7 @@
       maxY =  1.1 * amp;
 
       const marginLeft = 45;
-      const marginRight = 10;
+      const marginRight = 40; // increased to avoid clipping on the right
       const marginTop = 10;
       const marginBottom = 30;
 
@@ -271,9 +288,13 @@
       // t labels (0 and tMax)
       ctx.fillStyle = "#444";
       ctx.font = "11px system-ui, sans-serif";
+
       ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
       ctx.fillText("0", xToCanvas(0), height - 12);
-      ctx.fillText(`t = ${tMax.toFixed(0)}`, xToCanvas(tMax), height - 12);
+
+      ctx.textAlign = "right";
+      ctx.fillText("t = " + tMax.toFixed(0), xToCanvas(tMax), height - 12);
 
       // y labels (top and bottom)
       ctx.textAlign = "right";
@@ -298,7 +319,7 @@
       }
       ctx.stroke();
 
-      // Mark initial condition point at t=0
+      // Mark initial condition point at t=0 (y(0))
       const y0Val = parseFloat(y0Slider.value);
       const ix = xToCanvas(0);
       const iy = yToCanvas(y0Val);
