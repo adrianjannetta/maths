@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pontoon Stability with Heel Angle (Body-Fixed)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0.75rem;
+      background: #f5f7fb;
+      color: #103054;
+    }
+    .widget {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 2px solid #1f6fbf;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      display: grid;
+      grid-template-columns: minmax(260px, 1.2fr) minmax(280px, 1.5fr);
+      gap: 1rem;
+    }
+    h1 {
+      font-size: 1.2rem;
+      margin: 0 0 0.5rem;
+      color: #0f3a6d;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      font-size: 0.85rem;
+    }
+    .control-row {
+      display: flex;
+      flex-direction: column;
+    }
+    .control-row label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.1rem;
+    }
+    .control-row span.value {
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    button {
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid #1f6fbf;
+      background: #1f6fbf;
+      color: #fff;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    button.paused {
+      background: #ffffff;
+      color: #1f6fbf;
+    }
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 0.3rem 0.7rem;
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+    }
+    .output-grid .label {
+      font-weight: 500;
+      color: #24486e;
+    }
+    .output-grid .value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .stability-status {
+      margin-top: 0.3rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .stable {
+      background: #e1f6ea;
+      color: #116634;
+      border: 1px solid #35a45a;
+    }
+    .unstable {
+      background: #fde7e7;
+      color: #9b1c1c;
+      border: 1px solid #e55353;
+    }
+    canvas {
+      width: 100%;
+      background: #eef3fb;
+      border-radius: 8px;
+      border: 1px solid #d0d8e8;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.8rem;
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot.G { background: #d93025; }
+    .dot.B { background: #1a73e8; }
+    .dot.M { background: #0b8043; }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="controls">
+      <h1>Rectangular Pontoon – Heel & Righting Lever (Body-Fixed)</h1>
+      <p style="font-size:0.8rem;margin:0 0 0.5rem;">
+        The hull, O, G, B and M rotate together with heel angle φ.  
+        The weight line is vertical through G.  
+        The buoyancy line is vertical through M (small-angle approximation).  
+        B′ sits on the buoyancy line, and GZ is the horizontal distance between the two vertical forces.
+      </p>
+
+      <div class="control-row">
+        <label>Beam, B (m) <span class="value" id="beamVal"></span></label>
+        <input type="range" id="beam" min="2" max="20" step="0.1" value="8">
+      </div>
+      <div class="control-row">
+        <label>Depth, D (m) <span class="value" id="depthVal"></span></label>
+        <input type="range" id="depth" min="1" max="8" step="0.1" value="4">
+      </div>
+      <div class="control-row">
+        <label>Weight per metre, W (kN/m) <span class="value" id="weightVal"></span></label>
+        <input type="range" id="weight" min="50" max="1000" step="10" value="200">
+      </div>
+      <div class="control-row">
+        <label>OG (from O, m) <span class="value" id="OGVal"></span></label>
+        <input type="range" id="OG" min="0.1" max="12" step="0.05" value="2">
+      </div>
+
+      <div class="control-row">
+        <label>Heel angle, φ (deg) <span class="value" id="phiVal"></span></label>
+        <input type="range" id="phi" min="-15" max="15" step="1" value="0">
+      </div>
+
+      <div class="control-row" style="flex-direction:row;align-items:center;justify-content:space-between;">
+        <button id="playBtn" class="paused">Play heel animation</button>
+        <span style="font-size:0.75rem;color:#4d6281;">GZ ≈ GM·sin φ</span>
+      </div>
+
+      <div class="output-grid">
+        <div class="label">Draft, T</div><div class="value" id="TOut"></div>
+        <div class="label">OB</div><div class="value" id="OBOut"></div>
+        <div class="label">BM</div><div class="value" id="BMOut"></div>
+        <div class="label">OG</div><div class="value" id="OGOut"></div>
+        <div class="label">GM</div><div class="value" id="GMOut"></div>
+        <div class="label">GZ</div><div class="value" id="GZOut"></div>
+      </div>
+      <div id="stabBox" class="stability-status"></div>
+    </div>
+
+    <div>
+      <h2 style="margin:0 0 0.4rem;font-size:1rem;color:#1f6fbf;">Body-Fixed Section View</h2>
+      <canvas id="view" width="420" height="380"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="dot G"></div> G (body-fixed)</div>
+        <div class="legend-item"><div class="dot B"></div> B (body-fixed)</div>
+        <div class="legend-item"><div class="dot M"></div> M (metacentre)</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const g   = 9.81;
+const rho = 1025;
+
+const beamSlider   = document.getElementById('beam');
+const depthSlider  = document.getElementById('depth');
+const weightSlider = document.getElementById('weight');
+const OGSlider     = document.getElementById('OG');
+const phiSlider    = document.getElementById('phi');
+
+const beamVal   = document.getElementById('beamVal');
+const depthVal  = document.getElementById('depthVal');
+const weightVal = document.getElementById('weightVal');
+const OGVal     = document.getElementById('OGVal');
+const phiVal    = document.getElementById('phiVal');
+
+const TOut   = document.getElementById('TOut');
+const OBOut  = document.getElementById('OBOut');
+const BMOut  = document.getElementById('BMOut');
+const OGOut  = document.getElementById('OGOut');
+const GMOut  = document.getElementById('GMOut');
+const GZOut  = document.getElementById('GZOut');
+const stabBox = document.getElementById('stabBox');
+
+const playBtn = document.getElementById('playBtn');
+const canvas  = document.getElementById('view');
+const ctx     = canvas.getContext('2d');
+
+let animInterval = null;
+let animDirection = 1;
+
+function format(x, dp=2){ return isFinite(x) ? x.toFixed(dp) : "—"; }
+
+function computeHydrostatics() {
+  const B  = parseFloat(beamSlider.value);
+  const D  = parseFloat(depthSlider.value);
+  const W  = parseFloat(weightSlider.value);
+  const OG = parseFloat(OGSlider.value);
+
+  beamVal.textContent   = format(B,1);
+  depthVal.textContent  = format(D,1);
+  weightVal.textContent = format(W,0);
+  OGVal.textContent     = format(OG,2);
+
+  const massPerM = (W * 1000) / g;
+  let T = massPerM / (rho * B);
+  if (T > D) T = D;
+
+  const OB = T/2;
+  const I = B**3 / 12;
+  const disp = B*T;
+  const BM = disp>0 ? I/disp : 0;
+  const GM = OB + BM - OG;
+
+  return {B, D, W, OG, T, OB, BM, GM};
+}
+
+function update() {
+  const hs = computeHydrostatics();
+  const phiDeg = parseFloat(phiSlider.value);
+  const phiRad = phiDeg * Math.PI/180;
+
+  const GZ = hs.GM * Math.sin(phiRad);
+
+  TOut.textContent  = format(hs.T,3)+" m";
+  OBOut.textContent = format(hs.OB,3)+" m";
+  BMOut.textContent = format(hs.BM,3)+" m";
+  OGOut.textContent = format(hs.OG,3)+" m";
+  GMOut.textContent = format(hs.GM,3)+" m";
+  GZOut.textContent = format(GZ,3)+" m";
+  phiVal.textContent = format(phiDeg,0)+"°";
+
+  stabBox.textContent =
+    hs.GM>=0 ? "GM > 0 → Stable (small-angle)" : "GM < 0 → Unstable (small-angle)";
+  stabBox.className =
+    hs.GM>=0 ? "stability-status stable" : "stability-status unstable";
+
+  drawSection(hs, phiRad);
+}
+
+function drawSection(hs, phi) {
+  const {B,D,T,OB,BM,OG,GM} = hs;
+
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  const marginX=40, marginY=30;
+  const maxZ=Math.max(D*1.3,OG+BM+0.5);
+  const scaleX=(w-2*marginX)/(1.6*B);
+  const scaleY=(h-2*marginY)/maxZ;
+  const scale=Math.min(scaleX,scaleY);
+
+  // Centre pontoon horizontally
+  const originX=w*0.5;
+  const originY=h-marginY;
+
+  function P(x,z){ return [originX+x*scale, originY-z*scale]; }
+
+  // Rotate body coords by -φ into world frame
+  function R(xb,zb){
+    const c=Math.cos(-phi), s=Math.sin(-phi);
+    return [xb*c - zb*s, xb*s + zb*c];
+  }
+
+  // Water
+  const [,wy]=P(0,T);
+  ctx.fillStyle="#dbe9ff";
+  ctx.fillRect(0,wy,w,h-wy);
+
+  // Hull corners (body coords)
+  const halfB=B/2;
+  const bodyCorners=[[-halfB,0],[halfB,0],[halfB,D],[-halfB,D]];
+  const worldCorners=bodyCorners.map(([xb,zb])=>R(xb,zb));
+  const canvasCorners=worldCorners.map(([xw,zw])=>P(xw,zw));
+
+  ctx.beginPath();
+  ctx.moveTo(canvasCorners[0][0],canvasCorners[0][1]);
+  for(let i=1;i<canvasCorners.length;i++)
+    ctx.lineTo(canvasCorners[i][0],canvasCorners[i][1]);
+  ctx.closePath();
+  ctx.fillStyle="#fdf7e6";
+  ctx.strokeStyle="#b5892b";
+  ctx.lineWidth=2;
+  ctx.fill(); ctx.stroke();
+
+  // Reference waterline
+  const [wx1,wy1]=P(-1.2*halfB,T);
+  const [wx2,wy2]=P( 1.2*halfB,T);
+  ctx.setLineDash([6,4]);
+  ctx.beginPath();
+  ctx.moveTo(wx1,wy1); ctx.lineTo(wx2,wy2);
+  ctx.strokeStyle="#1f6fbf"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Rotated centreline
+  const [cw0x,cw0z]=R(0,0);
+  const [cw1x,cw1z]=R(0,maxZ);
+  const [c0x,c0y]=P(cw0x,cw0z);
+  const [c1x,c1y]=P(cw1x,cw1z);
+  ctx.beginPath();
+  ctx.moveTo(c0x,c0y); ctx.lineTo(c1x,c1y);
+  ctx.strokeStyle="#9aa5bd"; ctx.lineWidth=1; ctx.stroke();
+
+  // Origin O
+  ctx.fillStyle="#3c4b63"; ctx.font="11px system-ui";
+  ctx.fillText("O", c0x+7, c0y+3);
+
+  // Body-fixed points → world
+  const [BwX,BwZ]=R(0,OB);
+  const [GwX,GwZ]=R(0,OG);
+  const [MwX,MwZ]=R(0,OB+BM);
+
+  const [Bx,By]=P(BwX,BwZ);
+  const [Gx,Gy]=P(GwX,GwZ);
+  const [Mx,My]=P(MwX,MwZ);
+
+  // B'
+  const [Bpx,Bpy]=P(MwX,BwZ);
+
+  // M
+  ctx.beginPath();
+  ctx.arc(Mx,My,5,0,2*Math.PI);
+  ctx.fillStyle="#0b8043"; ctx.fill(); ctx.fillText("M",Mx+7,My+3);
+
+  // B
+  ctx.beginPath();
+  ctx.arc(Bx,By,5,0,2*Math.PI);
+  ctx.fillStyle="#1a73e8"; ctx.fill(); ctx.fillText("B",Bx+7,By+3);
+
+  // B'
+  ctx.beginPath();
+  ctx.arc(Bpx,Bpy,5,0,2*Math.PI);
+  ctx.fillStyle="#1a73e8"; ctx.fill(); ctx.fillText("B'",Bpx+10,Bpy+3);
+
+  // G
+  ctx.beginPath();
+  ctx.arc(Gx,Gy,5,0,2*Math.PI);
+  ctx.fillStyle="#d93025"; ctx.fill(); ctx.fillText("G",Gx+7,Gy+3);
+
+  // Righting lever GZ (horizontal from G to vertical through M at same depth)
+  const [GZx,GZy]=P(MwX,GwZ);
+  ctx.beginPath();
+  ctx.moveTo(Gx,Gy);
+  ctx.lineTo(GZx,GZy);
+  ctx.strokeStyle="#333"; ctx.lineWidth=2; ctx.stroke();
+
+  // Arrowhead
+  const dx = GZx - Gx;
+  if(Math.abs(dx)>1e-6){
+    const sign=Math.sign(dx);
+    ctx.beginPath();
+    ctx.moveTo(GZx,GZy);
+    ctx.lineTo(GZx - sign*8,GZy -4);
+    ctx.lineTo(GZx - sign*8,GZy +4);
+    ctx.fillStyle="#333"; ctx.fill();
+  }
+
+  // GZ label
+  const midX=(Gx+GZx)/2, midY=(Gy+GZy)/2;
+  ctx.font="10px system-ui"; ctx.fillStyle="#333";
+  ctx.fillText("GZ", midX-8, midY-6);
+
+  // B' → M line
+  ctx.setLineDash([5,3]);
+  ctx.beginPath();
+  ctx.moveTo(Bpx,Bpy); ctx.lineTo(Mx,My);
+  ctx.strokeStyle="#0b8043"; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Heel indicator
+  const heelX=w*0.78, heelY=h*0.25;
+  ctx.save();
+  ctx.translate(heelX,heelY); ctx.rotate(phi);
+  ctx.beginPath();
+  ctx.moveTo(-20,0); ctx.lineTo(20,0);
+  ctx.lineTo(13,-5); ctx.moveTo(20,0); ctx.lineTo(13,5);
+  ctx.strokeStyle="#4b5e80"; ctx.lineWidth=2; ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle="#4b5e80"; ctx.font="9px system-ui";
+  ctx.fillText("Heel φ", heelX-18, heelY+15);
+}
+
+function toggleAnimation(){
+  if(animInterval){
+    clearInterval(animInterval);
+    animInterval=null;
+    playBtn.textContent="Play heel animation";
+    playBtn.classList.add("paused");
+    return;
+  }
+  playBtn.textContent="Pause heel animation";
+  playBtn.classList.remove("paused");
+
+  animInterval=setInterval(()=>{
+    let phi=parseFloat(phiSlider.value);
+    phi+=animDirection;
+    if(phi>15){phi=15;animDirection=-1;}
+    if(phi<-15){phi=-15;animDirection=1;}
+    phiSlider.value=phi;
+    update();
+  },60);
+}
+
+[beamSlider,depthSlider,weightSlider,OGSlider,phiSlider].forEach(el=>el.addEventListener("input",update));
+playBtn.addEventListener("click",toggleAnimation);
+
+update();
+</script>
+</body>
+</html>
