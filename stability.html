@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Buoyancy & Stability Widget</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0.75rem;
+      background: #f5f7fb;
+      color: #103054;
+    }
+    .widget {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 2px solid #1f6fbf;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      display: grid;
+      grid-template-columns: minmax(260px, 1.2fr) minmax(280px, 1.5fr);
+      gap: 1rem;
+    }
+    h1 {
+      font-size: 1.2rem;
+      margin: 0 0 0.5rem;
+      color: #0f3a6d;
+    }
+    .controls h2, .output h2 {
+      font-size: 1rem;
+      margin: 0 0 0.4rem;
+      color: #1f6fbf;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+    .mode-select, .water-select {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+    .mode-select label,
+    .water-select label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.2rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid #c0d3f2;
+      background: #f2f6ff;
+      cursor: pointer;
+    }
+    .mode-select input[type="radio"],
+    .water-select input[type="radio"] {
+      accent-color: #1f6fbf;
+    }
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      font-size: 0.85rem;
+    }
+    .control-row label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.1rem;
+    }
+    .control-row span.value {
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .output {
+      font-size: 0.85rem;
+    }
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 0.3rem 0.7rem;
+      margin-bottom: 0.5rem;
+    }
+    .output-grid div.label {
+      font-weight: 500;
+      color: #24486e;
+    }
+    .output-grid div.value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .stability-status {
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 0.4rem;
+    }
+    .stable {
+      background: #e1f6ea;
+      color: #116634;
+      border: 1px solid #35a45a;
+    }
+    .unstable {
+      background: #fde7e7;
+      color: #9b1c1c;
+      border: 1px solid #e55353;
+    }
+    .warning {
+      font-size: 0.8rem;
+      color: #9b5a00;
+      background: #fff4e0;
+      border-radius: 5px;
+      border: 1px solid #f1c27d;
+      padding: 0.25rem 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+    .mode-note {
+      font-size: 0.78rem;
+      color: #4d6281;
+      margin-top: 0.15rem;
+    }
+    canvas {
+      width: 100%;
+      background: #eef3fb;
+      border-radius: 8px;
+      border: 1px solid #d0d8e8;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.8rem;
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot.G { background: #d93025; }
+    .dot.B { background: #1a73e8; }
+    .dot.M { background: #0b8043; }
+    @media (max-width: 750px) {
+      .widget {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <div class="controls">
+      <h1>Buoyancy & Stability: Pontoon vs Cylindrical Buoy</h1>
+      <p style="font-size:0.8rem;margin:0 0 0.5rem;">
+        Choose a hull type and water density, adjust geometry, loading and the position of the centre of gravity.
+        The diagram shows origin <b>O</b> at the keel, the waterline, and the positions of <b>G</b>, <b>B</b> and <b>M</b>.
+      </p>
+
+      <!-- Mode: pontoon vs cylindrical buoy -->
+      <div class="mode-select">
+        <label>
+          <input type="radio" name="mode" value="rect" checked>
+          Rectangular pontoon
+        </label>
+        <label>
+          <input type="radio" name="mode" value="cyl">
+          Cylindrical buoy
+        </label>
+      </div>
+
+      <!-- Water type: seawater vs fresh -->
+      <div class="water-select">
+        <label>
+          <input type="radio" name="water" value="sea" checked>
+          Seawater (1025 kg/m³)
+        </label>
+        <label>
+          <input type="radio" name="water" value="fresh">
+          Fresh water (1000 kg/m³)
+        </label>
+      </div>
+
+      <!-- Rectangular pontoon specific controls -->
+      <div id="rectControlsSub">
+        <div class="control-row">
+          <label>
+            Beam, B (m)
+            <span class="value" id="beamVal"></span>
+          </label>
+          <input type="range" id="beam" min="2" max="20" step="0.1" value="8">
+        </div>
+
+        <div class="control-row">
+          <label>
+            Depth, D (m)
+            <span class="value" id="depthVal"></span>
+          </label>
+          <input type="range" id="depth" min="1" max="8" step="0.1" value="4">
+        </div>
+      </div>
+
+      <!-- Cylindrical buoy specific controls -->
+      <div id="cylControlsSub" style="display:none;">
+        <div class="control-row">
+          <label>
+            Diameter, D<sub>cyl</sub> (m)
+            <span class="value" id="diamVal"></span>
+          </label>
+          <input type="range" id="diam" min="1" max="10" step="0.1" value="4">
+        </div>
+
+        <div class="control-row">
+          <label>
+            Height, H (m)
+            <span class="value" id="heightVal"></span>
+          </label>
+          <input type="range" id="height" min="2" max="20" step="0.1" value="4">
+        </div>
+      </div>
+
+      <!-- Shared controls -->
+      <div class="control-row">
+        <label id="weightLabel">
+          Weight per metre, W (kN/m)
+          <span class="value" id="weightVal"></span>
+        </label>
+        <input type="range" id="weight" min="50" max="1000" step="10" value="200">
+      </div>
+
+      <div class="control-row">
+        <label>
+          OG (from O, m)
+          <span class="value" id="KGVal"></span>
+        </label>
+        <input type="range" id="KG" min="0.1" max="12" step="0.05" value="2">
+      </div>
+
+      <div class="control-row" style="flex-direction:row;align-items:center;justify-content:space-between;font-size:0.8rem;">
+        <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;">
+          <input type="checkbox" id="KGmid" checked>
+          <span>Lock G at mid-depth/height</span>
+        </label>
+      </div>
+
+      <div class="warning" id="draftWarning" style="display:none;">
+        Draft exceeds depth/height: hull would be submerged. Draft is capped.
+      </div>
+
+      <div class="output">
+        <h2>Hydrostatics</h2>
+        <div class="output-grid">
+          <div class="label">Draft, T</div><div class="value" id="Tout"></div>
+          <div class="label">OB</div><div class="value" id="KBout"></div>
+          <div class="label">BM</div><div class="value" id="BMout"></div>
+          <div class="label">OG</div><div class="value" id="KGout"></div>
+          <div class="label">GM</div><div class="value" id="GMout"></div>
+        </div>
+        <div id="stabilityBox" class="stability-status"></div>
+        <p class="mode-note" id="modeNote">
+          Mode: Rectangular pontoon – per metre length. Water: Seawater (ρ = 1025 kg/m³).
+        </p>
+      </div>
+    </div>
+
+    <!-- DIAGRAM -->
+    <div>
+      <h2 style="margin:0 0 0.4rem;font-size:1rem;color: #1f6fbf;">Section View</h2>
+      <canvas id="view" width="420" height="380"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="dot G"></div> G (centre of gravity)</div>
+        <div class="legend-item"><div class="dot B"></div> B (centre of buoyancy)</div>
+        <div class="legend-item"><div class="dot M"></div> M (metacentre)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const g = 9.81;
+
+    const modeRadios  = document.querySelectorAll('input[name="mode"]');
+    const waterRadios = document.querySelectorAll('input[name="water"]');
+
+    const beamSlider  = document.getElementById('beam');
+    const depthSlider = document.getElementById('depth');
+
+    const diamSlider   = document.getElementById('diam');
+    const heightSlider = document.getElementById('height');
+
+    const weightSlider = document.getElementById('weight');
+    const KGSlider     = document.getElementById('KG');
+    const KGmid        = document.getElementById('KGmid');
+
+    const beamVal   = document.getElementById('beamVal');
+    const depthVal  = document.getElementById('depthVal');
+    const diamVal   = document.getElementById('diamVal');
+    const heightVal = document.getElementById('heightVal');
+
+    const weightVal = document.getElementById('weightVal');
+    const KGVal     = document.getElementById('KGVal');
+
+    const rectControlsSub = document.getElementById('rectControlsSub');
+    const cylControlsSub  = document.getElementById('cylControlsSub');
+
+    const Tout  = document.getElementById('Tout');
+    const KBout = document.getElementById('KBout');
+    const BMout = document.getElementById('BMout');
+    const KGout = document.getElementById('KGout');
+    const GMout = document.getElementById('GMout');
+
+    const modeNote     = document.getElementById('modeNote');
+    const draftWarning = document.getElementById('draftWarning');
+
+    const canvas = document.getElementById('view');
+    const ctx = canvas.getContext('2d');
+
+    function getMode() {
+      return [...modeRadios].find(r => r.checked).value;
+    }
+    function getRho() {
+      return [...waterRadios].find(r => r.checked).value === "fresh" ? 1000 : 1025;
+    }
+    function formatNum(x, dp=2) {
+      return isFinite(x) ? x.toFixed(dp) : "—";
+    }
+
+    function update() {
+      const mode = getMode();
+      const rho  = getRho();
+
+      let B, D, depthEquivalent;
+      let WkRaw = parseFloat(weightSlider.value);
+
+      if (mode === "rect") {
+        B = parseFloat(beamSlider.value);
+        D = parseFloat(depthSlider.value);
+
+        beamVal.textContent  = B.toFixed(1);
+        depthVal.textContent = D.toFixed(1);
+
+        rectControlsSub.style.display = "";
+        cylControlsSub.style.display  = "none";
+
+        weightSlider.min = "50";
+        weightSlider.max = "1000";
+        weightSlider.step = "10";
+
+        document.getElementById('weightLabel').firstChild.textContent = "Weight per metre, W (kN/m)";
+      }
+      else {
+        B = parseFloat(diamSlider.value);
+        D = parseFloat(heightSlider.value);
+
+        diamVal.textContent   = B.toFixed(1);
+        heightVal.textContent = D.toFixed(1);
+
+        rectControlsSub.style.display = "none";
+        cylControlsSub.style.display  = "";
+
+        weightSlider.min = "10";
+        weightSlider.max = "500";
+        weightSlider.step = "10";
+
+        document.getElementById('weightLabel').firstChild.textContent = "Weight, W (kN)";
+      }
+
+      depthEquivalent = D;
+
+      // OG control
+      let KG = parseFloat(KGSlider.value);
+      KGSlider.max = (D + 3).toString();
+
+      if (KGmid.checked) {
+        KG = D/2;
+        KGSlider.value = KG.toString();
+        KGSlider.disabled = true;
+      } else {
+        KGSlider.disabled = false;
+      }
+
+      KGVal.textContent = KG.toFixed(2);
+      weightVal.textContent = WkRaw.toFixed(0);
+
+      // Hydrostatics
+      let T, KB, BM;
+
+      if (mode === "rect") {
+        const massPerM = (WkRaw * 1000) / g;
+        T = massPerM / (rho * B);
+        if (T > D) { T = D; draftWarning.style.display = "block"; }
+        else draftWarning.style.display = "none";
+
+        KB = T/2;
+        const I = B**3 / 12;
+        const disp = B*T;
+        BM = I / disp;
+        modeNote.textContent = `Mode: Rectangular pontoon – per metre length. Water density = ${rho} kg/m³.`;
+      }
+      else {
+        const R = B/2;
+        const mass = (WkRaw * 1000) / g;
+        T = mass / (rho * Math.PI * R * R);
+        if (T > D) { T = D; draftWarning.style.display = "block"; }
+        else draftWarning.style.display = "none";
+
+        KB = T/2;
+        const I = Math.PI * R**4 / 4;
+        const disp = Math.PI * R**2 * T;
+        BM = I / disp;
+        modeNote.textContent = `Mode: Cylindrical buoy – full 3D cylinder. Water density = ${rho} kg/m³.`;
+      }
+
+      const GM = KB + BM - KG;
+
+      // Outputs
+      Tout.textContent  = `${formatNum(T,3)} m`;
+      KBout.textContent = `${formatNum(KB,3)} m`;
+      BMout.textContent = `${formatNum(BM,3)} m`;
+      KGout.textContent = `${formatNum(KG,3)} m`;
+      GMout.textContent = `${formatNum(GM,3)} m`;
+
+      stabilityBox.textContent = GM >= 0 ? "GM > 0 → Stable" : "GM < 0 → Unstable";
+      stabilityBox.className = "stability-status " + (GM >= 0 ? "stable" : "unstable");
+
+      drawSection(mode, B, D, T, KB, KG, BM);
+    }
+
+    function drawSection(mode, B, D, T, KB, KG, BM) {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0,0,w,h);
+
+      const marginX = 40, marginY = 30;
+      const maxZ = Math.max(D*1.3, KG+BM+0.4);
+
+      const scaleX = (w - 2*marginX) / (1.4*B);
+      const scaleY = (h - 2*marginY) / maxZ;
+      const scale = Math.min(scaleX, scaleY);
+
+      const originX = w/2;
+      const originY = h - marginY;
+
+      function P(x,z){
+        return [originX + x*scale, originY - z*scale];
+      }
+
+      // Water
+      const [_, wy] = P(0,T);
+      ctx.fillStyle="#dbe9ff";
+      ctx.fillRect(0,wy,w,h-wy);
+
+      const halfB = B/2;
+      const [x1,y1] = P(-halfB,0);
+      const [x2,y2] = P(halfB,0);
+      const [x3,y3] = P(halfB,D);
+      const [x4,y4] = P(-halfB,D);
+
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.lineTo(x3,y3);
+      ctx.lineTo(x4,y4);
+      ctx.closePath();
+      ctx.fillStyle="#fdf7e6";
+      ctx.fill();
+      ctx.strokeStyle="#b5892b";
+      ctx.lineWidth=2;
+      ctx.stroke();
+
+      // Waterline
+      const [wx1,wy1] = P(-1.2*halfB, T);
+      const [wx2,wy2] = P( 1.2*halfB, T);
+      ctx.setLineDash([6,4]);
+      ctx.beginPath();
+      ctx.moveTo(wx1,wy1);
+      ctx.lineTo(wx2,wy2);
+      ctx.strokeStyle="#1f6fbf";
+      ctx.lineWidth=1.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Centreline
+      const [cx0, cz0] = P(0,0);
+      const [cx1, cz1] = P(0, maxZ);
+      ctx.beginPath();
+      ctx.moveTo(cx0,cz0);
+      ctx.lineTo(cx1,cz1);
+      ctx.strokeStyle="#9aa5bd";
+      ctx.stroke();
+
+      // Label O
+      ctx.fillStyle="#3c4b63";
+      ctx.font="11px system-ui";
+      ctx.fillText("O", cx0 + 7, cz0 + 3);
+
+      // Points G, B, M
+      const [bx,by] = P(0,KB);
+      const [gx,gy] = P(0,KG);
+      const [mx,my] = P(0,KB+BM);
+
+      function dot(x,y,color,label){
+        ctx.beginPath();
+        ctx.arc(x,y,5,0,2*Math.PI);
+        ctx.fillStyle=color;
+        ctx.fill();
+        ctx.fillStyle=color;
+        ctx.fillText(label,x+7,y+3);
+      }
+
+      dot(bx,by,"#1a73e8","B");
+      dot(gx,gy,"#d93025","G");
+      dot(mx,my,"#0b8043","M");
+
+      // Brackets OB, OG, GM
+      const leftX = x1 - 18;
+      ctx.strokeStyle="#7b8ba8";
+      ctx.setLineDash([3,3]);
+
+      function bracket(z1,z2,label){
+        const [_,p1] = P(0,z1);
+        const [__,p2] = P(0,z2);
+        ctx.beginPath();
+        ctx.moveTo(leftX,p1);
+        ctx.lineTo(leftX,p2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(leftX-4,p1);
+        ctx.lineTo(leftX+4,p1);
+        ctx.moveTo(leftX-4,p2);
+        ctx.lineTo(leftX+4,p2);
+        ctx.stroke();
+
+        const mid = (p1+p2)/2;
+        ctx.setLineDash([]);
+        ctx.fillStyle="#3c4b63";
+        ctx.fillText(label,leftX-30,mid+3);
+        ctx.setLineDash([3,3]);
+      }
+
+      bracket(0,KB,"OB");
+      bracket(0,KG,"OG");
+      bracket(KG,KB+BM,"GM");
+
+      ctx.setLineDash([]);
+    }
+
+    [beamSlider, depthSlider, diamSlider, heightSlider, weightSlider, KGSlider].forEach(
+      el => el.addEventListener("input", update)
+    );
+    modeRadios.forEach(r => r.addEventListener("change", update));
+    waterRadios.forEach(r => r.addEventListener("change", update));
+    KGmid.addEventListener("change", update);
+
+    update();
+  </script>
+</body>
+</html>
