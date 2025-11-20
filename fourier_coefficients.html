@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Fourier Coefficients Playground</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0.5rem;
+      box-sizing: border-box;
+    }
+    .widget-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      border: 1px solid #2a6fba;
+      border-radius: 8px;
+      padding: 1rem;
+      background: #f7fbff;
+    }
+    .widget-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .widget-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #1f4e7a;
+    }
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    label {
+      font-size: 0.9rem;
+    }
+    select, input[type="number"] {
+      padding: 0.15rem 0.25rem;
+      font-size: 0.9rem;
+    }
+    .sliders-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .slider-group {
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 0.5rem;
+      border: 1px solid #d5e3f4;
+    }
+    .slider-group h3 {
+      margin: 0 0 0.3rem 0;
+      font-size: 0.9rem;
+      color: #1f4e7a;
+    }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 1.1fr 2.5fr 0.8fr;
+      align-items: center;
+      gap: 0.25rem;
+      margin-bottom: 0.25rem;
+      font-size: 0.8rem;
+    }
+    .slider-row span {
+      white-space: nowrap;
+    }
+    input[type="range"] {
+      width: 100%;
+    }
+    .equation-box {
+      font-size: 0.8rem;
+      background: #eef5ff;
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      border-left: 3px solid #2a6fba;
+      margin-bottom: 0.4rem;
+    }
+    .equation-box code {
+      font-family: "Fira Code", Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+    .hint-box {
+      font-size: 0.8rem;
+      background: #f2f7ff;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border-left: 3px solid #8baee8;
+      margin-bottom: 0.4rem;
+      font-style: italic;
+      color: #23405f;
+    }
+    .hint-box strong {
+      font-style: normal;
+    }
+    .formula-box {
+      font-size: 0.8rem;
+      background: #f8faff;
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border-left: 3px solid #aac5ff;
+      margin-bottom: 0.6rem;
+    }
+    .formula-box code {
+      font-family: "Fira Code", Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+    .error-display {
+      font-size: 0.85rem;
+      color: #333;
+    }
+    #plot {
+      width: 100%;
+      height: 480px;
+    }
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+      align-items: center;
+    }
+    .radio-group span {
+      font-weight: 600;
+      color: #1f4e7a;
+    }
+    .radio-group label {
+      font-weight: 400;
+    }
+    button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      border: 1px solid #2a6fba;
+      background: #e3f0ff;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #d4e7ff;
+    }
+    .disabled-group {
+      opacity: 0.4;
+    }
+    @media (max-width: 700px) {
+      .slider-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="widget-container">
+    <div class="widget-header">
+      <h2>Fourier Coefficients Playground</h2>
+      <div>
+        <label for="target-select"><strong>Target function:</strong></label>
+        <select id="target-select">
+          <option value="square_odd">Square wave 1</option>
+          <option value="square_even">Square wave 2</option>
+          <option value="sawtooth_scaled">Sawtooth wave</option>
+          <option value="absx">Absolute value wave</option>
+          <option value="triangle_pi">Triangle wave</option>
+          <option value="half_step_pi2">Half-step wave</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="equation-box">
+      Target functions are scaled (often by π) so that the exact Fourier coefficients are simple.
+      You are building a function of the form:<br />
+      <code>f(t) = a₀/2 + Σ [aₙ cos(n t) + bₙ sin(n t)]</code>
+      for n = 1 … N. Use the sliders below to change the coefficients.
+    </div>
+
+    <div class="hint-box" id="hint-box">
+      <strong>Hint:</strong> Choose a function above to see suggestions about which sine and cosine terms to try.
+    </div>
+
+    <div class="formula-box">
+      <strong>Series formula (infinite sum):</strong>
+      <div id="formula-content">
+        Select a target function to see its Fourier series.
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="error-display">
+        <strong>RMS error over one period:</strong>
+        <span id="rms-error">–</span>
+      </div>
+      <div class="radio-group" id="term-type-group">
+        <span>Terms:</span>
+        <label><input type="radio" name="termType" value="all" checked /> All</label>
+        <label><input type="radio" name="termType" value="sine" /> Sine only</label>
+        <label><input type="radio" name="termType" value="cosine" /> Cosine only</label>
+      </div>
+      <div class="radio-group" id="parity-group">
+        <span>Parity:</span>
+        <label><input type="radio" name="parity" value="all" checked /> All</label>
+        <label><input type="radio" name="parity" value="even" /> Even</label>
+        <label><input type="radio" name="parity" value="odd" /> Odd</label>
+      </div>
+      <button id="reset-btn">Reset coefficients</button>
+      <button id="best-fit-btn">Best-fit coefficients</button>
+    </div>
+
+    <div class="sliders-container">
+      <div class="slider-group" id="a0-group">
+        <h3>Constant term a₀</h3>
+        <div class="slider-row">
+          <span>a₀</span>
+          <input type="range" min="-4" max="4" step="0.05" value="0" id="slider-a0" />
+          <input type="number" step="0.05" value="0" id="input-a0" />
+        </div>
+      </div>
+
+      <div class="slider-group" id="cos-group">
+        <h3>Cosine coefficients aₙ</h3>
+        <!-- Cosine sliders inserted by JS -->
+      </div>
+
+      <div class="slider-group" id="sin-group">
+        <h3>Sine coefficients bₙ</h3>
+        <!-- Sine sliders inserted by JS -->
+      </div>
+    </div>
+
+    <div id="plot"></div>
+  </div>
+
+  <script>
+    // Configuration
+    const MAX_N = 10;          // Highest n we store internally
+    const T_MIN = -2 * Math.PI;
+    const T_MAX =  2 * Math.PI;
+    const NUM_POINTS = 800;
+
+    // Coefficient storage
+    let a0 = 0;
+    let aCoeffs = new Array(MAX_N).fill(0); // a1..aMAX_N
+    let bCoeffs = new Array(MAX_N).fill(0); // b1..bMAX_N
+
+    const a0Slider = document.getElementById("slider-a0");
+    const a0Input  = document.getElementById("input-a0");
+    const a0Group  = document.getElementById("a0-group");
+    const cosGroup = document.getElementById("cos-group");
+    const sinGroup = document.getElementById("sin-group");
+    const targetSelect   = document.getElementById("target-select");
+    const rmsErrorSpan   = document.getElementById("rms-error");
+    const resetBtn       = document.getElementById("reset-btn");
+    const bestFitBtn     = document.getElementById("best-fit-btn");
+    const hintBox        = document.getElementById("hint-box");
+    const formulaContent = document.getElementById("formula-content");
+
+    const termTypeRadios = document.querySelectorAll("input[name='termType']");
+    const parityRadios   = document.querySelectorAll("input[name='parity']");
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    // Build sliders for cos and sin terms
+    function createSliderRow(prefix, n) {
+      const row = document.createElement("div");
+      row.className = "slider-row";
+      row.dataset.n = n;
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = prefix + n;
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+
+      // Range logic: n = 1,2 have [-4,4]; n >= 3 have [-2,2]
+      if (n <= 2) {
+        slider.min = -4;
+        slider.max = 4;
+      } else {
+        slider.min = -2;
+        slider.max = 2;
+      }
+
+      slider.step = 0.05;
+      slider.value = 0;
+      slider.id = `slider-${prefix}${n}`;
+
+      const numInput = document.createElement("input");
+      numInput.type = "number";
+      numInput.step = 0.05;
+      numInput.value = 0;
+      numInput.id = `input-${prefix}${n}`;
+
+      row.appendChild(labelSpan);
+      row.appendChild(slider);
+      row.appendChild(numInput);
+
+      return { row, slider, numInput, n };
+    }
+
+    const cosSliders = [];
+    const sinSliders = [];
+
+    for (let n = 1; n <= MAX_N; n++) {
+      const cosRow = createSliderRow("a", n);
+      cosGroup.appendChild(cosRow.row);
+      cosSliders.push(cosRow);
+
+      const sinRow = createSliderRow("b", n);
+      sinGroup.appendChild(sinRow.row);
+      sinSliders.push(sinRow);
+    }
+
+    // Target functions with 2π-periodic extension
+    function wrapToMinusPiPi(t) {
+      // Wrap t to (-π, π]
+      let y = ((t + Math.PI) % (2 * Math.PI));
+      if (y < 0) y += 2 * Math.PI;
+      return y - Math.PI;
+    }
+
+    function targetFunctionBase(t, mode) {
+      // t is assumed in [-π, π]
+      if (mode === "square_odd") {
+        // Square wave 1: ±π/4
+        if (t > 0) return  Math.PI / 4;
+        if (t < 0) return -Math.PI / 4;
+        return 0; // at t = 0
+
+      } else if (mode === "square_even") {
+        // Square wave 2: (π/4) * sign(cos t)
+        const c = Math.cos(t);
+        if (c > 0) return  Math.PI / 4;
+        if (c < 0) return -Math.PI / 4;
+        return 0; // where cos t = 0
+
+      } else if (mode === "sawtooth_scaled") {
+        // Sawtooth wave: f(t) = t/2
+        return t / 2;
+
+      } else if (mode === "absx") {
+        // Absolute value wave: |t|
+        return Math.abs(t);
+
+      } else if (mode === "triangle_pi") {
+        // Triangle wave: t+π for -π<t<0, -t+π for 0<t<π
+        if (t < 0) return t + Math.PI;
+        if (t > 0) return -t + Math.PI;
+        return Math.PI; // at t=0
+
+      } else if (mode === "half_step_pi2") {
+        // Half-step wave: 0 for -π<t<0, π/2 for 0<t<π
+        if (t > 0) return Math.PI / 2;
+        if (t < 0) return 0;
+        // at t = 0, midpoint value for display
+        return Math.PI / 4;
+      }
+
+      return 0;
+    }
+
+    function targetFunction(t) {
+      const mode = targetSelect.value;
+      const tWrapped = wrapToMinusPiPi(t);
+      return targetFunctionBase(tWrapped, mode);
+    }
+
+    function getSelectedTermType() {
+      for (const r of termTypeRadios) {
+        if (r.checked) return r.value;
+      }
+      return "all";
+    }
+
+    function getSelectedParity() {
+      for (const r of parityRadios) {
+        if (r.checked) return r.value;
+      }
+      return "all";
+    }
+
+    function getVisibleNsForParity(parity) {
+      if (parity === "odd") {
+        return [1, 3, 5, 7, 9];
+      } else if (parity === "even") {
+        return [2, 4, 6, 8, 10];
+      } else {
+        // "all": first 5 consecutive n
+        return [1, 2, 3, 4, 5];
+      }
+    }
+
+    // Approximation using current coefficients and radio-button filters
+    function approxFunction(t) {
+      const termType = getSelectedTermType();
+      const parity   = getSelectedParity();
+
+      let effectiveA0 = a0;
+      const effectiveA = aCoeffs.slice();
+      const effectiveB = bCoeffs.slice();
+
+      // Term-type filter
+      if (termType === "sine") {
+        effectiveA0 = 0;
+        for (let i = 0; i < MAX_N; i++) effectiveA[i] = 0;
+      } else if (termType === "cosine") {
+        for (let i = 0; i < MAX_N; i++) effectiveB[i] = 0;
+      }
+
+      // Parity filter
+      if (parity === "even") {
+        // Even ⇒ cosine terms + a0 only
+        for (let i = 0; i < MAX_N; i++) effectiveB[i] = 0;
+      } else if (parity === "odd") {
+        // Odd ⇒ sine terms only
+        effectiveA0 = 0;
+        for (let i = 0; i < MAX_N; i++) effectiveA[i] = 0;
+      }
+
+      let sum = effectiveA0 / 2;
+      for (let n = 1; n <= MAX_N; n++) {
+        sum += effectiveA[n - 1] * Math.cos(n * t) +
+               effectiveB[n - 1] * Math.sin(n * t);
+      }
+      return sum;
+    }
+
+    // Compute RMS error over one period [-π, π]
+    function computeRMSError() {
+      const P_MIN = -Math.PI;
+      const P_MAX =  Math.PI;
+      const N = 600;
+      const step = (P_MAX - P_MIN) / (N - 1);
+
+      let s = 0;
+      for (let i = 0; i < N; i++) {
+        const t = P_MIN + i * step;
+        const diff = targetFunction(t) - approxFunction(t);
+        s += diff * diff;
+      }
+      return Math.sqrt(s / N);
+    }
+
+    // UI behaviour for slider visibility and greying out
+    function updateSliderVisibility() {
+      const parity = getSelectedParity();
+      const visibleNs = getVisibleNsForParity(parity);
+      const visibleSet = new Set(visibleNs);
+
+      cosSliders.forEach(obj => {
+        obj.row.style.display = visibleSet.has(obj.n) ? "" : "none";
+      });
+      sinSliders.forEach(obj => {
+        obj.row.style.display = visibleSet.has(obj.n) ? "" : "none";
+      });
+    }
+
+    function updateTermTypeUI() {
+      const termType = getSelectedTermType();
+
+      if (termType === "sine") {
+        // Disable cos sliders
+        cosGroup.classList.add("disabled-group");
+        cosSliders.forEach(obj => {
+          obj.slider.disabled = true;
+          obj.numInput.disabled = true;
+        });
+
+        // Disable a0 as well (pure sine series is odd)
+        a0Slider.disabled = true;
+        a0Input.disabled = true;
+        a0Group.classList.add("disabled-group");
+
+        // Enable sine sliders
+        sinGroup.classList.remove("disabled-group");
+        sinSliders.forEach(obj => {
+          obj.slider.disabled = false;
+          obj.numInput.disabled = false;
+        });
+
+      } else if (termType === "cosine") {
+        // Disable sine sliders
+        sinGroup.classList.add("disabled-group");
+        sinSliders.forEach(obj => {
+          obj.slider.disabled = true;
+          obj.numInput.disabled = true;
+        });
+
+        // Enable a0
+        a0Slider.disabled = false;
+        a0Input.disabled = false;
+        a0Group.classList.remove("disabled-group");
+
+        // Enable cosine sliders
+        cosGroup.classList.remove("disabled-group");
+        cosSliders.forEach(obj => {
+          obj.slider.disabled = false;
+          obj.numInput.disabled = false;
+        });
+
+      } else {
+        // All: enable everything
+        cosGroup.classList.remove("disabled-group");
+        sinGroup.classList.remove("disabled-group");
+        cosSliders.forEach(obj => {
+          obj.slider.disabled = false;
+          obj.numInput.disabled = false;
+        });
+        sinSliders.forEach(obj => {
+          obj.slider.disabled = false;
+          obj.numInput.disabled = false;
+        });
+
+        // Enable a0
+        a0Slider.disabled = false;
+        a0Input.disabled = false;
+        a0Group.classList.remove("disabled-group");
+      }
+    }
+
+    // Hint text for each target (no parity recommendations)
+    function getHintText(mode) {
+      switch (mode) {
+        case "square_odd":
+          return "<strong>Hint:</strong> Square wave 1 is typically built from sine terms.";
+        case "square_even":
+          return "<strong>Hint:</strong> Square wave 2 can be represented using cosine terms.";
+        case "sawtooth_scaled":
+          return "<strong>Hint:</strong> Sawtooth waves are often written as sums of sine terms.";
+        case "absx":
+          return "<strong>Hint:</strong> |t| can be represented using cosine terms plus a constant term.";
+        case "triangle_pi":
+          return "<strong>Hint:</strong> Triangle waves can be written using cosine terms with rapidly decreasing coefficients.";
+        case "half_step_pi2":
+          return "<strong>Hint:</strong> This function needs a mixture of sine and cosine terms.";
+        default:
+          return "<strong>Hint:</strong> Choose a function above to see suggestions about which sine and cosine terms to try.";
+      }
+    }
+
+    // Series formula text for each target
+    function getFormulaText(mode) {
+      switch (mode) {
+        case "square_odd":
+          return "<code>f(t) = Σ<sub>k=0</sub><sup>∞</sup> (1/(2k+1)) · sin((2k+1)t)</code>";
+        case "square_even":
+          return "<code>f(t) = Σ<sub>k=0</sub><sup>∞</sup> (1/(2k+1)) · cos((2k+1)t)</code>";
+        case "sawtooth_scaled":
+          return "<code>f(t) = t/2 = Σ<sub>n=1</sub><sup>∞</sup> [(-1)<sup>n+1</sup>/n] · sin(n t)</code>";
+        case "absx":
+          return "<code>f(t) = |t| = π/2 - (4/π) Σ<sub>k=0</sub><sup>∞</sup> [cos((2k+1)t)/(2k+1)²]</code>";
+        case "triangle_pi":
+          return "<code>f(t) = π/2 + (4/π) Σ<sub>k=0</sub><sup>∞</sup> [cos((2k+1)t)/(2k+1)²]</code>";
+        case "half_step_pi2":
+          return "<code>f(t) = π/4 + Σ<sub>k=0</sub><sup>∞</sup> [1/(2k+1)] · sin((2k+1)t)</code>";
+        default:
+          return "Select a target function to see its Fourier series.";
+      }
+    }
+
+    function updateHint() {
+      const mode = targetSelect.value;
+      hintBox.innerHTML = getHintText(mode);
+      formulaContent.innerHTML = getFormulaText(mode);
+    }
+
+    // Apply exact / best-fit Fourier coefficients (truncated to n<=MAX_N)
+    function applyBestFitCoefficients() {
+      const mode = targetSelect.value;
+
+      // Reset
+      a0 = 0;
+      aCoeffs.fill(0);
+      bCoeffs.fill(0);
+
+      const pi = Math.PI;
+
+      if (mode === "square_odd") {
+        // f(t) = ±π/4 (odd square) => b_n = 1/n for odd n
+        for (let n = 1; n <= MAX_N; n += 2) {
+          bCoeffs[n - 1] = 1 / n;
+        }
+
+      } else if (mode === "square_even") {
+        // Even square (sign(cos t)*π/4) => a_n = 1/n for odd n
+        for (let n = 1; n <= MAX_N; n += 2) {
+          aCoeffs[n - 1] = 1 / n;
+        }
+
+      } else if (mode === "sawtooth_scaled") {
+        // f(t) = t/2 => b_n = (-1)^{n+1} / n
+        for (let n = 1; n <= MAX_N; n++) {
+          const sign = (n % 2 === 1) ? 1 : -1; // (-1)^{n+1}
+          bCoeffs[n - 1] = sign / n;
+        }
+
+      } else if (mode === "absx") {
+        // f(t) = |t| => a0 = π, a_n = -4 / (π n^2) for odd n
+        a0 = pi;
+        for (let n = 1; n <= MAX_N; n += 2) {
+          aCoeffs[n - 1] = -4 / (pi * n * n);
+        }
+
+      } else if (mode === "triangle_pi") {
+        // Triangle: even, a0 = π, a_n = 4 / (π n^2) for odd n
+        a0 = pi;
+        for (let n = 1; n <= MAX_N; n += 2) {
+          aCoeffs[n - 1] = 4 / (pi * n * n);
+        }
+
+      } else if (mode === "half_step_pi2") {
+        // Half-step: a0 = π/2, b_n = 1/n for odd n
+        a0 = pi / 2;
+        for (let n = 1; n <= MAX_N; n += 2) {
+          bCoeffs[n - 1] = 1 / n;
+        }
+      }
+
+      // Push values into UI
+      a0Slider.value = a0;
+      a0Input.value  = a0;
+
+      cosSliders.forEach((obj, index) => {
+        const v = aCoeffs[index];
+        obj.slider.value = v;
+        obj.numInput.value = v;
+      });
+
+      sinSliders.forEach((obj, index) => {
+        const v = bCoeffs[index];
+        obj.slider.value = v;
+        obj.numInput.value = v;
+      });
+
+      // Ensure filters don't accidentally hide the best-fit series
+      document.querySelector("input[name='termType'][value='all']").checked = true;
+      document.querySelector("input[name='parity'][value='all']").checked   = true;
+      updateTermTypeUI();
+      updateSliderVisibility();
+
+      updatePlot();
+    }
+
+    // Update plot
+    function updatePlot() {
+      const ts = [];
+      const targetYs = [];
+      const approxYs = [];
+      const step = (T_MAX - T_MIN) / (NUM_POINTS - 1);
+
+      for (let i = 0; i < NUM_POINTS; i++) {
+        const t = T_MIN + i * step;
+        ts.push(t);
+        targetYs.push(targetFunction(t));
+        approxYs.push(approxFunction(t));
+      }
+
+      const rms = computeRMSError();
+      rmsErrorSpan.textContent = rms.toFixed(3);
+
+      const targetTrace = {
+        x: ts,
+        y: targetYs,
+        mode: "lines",
+        name: "Target function",
+        line: { width: 2, dash: "solid" }
+      };
+
+      const approxTrace = {
+        x: ts,
+        y: approxYs,
+        mode: "lines",
+        name: "Your sum",
+        line: { width: 2, dash: "dot" }
+      };
+
+      const pi = Math.PI;
+      const tickVals = [-2*pi, -1.5*pi, -pi, -0.5*pi, 0, 0.5*pi, pi, 1.5*pi, 2*pi];
+      const tickText = ["-2π", "-3π/2", "-π", "-π/2", "0", "π/2", "π", "3π/2", "2π"];
+
+      const layout = {
+        margin: { l: 40, r: 10, t: 10, b: 40 },
+        xaxis: {
+          title: "t",
+          range: [T_MIN, T_MAX],
+          autorange: false,
+          tickmode: "array",
+          tickvals: tickVals,
+          ticktext: tickText,
+          fixedrange: true,
+          zeroline: true,
+          zerolinewidth: 2,
+          zerolinecolor: "#444444"
+        },
+        yaxis: {
+          title: "f(t)",
+          range: [-4, 4],
+          autorange: false,
+          fixedrange: true,
+          zeroline: true,
+          zerolinewidth: 2,
+          zerolinecolor: "#444444"
+        },
+        legend: { orientation: "h", x: 0.5, xanchor: "center", y: 1.1 }
+      };
+
+      Plotly.react("plot", [targetTrace, approxTrace], layout, { responsive: true });
+    }
+
+    // Sync handlers
+    function syncA0FromSlider() {
+      a0 = parseFloat(a0Slider.value);
+      a0Input.value = a0;
+      updatePlot();
+    }
+
+    function syncA0FromInput() {
+      let val = parseFloat(a0Input.value);
+      if (isNaN(val)) val = 0;
+      const min = parseFloat(a0Slider.min);
+      const max = parseFloat(a0Slider.max);
+      val = clamp(val, min, max);
+      a0 = val;
+      a0Input.value = val;
+      a0Slider.value = val;
+      updatePlot();
+    }
+
+    a0Slider.addEventListener("input", syncA0FromSlider);
+    a0Input.addEventListener("change", syncA0FromInput);
+
+    cosSliders.forEach((obj, index) => {
+      obj.slider.addEventListener("input", () => {
+        const val = parseFloat(obj.slider.value);
+        aCoeffs[index] = val;
+        obj.numInput.value = val;
+        updatePlot();
+      });
+      obj.numInput.addEventListener("change", () => {
+        let val = parseFloat(obj.numInput.value);
+        if (isNaN(val)) val = 0;
+        const min = parseFloat(obj.slider.min);
+        const max = parseFloat(obj.slider.max);
+        val = clamp(val, min, max);
+        aCoeffs[index] = val;
+        obj.numInput.value = val;
+        obj.slider.value = val;
+        updatePlot();
+      });
+    });
+
+    sinSliders.forEach((obj, index) => {
+      obj.slider.addEventListener("input", () => {
+        const val = parseFloat(obj.slider.value);
+        bCoeffs[index] = val;
+        obj.numInput.value = val;
+        updatePlot();
+      });
+      obj.numInput.addEventListener("change", () => {
+        let val = parseFloat(obj.numInput.value);
+        if (isNaN(val)) val = 0;
+        const min = parseFloat(obj.slider.min);
+        const max = parseFloat(obj.slider.max);
+        val = clamp(val, min, max);
+        bCoeffs[index] = val;
+        obj.numInput.value = val;
+        obj.slider.value = val;
+        updatePlot();
+      });
+    });
+
+    targetSelect.addEventListener("change", () => {
+      updateHint();
+      updatePlot();
+    });
+
+    termTypeRadios.forEach(r => r.addEventListener("change", () => {
+      updateTermTypeUI();
+      updatePlot();
+    }));
+
+    parityRadios.forEach(r => r.addEventListener("change", () => {
+      updateSliderVisibility();
+      updatePlot();
+    }));
+
+    resetBtn.addEventListener("click", () => {
+      a0 = 0;
+      a0Slider.value = 0;
+      a0Input.value = 0;
+      for (let i = 0; i < MAX_N; i++) {
+        aCoeffs[i] = 0;
+        bCoeffs[i] = 0;
+        cosSliders[i].slider.value = 0;
+        cosSliders[i].numInput.value = 0;
+        sinSliders[i].slider.value = 0;
+        sinSliders[i].numInput.value = 0;
+      }
+      updatePlot();
+    });
+
+    bestFitBtn.addEventListener("click", () => {
+      applyBestFitCoefficients();
+    });
+
+    // Initial UI state + plot
+    updateSliderVisibility();
+    updateTermTypeUI();
+    updateHint();
+    updatePlot();
+  </script>
+</body>
+</html>
