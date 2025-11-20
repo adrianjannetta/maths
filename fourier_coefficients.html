@@ -209,8 +209,8 @@
       <div class="radio-group" id="parity-group">
         <span>Parity:</span>
         <label><input type="radio" name="parity" value="all" checked /> All</label>
-        <label><input type="radio" name="parity" value="even" /> Even</label>
-        <label><input type="radio" name="parity" value="odd" /> Odd</label>
+        <label><input type="radio" name="parity" value="even" /> Even n</label>
+        <label><input type="radio" name="parity" value="odd" /> Odd n</label>
       </div>
       <button id="reset-btn">Reset coefficients</button>
       <button id="best-fit-btn">Best-fit coefficients</button>
@@ -401,10 +401,10 @@
       }
     }
 
-    // Approximation using current coefficients and radio-button filters
+    // Approximation using current coefficients and term-type filters only
+    // Parity ONLY affects which sliders are shown, not which terms exist.
     function approxFunction(t) {
       const termType = getSelectedTermType();
-      const parity   = getSelectedParity();
 
       let effectiveA0 = a0;
       const effectiveA = aCoeffs.slice();
@@ -416,16 +416,6 @@
         for (let i = 0; i < MAX_N; i++) effectiveA[i] = 0;
       } else if (termType === "cosine") {
         for (let i = 0; i < MAX_N; i++) effectiveB[i] = 0;
-      }
-
-      // Parity filter
-      if (parity === "even") {
-        // Even ⇒ cosine terms + a0 only
-        for (let i = 0; i < MAX_N; i++) effectiveB[i] = 0;
-      } else if (parity === "odd") {
-        // Odd ⇒ sine terms only
-        effectiveA0 = 0;
-        for (let i = 0; i < MAX_N; i++) effectiveA[i] = 0;
       }
 
       let sum = effectiveA0 / 2;
@@ -452,7 +442,7 @@
       return Math.sqrt(s / N);
     }
 
-    // UI behaviour for slider visibility and greying out
+    // UI behaviour for slider visibility (parity = odd/even n)
     function updateSliderVisibility() {
       const parity = getSelectedParity();
       const visibleNs = getVisibleNsForParity(parity);
@@ -477,7 +467,7 @@
           obj.numInput.disabled = true;
         });
 
-        // Disable a0 as well (pure sine series is odd)
+        // Disable a0 as well (pure sine series has no constant term)
         a0Slider.disabled = true;
         a0Input.disabled = true;
         a0Group.classList.add("disabled-group");
@@ -555,7 +545,7 @@
         case "square_odd":
           return "<code>f(t) = Σ<sub>k=0</sub><sup>∞</sup> (1/(2k+1)) · sin((2k+1)t)</code>";
         case "square_even":
-          return "<code>f(t) = Σ<sub>k=0</sub><sup>∞</sup> (1/(2k+1)) · cos((2k+1)t)</code>";
+          return "<code>f(t) = Σ<sub>k=0</sub><sup>∞</sup> [(-1)<sup>k</sup>/(2k+1)] · cos((2k+1)t)</code>";
         case "sawtooth_scaled":
           return "<code>f(t) = t/2 = Σ<sub>n=1</sub><sup>∞</sup> [(-1)<sup>n+1</sup>/n] · sin(n t)</code>";
         case "absx":
@@ -593,9 +583,11 @@
         }
 
       } else if (mode === "square_even") {
-        // Even square (sign(cos t)*π/4) => a_n = 1/n for odd n
+        // f(t) = sign(cos t)·π/4 => a_n = (-1)^k/(2k+1) for n = 2k+1
         for (let n = 1; n <= MAX_N; n += 2) {
-          aCoeffs[n - 1] = 1 / n;
+          const k = (n - 1) / 2;
+          const sign = (k % 2 === 0) ? 1 : -1; // (-1)^k
+          aCoeffs[n - 1] = sign / n;
         }
 
       } else if (mode === "sawtooth_scaled") {
