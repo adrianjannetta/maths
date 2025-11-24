@@ -644,8 +644,9 @@
       updatePlot();
     }
 
-    // Update plot
-    function updatePlot() {
+    // Update plot, with optional highlighted single term
+    // highlightTerm = { type: 'a0'|'a'|'b', n?: number, coeff: number }
+    function updatePlot(highlightTerm) {
       const ts = [];
       const targetYs = [];
       const approxYs = [];
@@ -677,6 +678,43 @@
         line: { width: 2, dash: "dot" }
       };
 
+      const traces = [targetTrace, approxTrace];
+
+      if (highlightTerm && typeof highlightTerm.coeff === "number") {
+        const termYs = [];
+        const n = highlightTerm.n || 0;
+        for (let i = 0; i < ts.length; i++) {
+          const t = ts[i];
+          let val = 0;
+          if (highlightTerm.type === "a0") {
+            val = highlightTerm.coeff / 2;
+          } else if (highlightTerm.type === "a") {
+            val = highlightTerm.coeff * Math.cos(n * t);
+          } else if (highlightTerm.type === "b") {
+            val = highlightTerm.coeff * Math.sin(n * t);
+          }
+          termYs.push(val);
+        }
+
+        let label = "Current term";
+        if (highlightTerm.type === "a0") {
+          label = "a₀/2";
+        } else if (highlightTerm.type === "a") {
+          label = `a${n} cos(${n}t)`;
+        } else if (highlightTerm.type === "b") {
+          label = `b${n} sin(${n}t)`;
+        }
+
+        const termTrace = {
+          x: ts,
+          y: termYs,
+          mode: "lines",
+          name: label,
+          line: { width: 2, dash: "dashdot" }
+        };
+        traces.push(termTrace);
+      }
+
       const pi = Math.PI;
       const tickVals = [-2*pi, -1.5*pi, -pi, -0.5*pi, 0, 0.5*pi, pi, 1.5*pi, 2*pi];
       const tickText = ["-2π", "-3π/2", "-π", "-π/2", "0", "π/2", "π", "3π/2", "2π"];
@@ -707,14 +745,18 @@
         legend: { orientation: "h", x: 0.5, xanchor: "center", y: 1.1 }
       };
 
-      Plotly.react("plot", [targetTrace, approxTrace], layout, { responsive: true });
+      Plotly.react("plot", traces, layout, { responsive: true });
     }
 
     // Sync handlers
-    function syncA0FromSlider() {
+    function syncA0FromSlider(isDraggingHighlight) {
       a0 = parseFloat(a0Slider.value);
       a0Input.value = a0;
-      updatePlot();
+      if (isDraggingHighlight) {
+        updatePlot({ type: "a0", coeff: a0 });
+      } else {
+        updatePlot();
+      }
     }
 
     function syncA0FromInput() {
@@ -729,16 +771,25 @@
       updatePlot();
     }
 
-    a0Slider.addEventListener("input", syncA0FromSlider);
+    // a0 events: input = highlight term, change = final sum
+    a0Slider.addEventListener("input", () => syncA0FromSlider(true));
+    a0Slider.addEventListener("change", () => syncA0FromSlider(false));
     a0Input.addEventListener("change", syncA0FromInput);
 
+    // Slider wiring for a_n and b_n
     cosSliders.forEach((obj, index) => {
+      // While dragging: update coeff + show term
       obj.slider.addEventListener("input", () => {
         const val = parseFloat(obj.slider.value);
         aCoeffs[index] = val;
         obj.numInput.value = val;
+        updatePlot({ type: "a", n: obj.n, coeff: val });
+      });
+      // On release: show full sum only
+      obj.slider.addEventListener("change", () => {
         updatePlot();
       });
+      // Number box: just final sum (no highlight needed)
       obj.numInput.addEventListener("change", () => {
         let val = parseFloat(obj.numInput.value);
         if (isNaN(val)) val = 0;
@@ -757,6 +808,9 @@
         const val = parseFloat(obj.slider.value);
         bCoeffs[index] = val;
         obj.numInput.value = val;
+        updatePlot({ type: "b", n: obj.n, coeff: val });
+      });
+      obj.slider.addEventListener("change", () => {
         updatePlot();
       });
       obj.numInput.addEventListener("change", () => {
