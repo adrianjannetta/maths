@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+  <meta charset="UTF-8" />
+  <title>Linear Recurrence: x_{n+1} = a x_n + b</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 20px;
+      background: #f7f7f9;
+      color: #222;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+    .widget-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      border: 1px solid #d0d7e2;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px 18px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+    .control-group {
+      font-size: 0.9rem;
+    }
+    .control-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+    .value-display {
+      font-size: 0.85rem;
+      margin-top: 2px;
+      color: #444;
+    }
+    .status {
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f0f4ff;
+      border: 1px solid #c3d1ff;
+    }
+    .status strong {
+      font-weight: 700;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      display: block;
+      margin: 0 auto;
+    }
+    .equation {
+      font-family: "Cambria Math", "Times New Roman", serif;
+      font-size: 0.95rem;
+      margin-bottom: 6px;
+    }
+    .equation .mono {
+      font-family: "Consolas", "Lucida Console", monospace;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="widget-container">
+    <h1>Linear Recurrence: \( x_{n+1} = a x_n + b \)</h1>
+
+    <div class="equation" id="eq-display">
+      <span class="mono">x<sub>n+1</sub> = a x<sub>n</sub> + b</span>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="aSlider">Coefficient \(a\)</label>
+        <input id="aSlider" type="range" min="-2" max="2" step="0.01" value="0.5">
+        <div class="value-display">
+          a = <span id="aValue">0.50</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="bSlider">Constant \(b\)</label>
+        <input id="bSlider" type="range" min="-10" max="10" step="0.1" value="1">
+        <div class="value-display">
+          b = <span id="bValue">1.0</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="x0Slider">Initial value \(x_0\)</label>
+        <input id="x0Slider" type="range" min="-10" max="10" step="0.1" value="0">
+        <div class="value-display">
+          x<sub>0</sub> = <span id="x0Value">0.0</span>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label for="nSlider">Number of steps \(N\)</label>
+        <input id="nSlider" type="range" min="5" max="50" step="1" value="20">
+        <div class="value-display">
+          N = <span id="nValue">20</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="status" id="behaviourText">
+      <!-- Filled by JS -->
+    </div>
+
+    <canvas id="plot" width="800" height="380"></canvas>
+  </div>
+
+  <script>
+    const aSlider = document.getElementById('aSlider');
+    const bSlider = document.getElementById('bSlider');
+    const x0Slider = document.getElementById('x0Slider');
+    const nSlider = document.getElementById('nSlider');
+
+    const aValueSpan = document.getElementById('aValue');
+    const bValueSpan = document.getElementById('bValue');
+    const x0ValueSpan = document.getElementById('x0Value');
+    const nValueSpan = document.getElementById('nValue');
+    const behaviourText = document.getElementById('behaviourText');
+
+    const canvas = document.getElementById('plot');
+    const ctx = canvas.getContext('2d');
+
+    function computeSequence(a, b, x0, N) {
+      const xs = [];
+      xs.push(x0);
+      for (let n = 0; n < N; n++) {
+        xs.push(a * xs[n] + b);
+      }
+      return xs;
+    }
+
+    function classifyBehaviour(a, b) {
+      const absA = Math.abs(a);
+      let text = '';
+
+      if (absA < 1) {
+        const fixed = (1 - a === 0) ? null : (b / (1 - a));
+        text += `<strong>Stable region:</strong> |a| &lt; 1. `;
+        text += `The sequence tends to a fixed point `;
+        if (fixed !== null && isFinite(fixed)) {
+          text += `x* = b / (1 - a) ≈ ${fixed.toFixed(3)}. `;
+        } else {
+          text += `x* = b / (1 - a). `;
+        }
+        if (a < 0) {
+          text += `Because a &lt; 0, the terms oscillate in sign while converging.`;
+        } else {
+          text += `Because a &gt; 0, the terms converge without changing sign (after a while).`;
+        }
+      } else if (absA > 1) {
+        text += `<strong>Unstable region:</strong> |a| &gt; 1. `;
+        text += `Unless you start exactly at the fixed point, |x<sub>n</sub>| tends to grow and the sequence diverges.`;
+      } else {
+        // |a| == 1
+        if (a === 1) {
+          text += `<strong>Borderline case: a = 1.</strong> `;
+          text += `Here x<sub>n+1</sub> = x<sub>n</sub> + b, so x<sub>n</sub> = x<sub>0</sub> + n·b (linear growth if b ≠ 0).`;
+        } else if (a === -1) {
+          text += `<strong>Borderline case: a = -1.</strong> `;
+          text += `The sequence oscillates with period 2. If b ≠ 0, the values jump between two levels.`;
+        } else {
+          text += `<strong>Borderline case:</strong> |a| = 1.`;
+        }
+      }
+
+      return text;
+    }
+
+    function drawPlot() {
+      const a = parseFloat(aSlider.value);
+      const b = parseFloat(bSlider.value);
+      const x0 = parseFloat(x0Slider.value);
+      const N = parseInt(nSlider.value, 10);
+
+      aValueSpan.textContent = a.toFixed(2);
+      bValueSpan.textContent = b.toFixed(1);
+      x0ValueSpan.textContent = x0.toFixed(1);
+      nValueSpan.textContent = N.toString();
+
+      behaviourText.innerHTML = classifyBehaviour(a, b);
+
+      const xs = computeSequence(a, b, x0, N);
+
+      // Include fixed point in range if it exists
+      let minVal = Math.min(...xs);
+      let maxVal = Math.max(...xs);
+      let fixed = null;
+      if (a !== 1) {
+        fixed = b / (1 - a);
+        if (isFinite(fixed)) {
+          minVal = Math.min(minVal, fixed);
+          maxVal = Math.max(maxVal, fixed);
+        }
+      }
+
+      // Avoid zero range
+      if (minVal === maxVal) {
+        minVal -= 1;
+        maxVal += 1;
+      }
+
+      const padding = 45;
+      const w = canvas.width;
+      const h = canvas.height;
+      const plotW = w - 2 * padding;
+      const plotH = h - 2 * padding;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+
+      // Axes
+      ctx.strokeStyle = '#999';
+      ctx.lineWidth = 1.0;
+      ctx.beginPath();
+      // vertical axis for x_n
+      const y0 = padding + plotH * (maxVal / (maxVal - minVal)); // y where x=0
+      if (minVal <= 0 && maxVal >= 0) {
+        ctx.moveTo(padding, y0);
+        ctx.lineTo(w - padding, y0);
+      }
+      // horizontal axis for n
+      const x0pix = padding; // n=0 at left
+      ctx.moveTo(x0pix, padding);
+      ctx.lineTo(x0pix, h - padding);
+      ctx.stroke();
+
+      // axis labels
+      ctx.fillStyle = '#000';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText('n', w - padding + 10, h - padding + 4);
+      ctx.save();
+      ctx.translate(padding - 25, padding - 5);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('xₙ', 0, 0);
+      ctx.restore();
+
+      // y-ticks (min, max, maybe 0)
+      ctx.fillStyle = '#555';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const yMinPix = padding + plotH;
+      const yMaxPix = padding;
+      ctx.beginPath();
+      // min
+      ctx.moveTo(padding - 4, yMinPix);
+      ctx.lineTo(padding + 4, yMinPix);
+      // max
+      ctx.moveTo(padding - 4, yMaxPix);
+      ctx.lineTo(padding + 4, yMaxPix);
+      ctx.stroke();
+      ctx.fillText(minVal.toFixed(2), padding - 6, yMinPix);
+      ctx.fillText(maxVal.toFixed(2), padding - 6, yMaxPix);
+
+      // x-axis ticks (n=0 and n=N)
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.beginPath();
+      const xNPix = padding + plotW;
+      const xZeroPix = padding;
+      ctx.moveTo(xZeroPix, h - padding - 4);
+      ctx.lineTo(xZeroPix, h - padding + 4);
+      ctx.moveTo(xNPix, h - padding - 4);
+      ctx.lineTo(xNPix, h - padding + 4);
+      ctx.stroke();
+      ctx.fillText('0', xZeroPix, h - padding + 6);
+      ctx.fillText('N', xNPix, h - padding + 6);
+
+      // Helper to convert data to pixels
+      function xPixFromN(n) {
+        const frac = n / N;
+        return padding + frac * plotW;
+      }
+      function yPixFromX(x) {
+        const frac = (maxVal - x) / (maxVal - minVal);
+        return padding + frac * plotH;
+      }
+
+      // Draw fixed point line if it exists
+      if (fixed !== null && isFinite(fixed)) {
+        const yFixed = yPixFromX(fixed);
+        ctx.strokeStyle = '#0077cc';
+        ctx.lineWidth = 1.0;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padding, yFixed);
+        ctx.lineTo(w - padding, yFixed);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#0077cc';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`x* ≈ ${fixed.toFixed(3)}`, padding + 6, yFixed - 4);
+      }
+
+      // Draw the recurrence sequence as a polyline
+      ctx.strokeStyle = '#cc3300';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      for (let n = 0; n <= N; n++) {
+        const xPix = xPixFromN(n);
+        const yPix = yPixFromX(xs[n]);
+        if (n === 0) {
+          ctx.moveTo(xPix, yPix);
+        } else {
+          ctx.lineTo(xPix, yPix);
+        }
+      }
+      ctx.stroke();
+
+      // Draw points
+      ctx.fillStyle = '#cc3300';
+      for (let n = 0; n <= N; n++) {
+        const xPix = xPixFromN(n);
+        const yPix = yPixFromX(xs[n]);
+        ctx.beginPath();
+        ctx.arc(xPix, yPix, 3, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+
+    aSlider.addEventListener('input', drawPlot);
+    bSlider.addEventListener('input', drawPlot);
+    x0Slider.addEventListener('input', drawPlot);
+    nSlider.addEventListener('input', drawPlot);
+
+    // Initial draw
+    drawPlot();
+  </script>
+</body>
+</html>
