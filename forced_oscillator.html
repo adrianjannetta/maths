@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Forced Oscillator + Resonance</title>
+  <style>
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      margin:0; padding:1rem;
+      background:#f5f7fb; color:#222;
+    }
+    .widget{
+      max-width: 980px; margin:0 auto;
+      background:#fff; border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+      padding:1rem 1.25rem 1.5rem;
+    }
+    h2{ margin:0 0 0.25rem 0; text-align:center; font-size:1.1rem; }
+    .sub{ text-align:center; font-size:0.9rem; color:#444; margin-bottom:0.25rem; }
+    .eq{ text-align:center; font-family:"Cambria","Times New Roman",serif; font-size:0.95rem; margin:0.15rem 0; }
+    .info{ text-align:center; font-size:0.85rem; margin:0.35rem 0 0.9rem; color:#333; }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap:0.75rem 1.4rem;
+      margin-bottom: 0.9rem;
+    }
+    .g label{ display:block; font-weight:600; font-size:0.9rem; margin-bottom:0.15rem;}
+    .g input[type="range"], .g select{ width:100%; }
+    .val{ font-variant-numeric: tabular-nums; font-weight:700; margin-left:0.25rem; }
+    .row2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      align-items:center;
+      margin-bottom: 0.75rem;
+    }
+    .btns{
+      display:flex; gap:0.5rem; flex-wrap:wrap;
+      justify-content:center;
+    }
+    button{
+      border:1px solid #ccd2e3;
+      background:#fff; border-radius:8px;
+      padding:0.45rem 0.7rem;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button:hover{ background:#f2f5ff; }
+    canvas{
+      width:100%;
+      border:1px solid #dde3f0;
+      border-radius:6px;
+      background:#fff;
+      display:block;
+    }
+    .note{
+      margin-top:0.6rem;
+      font-size:0.85rem;
+      color:#444;
+      line-height:1.35;
+    }
+    code{ background:#f2f4fb; padding:0.08rem 0.25rem; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div class="widget">
+    <h2>Forced Damped Oscillator (Resonance Demo)</h2>
+    <div class="sub">Adjust the forcing frequency and watch the steady-state amplitude peak near resonance.</div>
+
+    <div class="eq" id="eq1">General: m y'' + C y' + k y = F(t)</div>
+    <div class="eq" id="eq2">Current: (computing…)</div>
+    <div class="info" id="info">Computing…</div>
+
+    <div class="grid">
+      <div class="g">
+        <label>Mass m <span class="val" id="mVal"></span></label>
+        <input id="m" type="range" min="0.5" max="5" step="0.1" value="1.0">
+      </div>
+      <div class="g">
+        <label>Damping C <span class="val" id="CVal"></span></label>
+        <input id="C" type="range" min="0" max="5" step="0.1" value="0.4">
+      </div>
+      <div class="g">
+        <label>Stiffness k <span class="val" id="kVal"></span></label>
+        <input id="k" type="range" min="0.5" max="12" step="0.1" value="4.0">
+      </div>
+      <div class="g">
+        <label>Force amplitude F0 <span class="val" id="F0Val"></span></label>
+        <input id="F0" type="range" min="0" max="8" step="0.1" value="2.0">
+      </div>
+
+      <div class="g">
+        <label>Forcing frequency ω <span class="val" id="wVal"></span></label>
+        <input id="w" type="range" min="0.1" max="8" step="0.05" value="2.0">
+      </div>
+      <div class="g">
+        <label>Forcing type</label>
+        <select id="forceType">
+          <option value="sin" selected>Sinusoidal: F(t)=F0 sin(ωt)</option>
+          <option value="cos">Sinusoidal: F(t)=F0 cos(ωt)</option>
+          <option value="square">Square wave (approx)</option>
+        </select>
+      </div>
+
+      <div class="g">
+        <label>Initial displacement y(0) <span class="val" id="y0Val"></span></label>
+        <input id="y0" type="range" min="-2" max="2" step="0.1" value="0.0">
+      </div>
+      <div class="g">
+        <label>Initial velocity y'(0) <span class="val" id="v0Val"></span></label>
+        <input id="v0" type="range" min="-6" max="6" step="0.1" value="0.0">
+      </div>
+
+      <div class="g">
+        <label>Time window t_max <span class="val" id="tMaxVal"></span></label>
+        <input id="tMax" type="range" min="10" max="80" step="1" value="40">
+      </div>
+      <div class="g">
+        <label>Show steady-state amplitude (last 25%)</label>
+        <select id="ampMode">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="btns">
+        <button id="setNearRes">Set ω near ω₀</button>
+        <button id="setHalf">Set ω = 0.5 ω₀</button>
+        <button id="setDouble">Set ω = 2 ω₀</button>
+        <button id="zeroIC">Zero initial conditions</button>
+      </div>
+      <div class="btns">
+        <button id="lowDamp">Low damping</button>
+        <button id="highDamp">High damping</button>
+        <button id="reset">Reset defaults</button>
+      </div>
+    </div>
+
+    <canvas id="cv" width="920" height="360"></canvas>
+
+    <div class="note">
+      <b>Teaching tip:</b> with small damping, the peak response occurs near
+      <code>ω ≈ sqrt(k/m)</code>. Increase <code>C</code> and the resonance peak flattens and shifts slightly lower.
+      Initial conditions mainly affect the <i>transient</i>; the long-time behaviour is the <i>forced steady-state</i>.
+    </div>
+  </div>
+
+<script>
+(() => {
+  const el = id => document.getElementById(id);
+
+  const m = el('m'), C = el('C'), k = el('k'), F0 = el('F0'), w = el('w');
+  const y0 = el('y0'), v0 = el('v0'), tMax = el('tMax');
+  const forceType = el('forceType'), ampMode = el('ampMode');
+
+  const mVal = el('mVal'), CVal = el('CVal'), kVal = el('kVal'), F0Val = el('F0Val'), wVal = el('wVal');
+  const y0Val = el('y0Val'), v0Val = el('v0Val'), tMaxVal = el('tMaxVal');
+
+  const eq2 = el('eq2'), info = el('info');
+  const cv = el('cv'), ctx = cv.getContext('2d');
+
+  // ------- Force function -------
+  function force(t, F0, w, type){
+    if (type === 'sin') return F0 * Math.sin(w * t);
+    if (type === 'cos') return F0 * Math.cos(w * t);
+    // square wave via sign(sin) (simple and effective)
+    const s = Math.sin(w * t);
+    return F0 * (s >= 0 ? 1 : -1);
+  }
+
+  // ------- RK4 integrator for 2nd order ODE -------
+  // y' = v
+  // v' = (F(t) - C v - k y)/m
+  function simulate(params){
+    const {m, C, k, F0, w, type, y0, v0, tMax} = params;
+
+    const N = 2200;                 // good resolution for resonance
+    const dt = tMax / N;
+
+    let t = 0, y = y0, v = v0;
+    const pts = [];
+    let minY = Infinity, maxY = -Infinity;
+
+    for (let i = 0; i <= N; i++){
+      pts.push({t, y, f: force(t, F0, w, type)});
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+
+      // RK4 step
+      const a = (tt, yy, vv) => (force(tt, F0, w, type) - C*vv - k*yy) / m;
+
+      const k1y = v;
+      const k1v = a(t, y, v);
+
+      const k2y = v + 0.5*dt*k1v;
+      const k2v = a(t + 0.5*dt, y + 0.5*dt*k1y, v + 0.5*dt*k1v);
+
+      const k3y = v + 0.5*dt*k2v;
+      const k3v = a(t + 0.5*dt, y + 0.5*dt*k2y, v + 0.5*dt*k2v);
+
+      const k4y = v + dt*k3v;
+      const k4v = a(t + dt, y + dt*k3y, v + dt*k3v);
+
+      y += (dt/6) * (k1y + 2*k2y + 2*k3y + k4y);
+      v += (dt/6) * (k1v + 2*k2v + 2*k3v + k4v);
+      t += dt;
+    }
+
+    return {pts, minY, maxY};
+  }
+
+  function steadyStateAmplitude(pts){
+    // Use last 25% of samples to estimate amplitude (max-min)/2
+    const start = Math.floor(pts.length * 0.75);
+    let mn = Infinity, mx = -Infinity;
+    for (let i = start; i < pts.length; i++){
+      const y = pts[i].y;
+      if (y < mn) mn = y;
+      if (y > mx) mx = y;
+    }
+    if (!isFinite(mn) || !isFinite(mx)) return NaN;
+    return 0.5 * (mx - mn);
+  }
+
+  function updateLabelsAndText(p){
+    mVal.textContent = (+p.m).toFixed(2);
+    CVal.textContent = (+p.C).toFixed(2);
+    kVal.textContent = (+p.k).toFixed(2);
+    F0Val.textContent = (+p.F0).toFixed(2);
+    wVal.textContent = (+p.w).toFixed(2);
+    y0Val.textContent = (+p.y0).toFixed(2);
+    v0Val.textContent = (+p.v0).toFixed(2);
+    tMaxVal.textContent = (+p.tMax).toFixed(0);
+
+    const fStr =
+      p.type === 'sin' ? `F(t) = ${(+p.F0).toFixed(2)} sin(${(+p.w).toFixed(2)} t)` :
+      p.type === 'cos' ? `F(t) = ${(+p.F0).toFixed(2)} cos(${(+p.w).toFixed(2)} t)` :
+                         `F(t) = ${(+p.F0).toFixed(2)} square(ω=${(+p.w).toFixed(2)})`;
+
+    eq2.textContent =
+      `Current: ${(+p.m).toFixed(2)} y'' + ${(+p.C).toFixed(2)} y' + ${(+p.k).toFixed(2)} y = ${fStr}`;
+
+    const omega0 = Math.sqrt(p.k / p.m);
+    const gamma = p.C / (2*p.m);
+    const zeta = gamma / omega0; // damping ratio
+    const amp = (ampMode.value === 'on') ? steadyStateAmplitude(window.__lastPts || []) : NaN;
+
+    let resonanceNote = `ω₀ = sqrt(k/m) = ${omega0.toFixed(2)}.  Forcing ω = ${(+p.w).toFixed(2)}.`;
+    resonanceNote += `  Damping ratio ζ = ${zeta.toFixed(3)}.`;
+
+    if (ampMode.value === 'on' && isFinite(amp)){
+      resonanceNote += `  Estimated steady-state amplitude ≈ ${amp.toFixed(3)} (from last 25%).`;
+    }
+
+    info.textContent = resonanceNote;
+  }
+
+  function drawAxesAndPlot(pts, tMax, yMin, yMax){
+    // Expand y-range a touch
+    const amp = Math.max(Math.abs(yMin), Math.abs(yMax), 0.6);
+    let minY = -1.1*amp, maxY = 1.1*amp;
+
+    // margins (extra right margin fixes clipping)
+    const ML = 52, MR = 70, MT = 12, MB = 34;
+    const W = cv.width, H = cv.height;
+
+    const xTo = t => ML + (t / tMax) * (W - ML - MR);
+    const yTo = y => MT + (maxY - y) * (H - MT - MB) / (maxY - minY);
+
+    // Clear
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,W,H);
+
+    // Axes
+    ctx.strokeStyle = '#ccd2e3';
+    ctx.lineWidth = 1;
+
+    // y-axis at t=0
+    ctx.beginPath();
+    ctx.moveTo(xTo(0), MT);
+    ctx.lineTo(xTo(0), H - MB);
+    ctx.stroke();
+
+    // x-axis at y=0 if visible
+    if (0 > minY && 0 < maxY){
+      const y0c = yTo(0);
+      ctx.beginPath();
+      ctx.moveTo(ML, y0c);
+      ctx.lineTo(W - MR, y0c);
+      ctx.stroke();
+    }
+
+    // Labels
+    ctx.fillStyle = '#444';
+    ctx.font = '11px system-ui, sans-serif';
+
+    // t labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('0', xTo(0), H - 12);
+
+    ctx.textAlign = 'right';
+    ctx.fillText('t = ' + tMax.toFixed(0), xTo(tMax), H - 12);
+
+    // y labels
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(maxY.toFixed(2), ML - 6, yTo(maxY));
+    ctx.fillText(minY.toFixed(2), ML - 6, yTo(minY));
+
+    // Plot y(t)
+    ctx.strokeStyle = '#2c7be5';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i=0; i<pts.length; i++){
+      const px = xTo(pts[i].t);
+      const py = yTo(pts[i].y);
+      if (i===0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Plot forcing (scaled) as faint guide (optional, always on but subtle)
+    // scale forcing to fit a fraction of y-range
+    let fMax = 1e-9;
+    for (const p of pts) fMax = Math.max(fMax, Math.abs(p.f));
+    const fScale = (0.35 * (maxY - minY) / 2) / fMax;
+
+    ctx.strokeStyle = '#e55353';
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    for (let i=0; i<pts.length; i++){
+      const px = xTo(pts[i].t);
+      const py = yTo(pts[i].f * fScale); // drawn on same axis, scaled
+      if (i===0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Legend text
+    ctx.fillStyle = '#444';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('y(t)  (blue)', ML + 6, MT + 4);
+    ctx.fillStyle = '#a33';
+    ctx.fillText('forcing (scaled, red)', ML + 6, MT + 18);
+  }
+
+  function readParams(){
+    return {
+      m: +m.value, C: +C.value, k: +k.value,
+      F0: +F0.value, w: +w.value,
+      type: forceType.value,
+      y0: +y0.value, v0: +v0.value,
+      tMax: +tMax.value
+    };
+  }
+
+  function redraw(){
+    const p = readParams();
+    const {pts, minY, maxY} = simulate(p);
+    window.__lastPts = pts; // for steady-state amplitude estimate
+    updateLabelsAndText(p);
+    drawAxesAndPlot(pts, p.tMax, minY, maxY);
+  }
+
+  // Controls listeners
+  [m,C,k,F0,w,y0,v0,tMax,forceType,ampMode].forEach(x => x.addEventListener('input', redraw));
+  [forceType,ampMode].forEach(x => x.addEventListener('change', redraw));
+
+  // Buttons
+  el('setNearRes').addEventListener('click', () => {
+    const omega0 = Math.sqrt((+k.value)/(+m.value));
+    w.value = Math.max(0.1, Math.min(8, omega0));
+    redraw();
+  });
+  el('setHalf').addEventListener('click', () => {
+    const omega0 = Math.sqrt((+k.value)/(+m.value));
+    w.value = Math.max(0.1, Math.min(8, 0.5*omega0));
+    redraw();
+  });
+  el('setDouble').addEventListener('click', () => {
+    const omega0 = Math.sqrt((+k.value)/(+m.value));
+    w.value = Math.max(0.1, Math.min(8, 2*omega0));
+    redraw();
+  });
+  el('zeroIC').addEventListener('click', () => {
+    y0.value = 0; v0.value = 0; redraw();
+  });
+  el('lowDamp').addEventListener('click', () => {
+    C.value = 0.15; redraw();
+  });
+  el('highDamp').addEventListener('click', () => {
+    C.value = 2.5; redraw();
+  });
+  el('reset').addEventListener('click', () => {
+    m.value=1.0; C.value=0.4; k.value=4.0; F0.value=2.0; w.value=2.0;
+    y0.value=0.0; v0.value=0.0; tMax.value=40; forceType.value='sin'; ampMode.value='on';
+    redraw();
+  });
+
+  // Initial draw
+  redraw();
+})();
+</script>
+</body>
+</html>
