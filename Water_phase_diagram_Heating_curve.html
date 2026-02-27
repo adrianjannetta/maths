@@ -1,9 +1,8 @@
 <div style="border:2px solid #1e5aa8; border-radius:12px; padding:16px; max-width:1100px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
   <h2 style="margin:0 0 8px 0; color:#1e5aa8;">Water Phase Diagram + Heating Curve Explorer</h2>
   <div style="font-size:14px; color:#234; line-height:1.35; margin-bottom:12px;">
-    Use the controls to set <b>pressure</b>, <b>starting temperature</b>, and <b>mass</b>.
-    The <b>heating curve</b> shows temperature vs heat added (with flat regions for phase changes).
-    The dot on the phase diagram tracks the state as heating progresses (teaching model).
+    Controls set <b>pressure</b>, <b>starting temperature</b>, and <b>mass</b>. The <b>heating curve</b> shows \(T\) vs heat added.
+    The dot on the <b>phase diagram</b> tracks the state as heating progresses.
   </div>
 
   <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
@@ -13,20 +12,20 @@
 
         <label for="Pslider"><b>Pressure</b></label>
         <div>
-          <input id="Pslider" type="range" min="-6" max="2.35" step="0.01" value="0" style="width:100%;">
+          <input id="Pslider" type="range" min="-5" max="6" step="0.01" value="0" style="width:100%;">
           <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
-            <span>10⁻⁶ bar</span><span>~225 bar</span>
+            <span>10⁻⁵ bar</span><span>10⁶ bar</span>
           </div>
           <div style="font-size:12px; color:#567; margin-top:4px;">
-            Slider is <b>log₁₀(P/bar)</b>. Readout below.
+            Slider is <b>log₁₀(P/bar)</b>. (So 0 = 1 bar, 3 = 1000 bar, −5 = 10⁻⁵ bar)
           </div>
         </div>
 
         <label for="Tstart"><b>Start T</b></label>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <input id="Tstart" type="range" min="-80" max="200" step="1" value="-20" style="width:100%;">
-          <div style="font-size:12px; color:#456; display:flex; justify-content:space-between;">
-            <span>-80°C</span><span>200°C</span>
+        <div>
+          <input id="Tstart" type="range" min="-150" max="300" step="1" value="-20" style="width:100%;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
+            <span>-150°C</span><span>300°C</span>
           </div>
         </div>
 
@@ -52,7 +51,8 @@
           <button class="btn" data-preset="sea">1 bar</button>
           <button class="btn" data-preset="mountain">0.7 bar</button>
           <button class="btn" data-preset="pressurecooker">15 bar</button>
-          <button class="btn" data-preset="nearcrit">220 bar</button>
+          <button class="btn" data-preset="deep">10⁴ bar</button>
+          <button class="btn" data-preset="verydeep">10⁶ bar</button>
         </div>
       </div>
 
@@ -74,13 +74,13 @@
       </div>
 
       <div style="margin-top:10px; font-size:12px; color:#567;">
-        Notes: \(T_b\) is estimated from an approximate saturation curve; heating curve uses standard \(c\) and latent heats.
+        Diagram axes: \(T \in [-150,450]^\circ\mathrm{C}\), \(P \in [10^{-5},10^{6}]\) bar. Curves are approximate (teaching model).
       </div>
     </div>
 
     <!-- Plots -->
     <div style="flex:1 1 700px; min-width:360px; display:grid; gap:12px;">
-      <canvas id="phaseCanvas" width="720" height="360" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+      <canvas id="phaseCanvas" width="720" height="380" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
       <canvas id="heatCanvas" width="720" height="360" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
     </div>
   </div>
@@ -88,14 +88,15 @@
 
 <script>
 (() => {
-  // ---------- Math helpers ----------
+  // ---------- Helpers ----------
   const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
   const log10 = (x)=>Math.log(x)/Math.LN10;
 
-  // Antoine saturation curve (teaching approximation)
+  // ---------- Phase-curve approximations (teaching model) ----------
+  // Antoine saturation curve for water (blended constants; good for intuition, not precision).
   function Psat_bar(Tc){
-    const A1=8.07131, B1=1730.63, C1=233.426; // 1–100C
-    const A2=8.14019, B2=1810.94, C2=244.485; // ~100–374C
+    const A1=8.07131, B1=1730.63, C1=233.426; // ~1–100°C
+    const A2=8.14019, B2=1810.94, C2=244.485; // ~100–374°C
     let w=0;
     if (Tc<=90) w=0;
     else if (Tc>=110) w=1;
@@ -104,12 +105,13 @@
     const logP2 = A2 - (B2/(C2+Tc));
     const logPmmHg = (1-w)*logP1 + w*logP2;
     const Pbar = (Math.pow(10,logPmmHg)/760)*1.01325;
-    return clamp(Pbar,1e-12,1e4);
+    return clamp(Pbar,1e-12,1e9);
   }
 
+  // Invert Psat_bar(T) by bisection to estimate boiling temperature for a given P.
   function invertPsatForT(Pbar){
-    let lo=-20, hi=420;
-    for (let i=0;i<45;i++){
+    let lo=-150, hi=450;
+    for (let i=0;i<55;i++){
       const mid=0.5*(lo+hi);
       const pm=Psat_bar(mid);
       if (pm<Pbar) lo=mid; else hi=mid;
@@ -117,21 +119,23 @@
     return 0.5*(lo+hi);
   }
 
-  // simplified melting line (teaching-friendly)
+  // Sublimation curve (ice-vapour) – simple fit, anchored around triple point; teaching-only.
+  function Psub_bar(Tc){
+    const Tk=Tc+273.15;
+    const a=6.74, b=-2350;
+    const logP=a + b/Tk;
+    return clamp(Math.pow(10,logP),1e-12,0.05);
+  }
+
+  // Simplified melting line (solid-liquid). Real water is complex at high pressure;
+  // this is chosen to show "ice melts under pressure" near 0°C.
   function Tmelt_C(Pbar){
-    const k=0.007; // °C/bar (exaggerated for visibility)
+    const k=0.007; // °C/bar (exaggerated for visibility; teaching model)
     return 0 - k*(Pbar-1);
   }
 
   const TRIPLE={T:0.01,P:0.0061};
   const CRIT={T:374,P:221};
-
-  function Psub_bar(Tc){
-    const Tk=Tc+273.15;
-    const a=6.74, b=-2350; // tuned teaching fit
-    const logP=a + b/Tk;
-    return clamp(Math.pow(10,logP),1e-12,0.02);
-  }
 
   function phaseOf(Tc,Pbar){
     if (Tc>=CRIT.T && Pbar>=CRIT.P) return "Supercritical fluid";
@@ -147,105 +151,76 @@
 
   // ---------- Heating curve model ----------
   // Constants (kJ/kg/K and kJ/kg)
-  const c_ice=2.1;
-  const c_liq=4.18;
-  const c_steam=2.0;
-  const Lf=334;
-  const Lv=2256;
+  const c_ice=2.1, c_liq=4.18, c_steam=2.0;
+  const Lf=334, Lv=2256;
 
-  // For given P and starting T, build piecewise segments of Q->T
-  // We assume: heat at constant pressure, equilibrium, no superheating in plateaus.
   function buildHeatingSegments(Pbar, TstartC, mkg){
     const Tm = Tmelt_C(Pbar);
     const Tb = invertPsatForT(Pbar);
-
-    // For very low P below triple point, "melting/boiling" doesn't behave normally.
-    // We'll still show a teaching curve, but cap behaviour:
     const normal = (Pbar >= TRIPLE.P);
 
     const segs = [];
-    let Q = 0;
-    let T = TstartC;
-
-    // Helper to push a segment
-    function pushSeg(Q0,Q1,T0,T1,label){
-      segs.push({Q0,Q1,T0,T1,label});
-    }
+    let Q=0, T=TstartC;
+    const push = (Q0,Q1,T0,T1,label)=>segs.push({Q0,Q1,T0,T1,label});
 
     if (!normal){
-      // Below triple point: treat as ice warming -> sublimation plateau at triple point P
-      // For teaching: warm ice to 0.01°C, then plateau (sublimation-ish), then vapour warming.
       const Ttp = TRIPLE.T;
       if (T < Ttp){
         const dQ = mkg*c_ice*(Ttp - T);
-        pushSeg(Q, Q+dQ, T, Ttp, "Ice warming");
-        Q += dQ; T = Ttp;
+        push(Q,Q+dQ,T,Ttp,"Ice warming");
+        Q+=dQ; T=Ttp;
       }
-      // "Sublimation plateau" with a made-up effective latent heat (use Lv as stand-in)
-      const dQ2 = mkg*(Lf+Lv)*0.6; // just for visual/intuition
-      pushSeg(Q, Q+dQ2, Ttp, Ttp, "Sublimation / phase change");
-      Q += dQ2;
-
-      // Vapour warming
-      const Tend = 200;
+      const dQ2 = mkg*(Lf+Lv)*0.6;
+      push(Q,Q+dQ2,Ttp,Ttp,"Sublimation / phase change");
+      Q+=dQ2;
+      const Tend=250;
       const dQ3 = mkg*c_steam*(Tend - Ttp);
-      pushSeg(Q, Q+dQ3, Ttp, Tend, "Vapour warming");
-      Q += dQ3;
-
-      return {segs, Tm: Ttp, Tb: Tb, Qmax: Q};
+      push(Q,Q+dQ3,Ttp,Tend,"Vapour warming");
+      Q+=dQ3;
+      return {segs, Tm:Ttp, Tb:Tb, Qmax:Q};
     }
 
-    // 1) Warm ice to melt point (if starting below)
     if (T < Tm){
       const dQ = mkg*c_ice*(Tm - T);
-      pushSeg(Q, Q+dQ, T, Tm, "Ice warming");
-      Q += dQ; T = Tm;
+      push(Q,Q+dQ,T,Tm,"Ice warming");
+      Q+=dQ; T=Tm;
     }
-
-    // 2) Melt plateau (if not already above melt point)
     if (T <= Tm + 1e-9){
       const dQ = mkg*Lf;
-      pushSeg(Q, Q+dQ, Tm, Tm, "Melting (latent heat)");
-      Q += dQ; T = Tm;
+      push(Q,Q+dQ,Tm,Tm,"Melting (latent heat)");
+      Q+=dQ; T=Tm;
     }
-
-    // 3) Warm liquid to boiling point
     if (T < Tb){
       const dQ = mkg*c_liq*(Tb - T);
-      pushSeg(Q, Q+dQ, T, Tb, "Liquid warming");
-      Q += dQ; T = Tb;
+      push(Q,Q+dQ,T,Tb,"Liquid warming");
+      Q+=dQ; T=Tb;
     }
-
-    // 4) Boil plateau (only if below critical)
     if (Tb < CRIT.T && Pbar < CRIT.P){
       const dQ = mkg*Lv;
-      pushSeg(Q, Q+dQ, Tb, Tb, "Boiling (latent heat)");
-      Q += dQ;
+      push(Q,Q+dQ,Tb,Tb,"Boiling (latent heat)");
+      Q+=dQ;
     }
-
-    // 5) Warm steam (or supercritical) to a display max temp
-    const Tend = (Pbar >= CRIT.P) ? 420 : 300;
+    const Tend = (Pbar >= CRIT.P) ? 450 : 350;
     const dQ = mkg*c_steam*(Tend - Tb);
-    pushSeg(Q, Q+dQ, Tb, Tend, (Pbar >= CRIT.P) ? "Supercritical warming" : "Steam warming");
-    Q += dQ;
+    push(Q,Q+dQ,Tb,Tend,(Pbar >= CRIT.P) ? "Supercritical warming" : "Steam warming");
+    Q+=dQ;
 
-    return {segs, Tm, Tb, Qmax: Q};
+    return {segs, Tm, Tb, Qmax:Q};
   }
 
   function TfromQ(segs, Q){
     for (const s of segs){
       if (Q >= s.Q0 && Q <= s.Q1){
-        if (Math.abs(s.T1 - s.T0) < 1e-9) return {T: s.T0, label: s.label};
-        const f = (Q - s.Q0)/(s.Q1 - s.Q0);
-        return {T: s.T0 + f*(s.T1 - s.T0), label: s.label};
+        if (Math.abs(s.T1 - s.T0) < 1e-9) return {T:s.T0, label:s.label};
+        const f=(Q-s.Q0)/(s.Q1-s.Q0);
+        return {T:s.T0 + f*(s.T1-s.T0), label:s.label};
       }
     }
-    // beyond last
-    const last = segs[segs.length-1];
-    return {T: last.T1, label: last.label};
+    const last=segs[segs.length-1];
+    return {T:last.T1, label:last.label};
   }
 
-  // ---------- Drawing helpers ----------
+  // ---------- Generic axes drawer ----------
   function drawAxes(ctx, W, H, M, xLabel, yLabel, xTicks, yTicks){
     ctx.clearRect(0,0,W,H);
 
@@ -275,7 +250,7 @@
     xTicks.forEach(t=>{
       ctx.strokeStyle="#234"; ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(t.x,H-M.b); ctx.lineTo(t.x,H-M.b+6); ctx.stroke();
-      ctx.fillText(t.label, t.x-12, H-M.b+22);
+      ctx.fillText(t.label, t.x-14, H-M.b+22);
     });
     yTicks.forEach(t=>{
       ctx.strokeStyle="#234"; ctx.lineWidth=1;
@@ -292,38 +267,149 @@
     ctx.restore();
   }
 
-  // ---------- Phase diagram plot ----------
+  // ---------- Phase diagram ----------
   const phaseCanvas=document.getElementById("phaseCanvas");
   const pctx=phaseCanvas.getContext("2d");
   const pW=phaseCanvas.width, pH=phaseCanvas.height;
-  const pM={l:60,r:16,t:18,b:45};
-  const Tmin=-80, Tmax=420;
-  const lpMin=-6, lpMax=2.35;
+  const pM={l:70,r:16,t:18,b:50};
+
+  // UPDATED DOMAINS:
+  const Tmin=-150, Tmax=450;
+  const lpMin=-5, lpMax=6; // => P from 1e-5 to 1e6 bar
 
   const xOfT = (T)=>pM.l + (T-Tmin)*(pW-pM.l-pM.r)/(Tmax-Tmin);
   const yOfLP = (lp)=>pH-pM.b - (lp-lpMin)*(pH-pM.t-pM.b)/(lpMax-lpMin);
 
+  function sampleCurve(fnPbar, T0, T1, step){
+    const pts=[];
+    for (let T=T0; T<=T1+1e-9; T+=step){
+      const P=fnPbar(T);
+      const lp=log10(P);
+      if (!isFinite(lp)) continue;
+      pts.push({T, lp});
+    }
+    return pts;
+  }
+
   function drawPhaseDiagram(Tc, Pbar){
     // ticks
     const xTicks=[];
-    for (let T=-80; T<=420; T+=100) xTicks.push({x:xOfT(T), label:String(T)});
+    for (let T=-150; T<=450; T+=150) xTicks.push({x:xOfT(T), label:String(T)});
     const yTicks=[];
-    for (let lp=-6; lp<=2; lp+=2) yTicks.push({y:yOfLP(lp), label:String(lp)});
+    for (let lp=-5; lp<=6; lp+=1) {
+      // show fewer labels (every 2) to reduce clutter
+      if (lp%2===0) yTicks.push({y:yOfLP(lp), label:String(lp)});
+      else yTicks.push({y:yOfLP(lp), label:""});
+    }
 
     drawAxes(pctx,pW,pH,pM,"Temperature (°C)","log₁₀(P/bar)",xTicks,yTicks);
 
-    // boundaries
-    function drawCurve(fn, T0, T1, step, stroke){
+    // --- Curves (for shading & boundaries) ---
+    const subPts = sampleCurve(Psub_bar, Tmin, TRIPLE.T, 1);
+    const boilPts = sampleCurve(Psat_bar, TRIPLE.T, Tmax, 1);
+
+    // Melting line: sample in logP space
+    const meltPts=[];
+    for (let lp=lpMin; lp<=lpMax; lp+=0.03){
+      const P=Math.pow(10,lp);
+      const Tm=Tmelt_C(P);
+      meltPts.push({T:Tm, lp});
+    }
+
+    // --- Region shading (simple, clear, teaching-style) ---
+    // Vapour: below sublimation (left of triple) + below boiling (right of triple)
+    pctx.save();
+    pctx.globalAlpha=0.12;
+    pctx.fillStyle="#1e5aa8";
+
+    // vapour below sub curve (Tmin -> triple)
+    pctx.beginPath();
+    pctx.moveTo(xOfT(Tmin), yOfLP(lpMin));
+    for (const pt of subPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(TRIPLE.T), yOfLP(lpMin));
+    pctx.closePath();
+    pctx.fill();
+
+    // vapour below boiling curve (triple -> Tmax)
+    pctx.beginPath();
+    pctx.moveTo(xOfT(TRIPLE.T), yOfLP(lpMin));
+    for (const pt of boilPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(Tmax), yOfLP(lpMin));
+    pctx.closePath();
+    pctx.fill();
+    pctx.restore();
+
+    // Solid: above sublimation (left side) and left/below melt line at higher pressures (very simplified)
+    pctx.save();
+    pctx.globalAlpha=0.12;
+    pctx.fillStyle="#666";
+
+    // solid above sublimation (Tmin -> triple), up to top of chart
+    pctx.beginPath();
+    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
+    for (const pt of subPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(TRIPLE.T), yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+
+    // solid left of melting curve (for lp >= triple-ish): draw a band using melting curve as boundary
+    pctx.beginPath();
+    // top-left corner
+    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
+    // down left edge
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
+    // go along bottom to first melting point's T (roughly)
+    // then trace melting curve upwards
+    // We'll trace melt curve from low lp to high lp, and close to left edge.
+    for (const pt of meltPts){
+      const T=clamp(pt.T, Tmin, Tmax);
+      const lp=clamp(pt.lp, lpMin, lpMax);
+      pctx.lineTo(xOfT(T), yOfLP(lp));
+    }
+    // close to top-left
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+    pctx.restore();
+
+    // Liquid: above boiling curve and to the right of melting line (very simplified)
+    pctx.save();
+    pctx.globalAlpha=0.10;
+    pctx.fillStyle="#0b8a3b";
+
+    // liquid above boiling (from triple to min(critical-ish))
+    pctx.beginPath();
+    pctx.moveTo(xOfT(TRIPLE.T), yOfLP(lpMax));
+    for (const pt of boilPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(Tmax), yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+    pctx.restore();
+
+    // Supercritical region shading
+    pctx.save();
+    pctx.globalAlpha=0.10;
+    pctx.fillStyle="#b22";
+    const xCrit=xOfT(CRIT.T), yCrit=yOfLP(log10(CRIT.P));
+    pctx.beginPath();
+    pctx.moveTo(xCrit, yCrit);
+    pctx.lineTo(xOfT(Tmax), yCrit);
+    pctx.lineTo(xOfT(Tmax), yOfLP(lpMax));
+    pctx.lineTo(xCrit, yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+    pctx.restore();
+
+    // --- Draw boundaries (CLEAR) ---
+    function drawCurveFromPts(pts, stroke, width){
       pctx.save();
       pctx.strokeStyle=stroke;
-      pctx.lineWidth=2;
+      pctx.lineWidth=width;
       pctx.beginPath();
       let first=true;
-      for (let T=T0; T<=T1; T+=step){
-        const P=fn(T);
-        const lp=log10(P);
-        if (lp<lpMin-1 || lp>lpMax+1) continue;
-        const x=xOfT(T), y=yOfLP(lp);
+      for (const pt of pts){
+        const x=xOfT(pt.T), y=yOfLP(clamp(pt.lp, lpMin, lpMax));
         if (first){pctx.moveTo(x,y); first=false;}
         else pctx.lineTo(x,y);
       }
@@ -331,28 +417,28 @@
       pctx.restore();
     }
 
-    // sublimation
-    drawCurve(Psub_bar, -80, 5, 1, "#7a7a7a");
-    // boiling
-    drawCurve(Psat_bar, 0.01, 420, 1, "#1e5aa8");
+    // Sublimation boundary
+    drawCurveFromPts(subPts, "#444", 3);
 
-    // melting line as sampled in lp
+    // Boiling/condensation boundary
+    drawCurveFromPts(boilPts, "#1e5aa8", 3);
+
+    // Melting boundary (sampled in lp)
     pctx.save();
-    pctx.strokeStyle="#8b4";
-    pctx.lineWidth=2;
+    pctx.strokeStyle="#2f8f2f";
+    pctx.lineWidth=3;
     pctx.beginPath();
     let first=true;
-    for (let lp=-2.2; lp<=lpMax; lp+=0.05){
-      const P=Math.pow(10,lp);
-      const Tm=Tmelt_C(P);
-      const x=xOfT(Tm), y=yOfLP(lp);
+    for (const pt of meltPts){
+      const x=xOfT(clamp(pt.T, Tmin, Tmax));
+      const y=yOfLP(clamp(pt.lp, lpMin, lpMax));
       if (first){pctx.moveTo(x,y); first=false;}
       else pctx.lineTo(x,y);
     }
     pctx.stroke();
     pctx.restore();
 
-    // points
+    // Key points
     function keyPoint(pt, label){
       const x=xOfT(pt.T), y=yOfLP(log10(pt.P));
       pctx.fillStyle="#b22";
@@ -361,23 +447,43 @@
       pctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       pctx.fillText(label, x+8, y-6);
     }
-    keyPoint(TRIPLE,"Triple");
-    keyPoint(CRIT,"Critical");
+    keyPoint(TRIPLE,"Triple point");
+    keyPoint(CRIT,"Critical point");
 
-    // region labels
+    // Region labels (stronger)
     pctx.save();
-    pctx.font="14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    pctx.fillStyle="rgba(30,90,168,0.25)";
-    pctx.fillText("Vapour", xOfT(240), yOfLP(-2.5));
-    pctx.fillStyle="rgba(11,150,60,0.25)";
-    pctx.fillText("Liquid", xOfT(80), yOfLP(0.3));
-    pctx.fillStyle="rgba(120,120,120,0.25)";
-    pctx.fillText("Solid", xOfT(-45), yOfLP(-0.2));
-    pctx.fillStyle="rgba(180,50,50,0.25)";
-    pctx.fillText("Supercritical", xOfT(305), yOfLP(2.15));
+    pctx.font="bold 15px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    pctx.fillStyle="rgba(30,90,168,0.75)";
+    pctx.fillText("VAPOUR", xOfT(240), yOfLP(-2.8));
+    pctx.fillStyle="rgba(11,138,59,0.75)";
+    pctx.fillText("LIQUID", xOfT(40), yOfLP(1.0));
+    pctx.fillStyle="rgba(80,80,80,0.75)";
+    pctx.fillText("SOLID", xOfT(-110), yOfLP(2.5));
+    pctx.fillStyle="rgba(178,34,34,0.75)";
+    pctx.fillText("SUPERCRITICAL", xOfT(300), yOfLP(5.5));
     pctx.restore();
 
-    // state point
+    // Legend
+    pctx.save();
+    pctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    pctx.fillStyle="#234";
+    const lx=pM.l+6, ly=pM.t+14;
+    pctx.fillText("Boundaries:", lx, ly);
+    // swatches
+    const items=[
+      {txt:"Sublimation (solid–vapour)", c:"#444"},
+      {txt:"Melting (solid–liquid)", c:"#2f8f2f"},
+      {txt:"Boiling/condensation (liquid–vapour)", c:"#1e5aa8"},
+    ];
+    items.forEach((it,i)=>{
+      const y=ly+16*(i+1);
+      pctx.strokeStyle=it.c; pctx.lineWidth=3;
+      pctx.beginPath(); pctx.moveTo(lx, y-4); pctx.lineTo(lx+18, y-4); pctx.stroke();
+      pctx.fillText(it.txt, lx+24, y);
+    });
+    pctx.restore();
+
+    // State point (current)
     const x=xOfT(Tc), y=yOfLP(log10(Pbar));
     pctx.fillStyle="#111";
     pctx.beginPath(); pctx.arc(x,y,6,0,Math.PI*2); pctx.fill();
@@ -385,25 +491,23 @@
     pctx.beginPath(); pctx.arc(x,y,6,0,Math.PI*2); pctx.stroke();
   }
 
-  // ---------- Heating curve plot ----------
+  // ---------- Heating curve ----------
   const heatCanvas=document.getElementById("heatCanvas");
   const hctx=heatCanvas.getContext("2d");
   const hW=heatCanvas.width, hH=heatCanvas.height;
-  const hM={l:60,r:16,t:18,b:45};
+  const hM={l:70,r:16,t:18,b:45};
 
   function drawHeatingCurve(segs, Qnow, Tnow, Tm, Tb, Qmax){
-    // axes ranges
     const Qmin=0, QmaxPlot=Qmax;
-    // include a bit beyond temps
-    let TminPlot = Math.min(-80, ...segs.map(s=>Math.min(s.T0,s.T1))) - 10;
-    let TmaxPlot = Math.max(200, ...segs.map(s=>Math.max(s.T0,s.T1))) + 10;
-    TminPlot = clamp(TminPlot, -120, 50);
-    TmaxPlot = clamp(TmaxPlot, 120, 460);
+
+    let TminPlot = Math.min(-150, ...segs.map(s=>Math.min(s.T0,s.T1))) - 10;
+    let TmaxPlot = Math.max(250, ...segs.map(s=>Math.max(s.T0,s.T1))) + 10;
+    TminPlot = clamp(TminPlot, -170, 80);
+    TmaxPlot = clamp(TmaxPlot, 120, 470);
 
     const xOfQ=(Q)=>hM.l + (Q-Qmin)*(hW-hM.l-hM.r)/(QmaxPlot-Qmin);
     const yOfT=(T)=>hH-hM.b - (T-TminPlot)*(hH-hM.t-hM.b)/(TmaxPlot-TminPlot);
 
-    // ticks
     const xTicks=[];
     const tickCount=5;
     for (let i=0;i<=tickCount;i++){
@@ -411,7 +515,7 @@
       xTicks.push({x:xOfQ(q), label:String(Math.round(q))});
     }
     const yTicks=[];
-    for (let T=Math.ceil(TminPlot/50)*50; T<=TmaxPlot; T+=50){
+    for (let T=Math.ceil(TminPlot/100)*100; T<=TmaxPlot; T+=100){
       yTicks.push({y:yOfT(T), label:String(T)});
     }
 
@@ -432,11 +536,11 @@
     hctx.stroke();
     hctx.restore();
 
-    // annotate melt/boil temps
+    // melt/boil lines
     function hLine(T, label){
       const y=yOfT(T);
       hctx.save();
-      hctx.strokeStyle="#e0a";
+      hctx.strokeStyle="#b22";
       hctx.setLineDash([6,5]);
       hctx.beginPath(); hctx.moveTo(hM.l,y); hctx.lineTo(hW-hM.r,y); hctx.stroke();
       hctx.setLineDash([]);
@@ -448,20 +552,9 @@
     hLine(Tm, "Tm");
     hLine(Tb, "Tb");
 
-    // segment labels (light)
-    hctx.save();
-    hctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    hctx.fillStyle="rgba(30,90,168,0.35)";
-    segs.forEach(s=>{
-      const xm = xOfQ(0.5*(s.Q0+s.Q1));
-      const ym = yOfT(0.5*(s.T0+s.T1) + (s.T0===s.T1? 10: 0));
-      hctx.fillText(s.label, xm-40, ym);
-    });
-    hctx.restore();
-
     // current point
     const x=xOfQ(Qnow), y=yOfT(Tnow);
-    hctx.fillStyle="#b22";
+    hctx.fillStyle="#1e5aa8";
     hctx.beginPath(); hctx.arc(x,y,6,0,Math.PI*2); hctx.fill();
     hctx.strokeStyle="#fff"; hctx.lineWidth=2;
     hctx.beginPath(); hctx.arc(x,y,6,0,Math.PI*2); hctx.stroke();
@@ -504,7 +597,7 @@
     const {segs, Tm, Tb, Qmax} = buildHeatingSegments(Pbar, T0, mkg);
 
     // Update Q slider max dynamically
-    const QmaxRounded = Math.max(100, Math.ceil(Qmax/50)*50);
+    const QmaxRounded = Math.max(200, Math.ceil(Qmax/50)*50);
     Qslider.max = QmaxRounded;
     QmaxLabel.textContent = `${QmaxRounded} kJ`;
 
@@ -514,22 +607,18 @@
     const {T: Tnow, label} = TfromQ(segs, Qnow);
     const ph = phaseOf(Tnow, Pbar);
 
-    // Readouts
-    Pout.textContent = (Pbar<0.1? Pbar.toFixed(4): Pbar.toFixed(2));
+    Pout.textContent = (Pbar<0.1? Pbar.toExponential(2): (Pbar<1000? Pbar.toFixed(2): Pbar.toExponential(2)));
     logPout.textContent = `log₁₀P = ${logP.toFixed(2)}`;
     TstartOut.textContent = T0.toFixed(0);
     Qout.textContent = Qnow.toFixed(0);
     TnowOut.textContent = Tnow.toFixed(1);
 
-    // State label with a clearer name
     let stateText = label;
-    if (label.includes("latent")) stateText += ` → phase boundary (${ph})`;
-    else stateText += ` (${ph})`;
+    stateText += ` (${ph})`;
     stateOut.textContent = stateText;
 
-    // Colour cue
-    let col="#0b4";
-    if (ph.startsWith("Solid")) col="#666";
+    let col="#0b8a3b";
+    if (ph.startsWith("Solid")) col="#555";
     else if (ph==="Vapour") col="#1e5aa8";
     else if (ph.startsWith("Supercritical")) col="#b22";
     stateOut.style.color = col;
@@ -537,18 +626,15 @@
     TmOut.textContent = Tm.toFixed(1);
     TbOut.textContent = Tb.toFixed(1);
 
-    // Draw plots
     drawPhaseDiagram(Tnow, Pbar);
     drawHeatingCurve(segs, Qnow, Tnow, Tm, Tb, Math.min(QmaxRounded, Qmax));
   }
 
-  // events
   Pslider.addEventListener("input", updateAll);
   Tstart.addEventListener("input", updateAll);
   mass.addEventListener("input", updateAll);
   Qslider.addEventListener("input", updateAll);
 
-  // presets
   styleButtons();
   document.querySelectorAll("[data-preset]").forEach(b=>{
     b.addEventListener("click",()=>{
@@ -557,13 +643,13 @@
       if (p==="sea") Pbar=1.0;
       if (p==="mountain") Pbar=0.7;
       if (p==="pressurecooker") Pbar=15;
-      if (p==="nearcrit") Pbar=220;
+      if (p==="deep") Pbar=1e4;
+      if (p==="verydeep") Pbar=1e6;
       Pslider.value = log10(Pbar);
       updateAll();
     });
   });
 
-  // init
   updateAll();
 })();
 </script>
