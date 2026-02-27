@@ -1,0 +1,569 @@
+<div style="border:2px solid #1e5aa8; border-radius:12px; padding:16px; max-width:1100px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
+  <h2 style="margin:0 0 8px 0; color:#1e5aa8;">Water Phase Diagram + Heating Curve Explorer</h2>
+  <div style="font-size:14px; color:#234; line-height:1.35; margin-bottom:12px;">
+    Use the controls to set <b>pressure</b>, <b>starting temperature</b>, and <b>mass</b>.
+    The <b>heating curve</b> shows temperature vs heat added (with flat regions for phase changes).
+    The dot on the phase diagram tracks the state as heating progresses (teaching model).
+  </div>
+
+  <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+    <!-- Controls -->
+    <div style="flex:1 1 330px; min-width:320px;">
+      <div style="display:grid; grid-template-columns: 150px 1fr; gap:10px 12px; align-items:center;">
+
+        <label for="Pslider"><b>Pressure</b></label>
+        <div>
+          <input id="Pslider" type="range" min="-6" max="2.35" step="0.01" value="0" style="width:100%;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
+            <span>10⁻⁶ bar</span><span>~225 bar</span>
+          </div>
+          <div style="font-size:12px; color:#567; margin-top:4px;">
+            Slider is <b>log₁₀(P/bar)</b>. Readout below.
+          </div>
+        </div>
+
+        <label for="Tstart"><b>Start T</b></label>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <input id="Tstart" type="range" min="-80" max="200" step="1" value="-20" style="width:100%;">
+          <div style="font-size:12px; color:#456; display:flex; justify-content:space-between;">
+            <span>-80°C</span><span>200°C</span>
+          </div>
+        </div>
+
+        <label for="mass"><b>Mass</b></label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input id="mass" type="number" min="0.05" max="10" step="0.05" value="1" style="width:110px; padding:6px; border:1px solid #ccd; border-radius:8px;">
+          <span style="font-size:13px;">kg</span>
+        </div>
+
+        <label for="Qslider"><b>Heat added</b></label>
+        <div>
+          <input id="Qslider" type="range" min="0" max="3500" step="1" value="0" style="width:100%;">
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
+            <span>0</span><span id="QmaxLabel">3500 kJ</span>
+          </div>
+          <div style="font-size:12px; color:#567; margin-top:4px;">
+            This is total heat \(Q\) added to the sample (kJ).
+          </div>
+        </div>
+
+        <label><b>Quick set</b></label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn" data-preset="sea">1 bar</button>
+          <button class="btn" data-preset="mountain">0.7 bar</button>
+          <button class="btn" data-preset="pressurecooker">15 bar</button>
+          <button class="btn" data-preset="nearcrit">220 bar</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; padding:12px; border-radius:12px; background:#f3f8ff; border:1px solid #cfe2ff;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <div style="font-size:13px; color:#345;">P = <b><span id="Pout">1.00</span> bar</b> (<span id="logPout">log₁₀P = 0.00</span>)</div>
+          <div style="font-size:13px; color:#345;">Start T = <b><span id="TstartOut">-20</span> °C</b></div>
+          <div style="font-size:13px; color:#345;">Q = <b><span id="Qout">0</span> kJ</b></div>
+        </div>
+        <div style="margin-top:8px; font-size:14px;">
+          <b>Current state on heating curve:</b> <span id="stateOut" style="color:#0b4;">Ice warming</span><br>
+          <b>Current temperature:</b> <span id="TnowOut">-20.0</span> °C
+        </div>
+        <div style="margin-top:8px; font-size:13px; color:#234; line-height:1.35;">
+          <div><b>Key temperatures at this pressure (approx):</b></div>
+          <div>• Melting point \(T_m\) ≈ <b><span id="TmOut">0.0</span> °C</b></div>
+          <div>• Boiling point \(T_b\) ≈ <b><span id="TbOut">100.0</span> °C</b></div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; font-size:12px; color:#567;">
+        Notes: \(T_b\) is estimated from an approximate saturation curve; heating curve uses standard \(c\) and latent heats.
+      </div>
+    </div>
+
+    <!-- Plots -->
+    <div style="flex:1 1 700px; min-width:360px; display:grid; gap:12px;">
+      <canvas id="phaseCanvas" width="720" height="360" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+      <canvas id="heatCanvas" width="720" height="360" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Math helpers ----------
+  const clamp = (x,a,b)=>Math.max(a,Math.min(b,x));
+  const log10 = (x)=>Math.log(x)/Math.LN10;
+
+  // Antoine saturation curve (teaching approximation)
+  function Psat_bar(Tc){
+    const A1=8.07131, B1=1730.63, C1=233.426; // 1–100C
+    const A2=8.14019, B2=1810.94, C2=244.485; // ~100–374C
+    let w=0;
+    if (Tc<=90) w=0;
+    else if (Tc>=110) w=1;
+    else w=(Tc-90)/20;
+    const logP1 = A1 - (B1/(C1+Tc));
+    const logP2 = A2 - (B2/(C2+Tc));
+    const logPmmHg = (1-w)*logP1 + w*logP2;
+    const Pbar = (Math.pow(10,logPmmHg)/760)*1.01325;
+    return clamp(Pbar,1e-12,1e4);
+  }
+
+  function invertPsatForT(Pbar){
+    let lo=-20, hi=420;
+    for (let i=0;i<45;i++){
+      const mid=0.5*(lo+hi);
+      const pm=Psat_bar(mid);
+      if (pm<Pbar) lo=mid; else hi=mid;
+    }
+    return 0.5*(lo+hi);
+  }
+
+  // simplified melting line (teaching-friendly)
+  function Tmelt_C(Pbar){
+    const k=0.007; // °C/bar (exaggerated for visibility)
+    return 0 - k*(Pbar-1);
+  }
+
+  const TRIPLE={T:0.01,P:0.0061};
+  const CRIT={T:374,P:221};
+
+  function Psub_bar(Tc){
+    const Tk=Tc+273.15;
+    const a=6.74, b=-2350; // tuned teaching fit
+    const logP=a + b/Tk;
+    return clamp(Math.pow(10,logP),1e-12,0.02);
+  }
+
+  function phaseOf(Tc,Pbar){
+    if (Tc>=CRIT.T && Pbar>=CRIT.P) return "Supercritical fluid";
+    if (Tc<TRIPLE.T && Pbar<TRIPLE.P){
+      const Psub=Psub_bar(Tc);
+      return (Pbar>=Psub) ? "Solid (ice)" : "Vapour";
+    }
+    const Tm=Tmelt_C(Pbar);
+    if (Tc<=Tm && Pbar>=TRIPLE.P) return "Solid (ice)";
+    const Ps=Psat_bar(Tc);
+    return (Pbar>=Ps) ? "Liquid" : "Vapour";
+  }
+
+  // ---------- Heating curve model ----------
+  // Constants (kJ/kg/K and kJ/kg)
+  const c_ice=2.1;
+  const c_liq=4.18;
+  const c_steam=2.0;
+  const Lf=334;
+  const Lv=2256;
+
+  // For given P and starting T, build piecewise segments of Q->T
+  // We assume: heat at constant pressure, equilibrium, no superheating in plateaus.
+  function buildHeatingSegments(Pbar, TstartC, mkg){
+    const Tm = Tmelt_C(Pbar);
+    const Tb = invertPsatForT(Pbar);
+
+    // For very low P below triple point, "melting/boiling" doesn't behave normally.
+    // We'll still show a teaching curve, but cap behaviour:
+    const normal = (Pbar >= TRIPLE.P);
+
+    const segs = [];
+    let Q = 0;
+    let T = TstartC;
+
+    // Helper to push a segment
+    function pushSeg(Q0,Q1,T0,T1,label){
+      segs.push({Q0,Q1,T0,T1,label});
+    }
+
+    if (!normal){
+      // Below triple point: treat as ice warming -> sublimation plateau at triple point P
+      // For teaching: warm ice to 0.01°C, then plateau (sublimation-ish), then vapour warming.
+      const Ttp = TRIPLE.T;
+      if (T < Ttp){
+        const dQ = mkg*c_ice*(Ttp - T);
+        pushSeg(Q, Q+dQ, T, Ttp, "Ice warming");
+        Q += dQ; T = Ttp;
+      }
+      // "Sublimation plateau" with a made-up effective latent heat (use Lv as stand-in)
+      const dQ2 = mkg*(Lf+Lv)*0.6; // just for visual/intuition
+      pushSeg(Q, Q+dQ2, Ttp, Ttp, "Sublimation / phase change");
+      Q += dQ2;
+
+      // Vapour warming
+      const Tend = 200;
+      const dQ3 = mkg*c_steam*(Tend - Ttp);
+      pushSeg(Q, Q+dQ3, Ttp, Tend, "Vapour warming");
+      Q += dQ3;
+
+      return {segs, Tm: Ttp, Tb: Tb, Qmax: Q};
+    }
+
+    // 1) Warm ice to melt point (if starting below)
+    if (T < Tm){
+      const dQ = mkg*c_ice*(Tm - T);
+      pushSeg(Q, Q+dQ, T, Tm, "Ice warming");
+      Q += dQ; T = Tm;
+    }
+
+    // 2) Melt plateau (if not already above melt point)
+    if (T <= Tm + 1e-9){
+      const dQ = mkg*Lf;
+      pushSeg(Q, Q+dQ, Tm, Tm, "Melting (latent heat)");
+      Q += dQ; T = Tm;
+    }
+
+    // 3) Warm liquid to boiling point
+    if (T < Tb){
+      const dQ = mkg*c_liq*(Tb - T);
+      pushSeg(Q, Q+dQ, T, Tb, "Liquid warming");
+      Q += dQ; T = Tb;
+    }
+
+    // 4) Boil plateau (only if below critical)
+    if (Tb < CRIT.T && Pbar < CRIT.P){
+      const dQ = mkg*Lv;
+      pushSeg(Q, Q+dQ, Tb, Tb, "Boiling (latent heat)");
+      Q += dQ;
+    }
+
+    // 5) Warm steam (or supercritical) to a display max temp
+    const Tend = (Pbar >= CRIT.P) ? 420 : 300;
+    const dQ = mkg*c_steam*(Tend - Tb);
+    pushSeg(Q, Q+dQ, Tb, Tend, (Pbar >= CRIT.P) ? "Supercritical warming" : "Steam warming");
+    Q += dQ;
+
+    return {segs, Tm, Tb, Qmax: Q};
+  }
+
+  function TfromQ(segs, Q){
+    for (const s of segs){
+      if (Q >= s.Q0 && Q <= s.Q1){
+        if (Math.abs(s.T1 - s.T0) < 1e-9) return {T: s.T0, label: s.label};
+        const f = (Q - s.Q0)/(s.Q1 - s.Q0);
+        return {T: s.T0 + f*(s.T1 - s.T0), label: s.label};
+      }
+    }
+    // beyond last
+    const last = segs[segs.length-1];
+    return {T: last.T1, label: last.label};
+  }
+
+  // ---------- Drawing helpers ----------
+  function drawAxes(ctx, W, H, M, xLabel, yLabel, xTicks, yTicks){
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.save();
+    ctx.strokeStyle="#e7eef9";
+    ctx.lineWidth=1;
+    xTicks.forEach(t=>{
+      ctx.beginPath(); ctx.moveTo(t.x, M.t); ctx.lineTo(t.x, H-M.b); ctx.stroke();
+    });
+    yTicks.forEach(t=>{
+      ctx.beginPath(); ctx.moveTo(M.l, t.y); ctx.lineTo(W-M.r, t.y); ctx.stroke();
+    });
+    ctx.restore();
+
+    // axes
+    ctx.save();
+    ctx.strokeStyle="#234";
+    ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(M.l,H-M.b); ctx.lineTo(W-M.r,H-M.b); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(M.l,M.t); ctx.lineTo(M.l,H-M.b); ctx.stroke();
+    ctx.restore();
+
+    // tick labels
+    ctx.fillStyle="#234";
+    ctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    xTicks.forEach(t=>{
+      ctx.strokeStyle="#234"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(t.x,H-M.b); ctx.lineTo(t.x,H-M.b+6); ctx.stroke();
+      ctx.fillText(t.label, t.x-12, H-M.b+22);
+    });
+    yTicks.forEach(t=>{
+      ctx.strokeStyle="#234"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(M.l-6,t.y); ctx.lineTo(M.l,t.y); ctx.stroke();
+      ctx.fillText(t.label, 12, t.y+4);
+    });
+
+    // axis labels
+    ctx.fillText(xLabel, (M.l+W-M.r)/2 - ctx.measureText(xLabel).width/2, H-18);
+    ctx.save();
+    ctx.translate(16,(M.t+H-M.b)/2 + ctx.measureText(yLabel).width/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(yLabel, 0, 0);
+    ctx.restore();
+  }
+
+  // ---------- Phase diagram plot ----------
+  const phaseCanvas=document.getElementById("phaseCanvas");
+  const pctx=phaseCanvas.getContext("2d");
+  const pW=phaseCanvas.width, pH=phaseCanvas.height;
+  const pM={l:60,r:16,t:18,b:45};
+  const Tmin=-80, Tmax=420;
+  const lpMin=-6, lpMax=2.35;
+
+  const xOfT = (T)=>pM.l + (T-Tmin)*(pW-pM.l-pM.r)/(Tmax-Tmin);
+  const yOfLP = (lp)=>pH-pM.b - (lp-lpMin)*(pH-pM.t-pM.b)/(lpMax-lpMin);
+
+  function drawPhaseDiagram(Tc, Pbar){
+    // ticks
+    const xTicks=[];
+    for (let T=-80; T<=420; T+=100) xTicks.push({x:xOfT(T), label:String(T)});
+    const yTicks=[];
+    for (let lp=-6; lp<=2; lp+=2) yTicks.push({y:yOfLP(lp), label:String(lp)});
+
+    drawAxes(pctx,pW,pH,pM,"Temperature (°C)","log₁₀(P/bar)",xTicks,yTicks);
+
+    // boundaries
+    function drawCurve(fn, T0, T1, step, stroke){
+      pctx.save();
+      pctx.strokeStyle=stroke;
+      pctx.lineWidth=2;
+      pctx.beginPath();
+      let first=true;
+      for (let T=T0; T<=T1; T+=step){
+        const P=fn(T);
+        const lp=log10(P);
+        if (lp<lpMin-1 || lp>lpMax+1) continue;
+        const x=xOfT(T), y=yOfLP(lp);
+        if (first){pctx.moveTo(x,y); first=false;}
+        else pctx.lineTo(x,y);
+      }
+      pctx.stroke();
+      pctx.restore();
+    }
+
+    // sublimation
+    drawCurve(Psub_bar, -80, 5, 1, "#7a7a7a");
+    // boiling
+    drawCurve(Psat_bar, 0.01, 420, 1, "#1e5aa8");
+
+    // melting line as sampled in lp
+    pctx.save();
+    pctx.strokeStyle="#8b4";
+    pctx.lineWidth=2;
+    pctx.beginPath();
+    let first=true;
+    for (let lp=-2.2; lp<=lpMax; lp+=0.05){
+      const P=Math.pow(10,lp);
+      const Tm=Tmelt_C(P);
+      const x=xOfT(Tm), y=yOfLP(lp);
+      if (first){pctx.moveTo(x,y); first=false;}
+      else pctx.lineTo(x,y);
+    }
+    pctx.stroke();
+    pctx.restore();
+
+    // points
+    function keyPoint(pt, label){
+      const x=xOfT(pt.T), y=yOfLP(log10(pt.P));
+      pctx.fillStyle="#b22";
+      pctx.beginPath(); pctx.arc(x,y,4,0,Math.PI*2); pctx.fill();
+      pctx.fillStyle="#234";
+      pctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      pctx.fillText(label, x+8, y-6);
+    }
+    keyPoint(TRIPLE,"Triple");
+    keyPoint(CRIT,"Critical");
+
+    // region labels
+    pctx.save();
+    pctx.font="14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    pctx.fillStyle="rgba(30,90,168,0.25)";
+    pctx.fillText("Vapour", xOfT(240), yOfLP(-2.5));
+    pctx.fillStyle="rgba(11,150,60,0.25)";
+    pctx.fillText("Liquid", xOfT(80), yOfLP(0.3));
+    pctx.fillStyle="rgba(120,120,120,0.25)";
+    pctx.fillText("Solid", xOfT(-45), yOfLP(-0.2));
+    pctx.fillStyle="rgba(180,50,50,0.25)";
+    pctx.fillText("Supercritical", xOfT(305), yOfLP(2.15));
+    pctx.restore();
+
+    // state point
+    const x=xOfT(Tc), y=yOfLP(log10(Pbar));
+    pctx.fillStyle="#111";
+    pctx.beginPath(); pctx.arc(x,y,6,0,Math.PI*2); pctx.fill();
+    pctx.strokeStyle="#fff"; pctx.lineWidth=2;
+    pctx.beginPath(); pctx.arc(x,y,6,0,Math.PI*2); pctx.stroke();
+  }
+
+  // ---------- Heating curve plot ----------
+  const heatCanvas=document.getElementById("heatCanvas");
+  const hctx=heatCanvas.getContext("2d");
+  const hW=heatCanvas.width, hH=heatCanvas.height;
+  const hM={l:60,r:16,t:18,b:45};
+
+  function drawHeatingCurve(segs, Qnow, Tnow, Tm, Tb, Qmax){
+    // axes ranges
+    const Qmin=0, QmaxPlot=Qmax;
+    // include a bit beyond temps
+    let TminPlot = Math.min(-80, ...segs.map(s=>Math.min(s.T0,s.T1))) - 10;
+    let TmaxPlot = Math.max(200, ...segs.map(s=>Math.max(s.T0,s.T1))) + 10;
+    TminPlot = clamp(TminPlot, -120, 50);
+    TmaxPlot = clamp(TmaxPlot, 120, 460);
+
+    const xOfQ=(Q)=>hM.l + (Q-Qmin)*(hW-hM.l-hM.r)/(QmaxPlot-Qmin);
+    const yOfT=(T)=>hH-hM.b - (T-TminPlot)*(hH-hM.t-hM.b)/(TmaxPlot-TminPlot);
+
+    // ticks
+    const xTicks=[];
+    const tickCount=5;
+    for (let i=0;i<=tickCount;i++){
+      const q=Qmin + (QmaxPlot-Qmin)*i/tickCount;
+      xTicks.push({x:xOfQ(q), label:String(Math.round(q))});
+    }
+    const yTicks=[];
+    for (let T=Math.ceil(TminPlot/50)*50; T<=TmaxPlot; T+=50){
+      yTicks.push({y:yOfT(T), label:String(T)});
+    }
+
+    drawAxes(hctx,hW,hH,hM,"Heat added Q (kJ)","Temperature (°C)",xTicks,yTicks);
+
+    // curve
+    hctx.save();
+    hctx.strokeStyle="#111";
+    hctx.lineWidth=2.5;
+    hctx.beginPath();
+    let first=true;
+    for (const s of segs){
+      const x0=xOfQ(s.Q0), y0=yOfT(s.T0);
+      const x1=xOfQ(s.Q1), y1=yOfT(s.T1);
+      if (first){hctx.moveTo(x0,y0); first=false;}
+      hctx.lineTo(x1,y1);
+    }
+    hctx.stroke();
+    hctx.restore();
+
+    // annotate melt/boil temps
+    function hLine(T, label){
+      const y=yOfT(T);
+      hctx.save();
+      hctx.strokeStyle="#e0a";
+      hctx.setLineDash([6,5]);
+      hctx.beginPath(); hctx.moveTo(hM.l,y); hctx.lineTo(hW-hM.r,y); hctx.stroke();
+      hctx.setLineDash([]);
+      hctx.fillStyle="#234";
+      hctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      hctx.fillText(label, hM.l+8, y-6);
+      hctx.restore();
+    }
+    hLine(Tm, "Tm");
+    hLine(Tb, "Tb");
+
+    // segment labels (light)
+    hctx.save();
+    hctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    hctx.fillStyle="rgba(30,90,168,0.35)";
+    segs.forEach(s=>{
+      const xm = xOfQ(0.5*(s.Q0+s.Q1));
+      const ym = yOfT(0.5*(s.T0+s.T1) + (s.T0===s.T1? 10: 0));
+      hctx.fillText(s.label, xm-40, ym);
+    });
+    hctx.restore();
+
+    // current point
+    const x=xOfQ(Qnow), y=yOfT(Tnow);
+    hctx.fillStyle="#b22";
+    hctx.beginPath(); hctx.arc(x,y,6,0,Math.PI*2); hctx.fill();
+    hctx.strokeStyle="#fff"; hctx.lineWidth=2;
+    hctx.beginPath(); hctx.arc(x,y,6,0,Math.PI*2); hctx.stroke();
+  }
+
+  // ---------- UI wiring ----------
+  const Pslider=document.getElementById("Pslider");
+  const Tstart=document.getElementById("Tstart");
+  const mass=document.getElementById("mass");
+  const Qslider=document.getElementById("Qslider");
+
+  const Pout=document.getElementById("Pout");
+  const logPout=document.getElementById("logPout");
+  const TstartOut=document.getElementById("TstartOut");
+  const Qout=document.getElementById("Qout");
+  const stateOut=document.getElementById("stateOut");
+  const TnowOut=document.getElementById("TnowOut");
+  const TmOut=document.getElementById("TmOut");
+  const TbOut=document.getElementById("TbOut");
+  const QmaxLabel=document.getElementById("QmaxLabel");
+
+  function styleButtons(){
+    document.querySelectorAll(".btn").forEach(btn=>{
+      btn.style.padding="7px 10px";
+      btn.style.borderRadius="10px";
+      btn.style.border="1px solid #ccd";
+      btn.style.background="#fff";
+      btn.style.cursor="pointer";
+      btn.addEventListener("mouseenter",()=>btn.style.background="#f2f7ff");
+      btn.addEventListener("mouseleave",()=>btn.style.background="#fff");
+    });
+  }
+
+  function updateAll(){
+    const logP=parseFloat(Pslider.value);
+    const Pbar=Math.pow(10,logP);
+    const T0=parseFloat(Tstart.value);
+    const mkg=clamp(parseFloat(mass.value||1),0.05,10);
+
+    const {segs, Tm, Tb, Qmax} = buildHeatingSegments(Pbar, T0, mkg);
+
+    // Update Q slider max dynamically
+    const QmaxRounded = Math.max(100, Math.ceil(Qmax/50)*50);
+    Qslider.max = QmaxRounded;
+    QmaxLabel.textContent = `${QmaxRounded} kJ`;
+
+    const Qnow = clamp(parseFloat(Qslider.value), 0, QmaxRounded);
+    Qslider.value = Qnow;
+
+    const {T: Tnow, label} = TfromQ(segs, Qnow);
+    const ph = phaseOf(Tnow, Pbar);
+
+    // Readouts
+    Pout.textContent = (Pbar<0.1? Pbar.toFixed(4): Pbar.toFixed(2));
+    logPout.textContent = `log₁₀P = ${logP.toFixed(2)}`;
+    TstartOut.textContent = T0.toFixed(0);
+    Qout.textContent = Qnow.toFixed(0);
+    TnowOut.textContent = Tnow.toFixed(1);
+
+    // State label with a clearer name
+    let stateText = label;
+    if (label.includes("latent")) stateText += ` → phase boundary (${ph})`;
+    else stateText += ` (${ph})`;
+    stateOut.textContent = stateText;
+
+    // Colour cue
+    let col="#0b4";
+    if (ph.startsWith("Solid")) col="#666";
+    else if (ph==="Vapour") col="#1e5aa8";
+    else if (ph.startsWith("Supercritical")) col="#b22";
+    stateOut.style.color = col;
+
+    TmOut.textContent = Tm.toFixed(1);
+    TbOut.textContent = Tb.toFixed(1);
+
+    // Draw plots
+    drawPhaseDiagram(Tnow, Pbar);
+    drawHeatingCurve(segs, Qnow, Tnow, Tm, Tb, Math.min(QmaxRounded, Qmax));
+  }
+
+  // events
+  Pslider.addEventListener("input", updateAll);
+  Tstart.addEventListener("input", updateAll);
+  mass.addEventListener("input", updateAll);
+  Qslider.addEventListener("input", updateAll);
+
+  // presets
+  styleButtons();
+  document.querySelectorAll("[data-preset]").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const p=b.getAttribute("data-preset");
+      let Pbar=1.0;
+      if (p==="sea") Pbar=1.0;
+      if (p==="mountain") Pbar=0.7;
+      if (p==="pressurecooker") Pbar=15;
+      if (p==="nearcrit") Pbar=220;
+      Pslider.value = log10(Pbar);
+      updateAll();
+    });
+  });
+
+  // init
+  updateAll();
+})();
+</script>
