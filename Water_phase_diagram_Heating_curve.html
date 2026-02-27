@@ -1,88 +1,104 @@
-<div style="border:2px solid #1e5aa8; border-radius:12px; padding:16px; max-width:1100px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
-  <h2 style="margin:0 0 8px 0; color:#1e5aa8;">Water Phase Diagram + Heating Curve Explorer</h2>
-  <div style="font-size:14px; color:#234; line-height:1.35; margin-bottom:12px;">
-    Controls set <b>pressure</b>, <b>starting temperature</b>, and <b>mass</b>. The <b>heating curve</b> shows \(T\) vs heat added.
-    The dot on the <b>phase diagram</b> tracks the state as heating progresses.
+<div style="border:2px solid #1e5aa8; border-radius:12px; padding:14px; max-width:1200px; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;">
+  <h2 style="margin:0 0 6px 0; color:#1e5aa8;">Water Phase Diagram + Heating Curve Explorer</h2>
+  <div style="font-size:13px; color:#234; line-height:1.35; margin-bottom:10px;">
+    Controls are at the top. The <b>phase diagram</b> and <b>heating curve</b> are side-by-side below (responsive).
   </div>
 
-  <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
-    <!-- Controls -->
-    <div style="flex:1 1 330px; min-width:320px;">
-      <div style="display:grid; grid-template-columns: 150px 1fr; gap:10px 12px; align-items:center;">
-
-        <label for="Pslider"><b>Pressure</b></label>
-        <div>
-          <input id="Pslider" type="range" min="-5" max="6" step="0.01" value="0" style="width:100%;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
-            <span>10⁻⁵ bar</span><span>10⁶ bar</span>
-          </div>
-          <div style="font-size:12px; color:#567; margin-top:4px;">
-            Slider is <b>log₁₀(P/bar)</b>. (So 0 = 1 bar, 3 = 1000 bar, −5 = 10⁻⁵ bar)
-          </div>
-        </div>
-
-        <label for="Tstart"><b>Start T</b></label>
-        <div>
-          <input id="Tstart" type="range" min="-150" max="300" step="1" value="-20" style="width:100%;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
-            <span>-150°C</span><span>300°C</span>
-          </div>
-        </div>
-
-        <label for="mass"><b>Mass</b></label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input id="mass" type="number" min="0.05" max="10" step="0.05" value="1" style="width:110px; padding:6px; border:1px solid #ccd; border-radius:8px;">
-          <span style="font-size:13px;">kg</span>
-        </div>
-
-        <label for="Qslider"><b>Heat added</b></label>
-        <div>
-          <input id="Qslider" type="range" min="0" max="3500" step="1" value="0" style="width:100%;">
-          <div style="display:flex; justify-content:space-between; font-size:12px; color:#456;">
-            <span>0</span><span id="QmaxLabel">3500 kJ</span>
-          </div>
-          <div style="font-size:12px; color:#567; margin-top:4px;">
-            This is total heat \(Q\) added to the sample (kJ).
-          </div>
-        </div>
-
-        <label><b>Quick set</b></label>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn" data-preset="sea">1 bar</button>
-          <button class="btn" data-preset="mountain">0.7 bar</button>
-          <button class="btn" data-preset="pressurecooker">15 bar</button>
-          <button class="btn" data-preset="deep">10⁴ bar</button>
-          <button class="btn" data-preset="verydeep">10⁶ bar</button>
-        </div>
+  <!-- CONTROLS (TOP ROW) -->
+  <div style="
+    border:1px solid #cfe2ff;
+    background:#f3f8ff;
+    border-radius:12px;
+    padding:12px;
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+  ">
+    <!-- Pressure -->
+    <div style="flex: 1 1 260px; min-width:240px;">
+      <div style="font-size:13px; color:#123; margin-bottom:6px;"><b>Pressure</b></div>
+      <input id="Pslider" type="range" min="-5" max="6" step="0.01" value="0" style="width:100%;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#456; margin-top:2px;">
+        <span>10⁻⁵ bar</span><span>10⁶ bar</span>
       </div>
-
-      <div style="margin-top:12px; padding:12px; border-radius:12px; background:#f3f8ff; border:1px solid #cfe2ff;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <div style="font-size:13px; color:#345;">P = <b><span id="Pout">1.00</span> bar</b> (<span id="logPout">log₁₀P = 0.00</span>)</div>
-          <div style="font-size:13px; color:#345;">Start T = <b><span id="TstartOut">-20</span> °C</b></div>
-          <div style="font-size:13px; color:#345;">Q = <b><span id="Qout">0</span> kJ</b></div>
-        </div>
-        <div style="margin-top:8px; font-size:14px;">
-          <b>Current state on heating curve:</b> <span id="stateOut" style="color:#0b4;">Ice warming</span><br>
-          <b>Current temperature:</b> <span id="TnowOut">-20.0</span> °C
-        </div>
-        <div style="margin-top:8px; font-size:13px; color:#234; line-height:1.35;">
-          <div><b>Key temperatures at this pressure (approx):</b></div>
-          <div>• Melting point \(T_m\) ≈ <b><span id="TmOut">0.0</span> °C</b></div>
-          <div>• Boiling point \(T_b\) ≈ <b><span id="TbOut">100.0</span> °C</b></div>
-        </div>
-      </div>
-
-      <div style="margin-top:10px; font-size:12px; color:#567;">
-        Diagram axes: \(T \in [-150,450]^\circ\mathrm{C}\), \(P \in [10^{-5},10^{6}]\) bar. Curves are approximate (teaching model).
+      <div style="font-size:12px; color:#567; margin-top:4px;">
+        log₁₀(P/bar) = <b><span id="logPout">0.00</span></b> &nbsp;→&nbsp; P = <b><span id="Pout">1.00</span> bar</b>
       </div>
     </div>
 
-    <!-- Plots -->
-    <div style="flex:1 1 700px; min-width:360px; display:grid; gap:12px;">
-      <canvas id="phaseCanvas" width="720" height="380" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
-      <canvas id="heatCanvas" width="720" height="360" style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+    <!-- Start temperature -->
+    <div style="flex: 1 1 240px; min-width:220px;">
+      <div style="font-size:13px; color:#123; margin-bottom:6px;"><b>Start temperature</b></div>
+      <input id="Tstart" type="range" min="-150" max="300" step="1" value="-20" style="width:100%;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#456; margin-top:2px;">
+        <span>-150°C</span><span>300°C</span>
+      </div>
+      <div style="font-size:12px; color:#567; margin-top:4px;">
+        Start T = <b><span id="TstartOut">-20</span> °C</b>
+      </div>
     </div>
+
+    <!-- Mass -->
+    <div style="flex: 0 0 150px; min-width:150px;">
+      <div style="font-size:13px; color:#123; margin-bottom:6px;"><b>Mass</b></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input id="mass" type="number" min="0.05" max="10" step="0.05" value="1"
+               style="width:90px; padding:6px; border:1px solid #ccd; border-radius:8px;">
+        <span style="font-size:13px; color:#234;">kg</span>
+      </div>
+      <div style="font-size:12px; color:#567; margin-top:6px;">
+        Tₘ ≈ <b><span id="TmOut">0.0</span> °C</b><br>
+        Tᵦ ≈ <b><span id="TbOut">100.0</span> °C</b>
+      </div>
+    </div>
+
+    <!-- Heat added -->
+    <div style="flex: 1 1 280px; min-width:260px;">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:6px;">
+        <div style="font-size:13px; color:#123;"><b>Heat added</b></div>
+        <div style="font-size:12px; color:#456;">Q = <b><span id="Qout">0</span> kJ</b></div>
+      </div>
+      <input id="Qslider" type="range" min="0" max="3500" step="1" value="0" style="width:100%;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:#456; margin-top:2px;">
+        <span>0</span><span id="QmaxLabel">3500 kJ</span>
+      </div>
+      <div style="font-size:12px; color:#567; margin-top:4px;">
+        Current T = <b><span id="TnowOut">-20.0</span> °C</b> &nbsp;•&nbsp;
+        <b><span id="stateOut" style="color:#0b8a3b;">Ice warming</span></b>
+      </div>
+    </div>
+
+    <!-- Quick set -->
+    <div style="flex: 0 0 auto;">
+      <div style="font-size:13px; color:#123; margin-bottom:6px;"><b>Quick set</b></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" data-preset="sea">1 bar</button>
+        <button class="btn" data-preset="mountain">0.7 bar</button>
+        <button class="btn" data-preset="pressurecooker">15 bar</button>
+        <button class="btn" data-preset="deep">10⁴ bar</button>
+        <button class="btn" data-preset="verydeep">10⁶ bar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLOTS (SIDE-BY-SIDE) -->
+  <div style="display:flex; gap:12px; margin-top:12px; flex-wrap:wrap;">
+    <div style="flex:1 1 520px; min-width:320px;">
+      <div style="font-size:12px; color:#456; margin:0 0 6px 2px;"><b>Phase diagram</b> (T from −150°C to 450°C, P from 10⁻⁵ to 10⁶ bar)</div>
+      <canvas id="phaseCanvas" width="640" height="420"
+              style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+    </div>
+
+    <div style="flex:1 1 520px; min-width:320px;">
+      <div style="font-size:12px; color:#456; margin:0 0 6px 2px;"><b>Heating curve</b> (T vs Q at the chosen pressure)</div>
+      <canvas id="heatCanvas" width="640" height="420"
+              style="width:100%; height:auto; border-radius:12px; border:1px solid #cdd; background:white;"></canvas>
+    </div>
+  </div>
+
+  <div style="margin-top:10px; font-size:12px; color:#567;">
+    Note: phase boundaries are approximate (teaching model). At very high pressures, real water has multiple solid phases.
   </div>
 </div>
 
@@ -93,10 +109,10 @@
   const log10 = (x)=>Math.log(x)/Math.LN10;
 
   // ---------- Phase-curve approximations (teaching model) ----------
-  // Antoine saturation curve for water (blended constants; good for intuition, not precision).
   function Psat_bar(Tc){
-    const A1=8.07131, B1=1730.63, C1=233.426; // ~1–100°C
-    const A2=8.14019, B2=1810.94, C2=244.485; // ~100–374°C
+    // Antoine (blended) – good for intuition, not precision.
+    const A1=8.07131, B1=1730.63, C1=233.426;
+    const A2=8.14019, B2=1810.94, C2=244.485;
     let w=0;
     if (Tc<=90) w=0;
     else if (Tc>=110) w=1;
@@ -108,7 +124,6 @@
     return clamp(Pbar,1e-12,1e9);
   }
 
-  // Invert Psat_bar(T) by bisection to estimate boiling temperature for a given P.
   function invertPsatForT(Pbar){
     let lo=-150, hi=450;
     for (let i=0;i<55;i++){
@@ -119,7 +134,6 @@
     return 0.5*(lo+hi);
   }
 
-  // Sublimation curve (ice-vapour) – simple fit, anchored around triple point; teaching-only.
   function Psub_bar(Tc){
     const Tk=Tc+273.15;
     const a=6.74, b=-2350;
@@ -127,10 +141,9 @@
     return clamp(Math.pow(10,logP),1e-12,0.05);
   }
 
-  // Simplified melting line (solid-liquid). Real water is complex at high pressure;
-  // this is chosen to show "ice melts under pressure" near 0°C.
   function Tmelt_C(Pbar){
-    const k=0.007; // °C/bar (exaggerated for visibility; teaching model)
+    // Simplified negative slope near 0°C (exaggerated for visibility)
+    const k=0.007;
     return 0 - k*(Pbar-1);
   }
 
@@ -150,9 +163,8 @@
   }
 
   // ---------- Heating curve model ----------
-  // Constants (kJ/kg/K and kJ/kg)
-  const c_ice=2.1, c_liq=4.18, c_steam=2.0;
-  const Lf=334, Lv=2256;
+  const c_ice=2.1, c_liq=4.18, c_steam=2.0; // kJ/kg/K
+  const Lf=334, Lv=2256; // kJ/kg
 
   function buildHeatingSegments(Pbar, TstartC, mkg){
     const Tm = Tmelt_C(Pbar);
@@ -220,7 +232,7 @@
     return {T:last.T1, label:last.label};
   }
 
-  // ---------- Generic axes drawer ----------
+  // ---------- Generic axes ----------
   function drawAxes(ctx, W, H, M, xLabel, yLabel, xTicks, yTicks){
     ctx.clearRect(0,0,W,H);
 
@@ -255,7 +267,7 @@
     yTicks.forEach(t=>{
       ctx.strokeStyle="#234"; ctx.lineWidth=1;
       ctx.beginPath(); ctx.moveTo(M.l-6,t.y); ctx.lineTo(M.l,t.y); ctx.stroke();
-      ctx.fillText(t.label, 12, t.y+4);
+      ctx.fillText(t.label, 10, t.y+4);
     });
 
     // axis labels
@@ -271,11 +283,10 @@
   const phaseCanvas=document.getElementById("phaseCanvas");
   const pctx=phaseCanvas.getContext("2d");
   const pW=phaseCanvas.width, pH=phaseCanvas.height;
-  const pM={l:70,r:16,t:18,b:50};
+  const pM={l:70,r:16,t:18,b:52};
 
-  // UPDATED DOMAINS:
   const Tmin=-150, Tmax=450;
-  const lpMin=-5, lpMax=6; // => P from 1e-5 to 1e6 bar
+  const lpMin=-5, lpMax=6;
 
   const xOfT = (T)=>pM.l + (T-Tmin)*(pW-pM.l-pM.r)/(Tmax-Tmin);
   const yOfLP = (lp)=>pH-pM.b - (lp-lpMin)*(pH-pM.t-pM.b)/(lpMax-lpMin);
@@ -296,41 +307,32 @@
     const xTicks=[];
     for (let T=-150; T<=450; T+=150) xTicks.push({x:xOfT(T), label:String(T)});
     const yTicks=[];
-    for (let lp=-5; lp<=6; lp+=1) {
-      // show fewer labels (every 2) to reduce clutter
-      if (lp%2===0) yTicks.push({y:yOfLP(lp), label:String(lp)});
-      else yTicks.push({y:yOfLP(lp), label:""});
-    }
+    for (let lp=-5; lp<=6; lp+=1) yTicks.push({y:yOfLP(lp), label:(lp%2===0? String(lp):"")});
 
     drawAxes(pctx,pW,pH,pM,"Temperature (°C)","log₁₀(P/bar)",xTicks,yTicks);
 
-    // --- Curves (for shading & boundaries) ---
-    const subPts = sampleCurve(Psub_bar, Tmin, TRIPLE.T, 1);
+    // curves
+    const subPts  = sampleCurve(Psub_bar, Tmin, TRIPLE.T, 1);
     const boilPts = sampleCurve(Psat_bar, TRIPLE.T, Tmax, 1);
-
-    // Melting line: sample in logP space
     const meltPts=[];
     for (let lp=lpMin; lp<=lpMax; lp+=0.03){
       const P=Math.pow(10,lp);
-      const Tm=Tmelt_C(P);
-      meltPts.push({T:Tm, lp});
+      meltPts.push({T: Tmelt_C(P), lp});
     }
 
-    // --- Region shading (simple, clear, teaching-style) ---
-    // Vapour: below sublimation (left of triple) + below boiling (right of triple)
+    // --- shading (clear regions) ---
+    // vapour (below sublimation + below boiling)
     pctx.save();
     pctx.globalAlpha=0.12;
     pctx.fillStyle="#1e5aa8";
-
-    // vapour below sub curve (Tmin -> triple)
+    // vapour left side
     pctx.beginPath();
     pctx.moveTo(xOfT(Tmin), yOfLP(lpMin));
     for (const pt of subPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
     pctx.lineTo(xOfT(TRIPLE.T), yOfLP(lpMin));
     pctx.closePath();
     pctx.fill();
-
-    // vapour below boiling curve (triple -> Tmax)
+    // vapour right side
     pctx.beginPath();
     pctx.moveTo(xOfT(TRIPLE.T), yOfLP(lpMin));
     for (const pt of boilPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
@@ -339,46 +341,10 @@
     pctx.fill();
     pctx.restore();
 
-    // Solid: above sublimation (left side) and left/below melt line at higher pressures (very simplified)
-    pctx.save();
-    pctx.globalAlpha=0.12;
-    pctx.fillStyle="#666";
-
-    // solid above sublimation (Tmin -> triple), up to top of chart
-    pctx.beginPath();
-    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
-    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
-    for (const pt of subPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
-    pctx.lineTo(xOfT(TRIPLE.T), yOfLP(lpMax));
-    pctx.closePath();
-    pctx.fill();
-
-    // solid left of melting curve (for lp >= triple-ish): draw a band using melting curve as boundary
-    pctx.beginPath();
-    // top-left corner
-    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
-    // down left edge
-    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
-    // go along bottom to first melting point's T (roughly)
-    // then trace melting curve upwards
-    // We'll trace melt curve from low lp to high lp, and close to left edge.
-    for (const pt of meltPts){
-      const T=clamp(pt.T, Tmin, Tmax);
-      const lp=clamp(pt.lp, lpMin, lpMax);
-      pctx.lineTo(xOfT(T), yOfLP(lp));
-    }
-    // close to top-left
-    pctx.lineTo(xOfT(Tmin), yOfLP(lpMax));
-    pctx.closePath();
-    pctx.fill();
-    pctx.restore();
-
-    // Liquid: above boiling curve and to the right of melting line (very simplified)
+    // liquid (above boiling)
     pctx.save();
     pctx.globalAlpha=0.10;
     pctx.fillStyle="#0b8a3b";
-
-    // liquid above boiling (from triple to min(critical-ish))
     pctx.beginPath();
     pctx.moveTo(xOfT(TRIPLE.T), yOfLP(lpMax));
     for (const pt of boilPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
@@ -387,7 +353,29 @@
     pctx.fill();
     pctx.restore();
 
-    // Supercritical region shading
+    // solid (above sublimation + stylised left-of-melt region)
+    pctx.save();
+    pctx.globalAlpha=0.12;
+    pctx.fillStyle="#666";
+    // above sublimation
+    pctx.beginPath();
+    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
+    for (const pt of subPts) pctx.lineTo(xOfT(pt.T), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(TRIPLE.T), yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+    // left of melting line (stylised)
+    pctx.beginPath();
+    pctx.moveTo(xOfT(Tmin), yOfLP(lpMax));
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMin));
+    for (const pt of meltPts) pctx.lineTo(xOfT(clamp(pt.T, Tmin, Tmax)), yOfLP(clamp(pt.lp, lpMin, lpMax)));
+    pctx.lineTo(xOfT(Tmin), yOfLP(lpMax));
+    pctx.closePath();
+    pctx.fill();
+    pctx.restore();
+
+    // supercritical
     pctx.save();
     pctx.globalAlpha=0.10;
     pctx.fillStyle="#b22";
@@ -401,44 +389,35 @@
     pctx.fill();
     pctx.restore();
 
-    // --- Draw boundaries (CLEAR) ---
-    function drawCurveFromPts(pts, stroke, width){
+    // --- boundaries (thick) ---
+    function drawPts(pts, stroke, width){
       pctx.save();
-      pctx.strokeStyle=stroke;
-      pctx.lineWidth=width;
+      pctx.strokeStyle=stroke; pctx.lineWidth=width;
       pctx.beginPath();
       let first=true;
       for (const pt of pts){
         const x=xOfT(pt.T), y=yOfLP(clamp(pt.lp, lpMin, lpMax));
-        if (first){pctx.moveTo(x,y); first=false;}
-        else pctx.lineTo(x,y);
+        if (first){pctx.moveTo(x,y); first=false;} else pctx.lineTo(x,y);
       }
       pctx.stroke();
       pctx.restore();
     }
+    drawPts(subPts,  "#444", 3);
+    drawPts(boilPts, "#1e5aa8", 3);
 
-    // Sublimation boundary
-    drawCurveFromPts(subPts, "#444", 3);
-
-    // Boiling/condensation boundary
-    drawCurveFromPts(boilPts, "#1e5aa8", 3);
-
-    // Melting boundary (sampled in lp)
     pctx.save();
-    pctx.strokeStyle="#2f8f2f";
-    pctx.lineWidth=3;
+    pctx.strokeStyle="#2f8f2f"; pctx.lineWidth=3;
     pctx.beginPath();
     let first=true;
     for (const pt of meltPts){
       const x=xOfT(clamp(pt.T, Tmin, Tmax));
       const y=yOfLP(clamp(pt.lp, lpMin, lpMax));
-      if (first){pctx.moveTo(x,y); first=false;}
-      else pctx.lineTo(x,y);
+      if (first){pctx.moveTo(x,y); first=false;} else pctx.lineTo(x,y);
     }
     pctx.stroke();
     pctx.restore();
 
-    // Key points
+    // key points
     function keyPoint(pt, label){
       const x=xOfT(pt.T), y=yOfLP(log10(pt.P));
       pctx.fillStyle="#b22";
@@ -447,43 +426,23 @@
       pctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
       pctx.fillText(label, x+8, y-6);
     }
-    keyPoint(TRIPLE,"Triple point");
-    keyPoint(CRIT,"Critical point");
+    keyPoint(TRIPLE,"Triple");
+    keyPoint(CRIT,"Critical");
 
-    // Region labels (stronger)
+    // region labels
     pctx.save();
     pctx.font="bold 15px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    pctx.fillStyle="rgba(30,90,168,0.75)";
-    pctx.fillText("VAPOUR", xOfT(240), yOfLP(-2.8));
-    pctx.fillStyle="rgba(11,138,59,0.75)";
+    pctx.fillStyle="rgba(30,90,168,0.80)";
+    pctx.fillText("VAPOUR", xOfT(220), yOfLP(-2.8));
+    pctx.fillStyle="rgba(11,138,59,0.80)";
     pctx.fillText("LIQUID", xOfT(40), yOfLP(1.0));
-    pctx.fillStyle="rgba(80,80,80,0.75)";
-    pctx.fillText("SOLID", xOfT(-110), yOfLP(2.5));
-    pctx.fillStyle="rgba(178,34,34,0.75)";
-    pctx.fillText("SUPERCRITICAL", xOfT(300), yOfLP(5.5));
+    pctx.fillStyle="rgba(80,80,80,0.80)";
+    pctx.fillText("SOLID", xOfT(-120), yOfLP(2.7));
+    pctx.fillStyle="rgba(178,34,34,0.80)";
+    pctx.fillText("SUPERCRITICAL", xOfT(280), yOfLP(5.4));
     pctx.restore();
 
-    // Legend
-    pctx.save();
-    pctx.font="12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    pctx.fillStyle="#234";
-    const lx=pM.l+6, ly=pM.t+14;
-    pctx.fillText("Boundaries:", lx, ly);
-    // swatches
-    const items=[
-      {txt:"Sublimation (solid–vapour)", c:"#444"},
-      {txt:"Melting (solid–liquid)", c:"#2f8f2f"},
-      {txt:"Boiling/condensation (liquid–vapour)", c:"#1e5aa8"},
-    ];
-    items.forEach((it,i)=>{
-      const y=ly+16*(i+1);
-      pctx.strokeStyle=it.c; pctx.lineWidth=3;
-      pctx.beginPath(); pctx.moveTo(lx, y-4); pctx.lineTo(lx+18, y-4); pctx.stroke();
-      pctx.fillText(it.txt, lx+24, y);
-    });
-    pctx.restore();
-
-    // State point (current)
+    // state point
     const x=xOfT(Tc), y=yOfLP(log10(Pbar));
     pctx.fillStyle="#111";
     pctx.beginPath(); pctx.arc(x,y,6,0,Math.PI*2); pctx.fill();
@@ -495,7 +454,7 @@
   const heatCanvas=document.getElementById("heatCanvas");
   const hctx=heatCanvas.getContext("2d");
   const hW=heatCanvas.width, hH=heatCanvas.height;
-  const hM={l:70,r:16,t:18,b:45};
+  const hM={l:70,r:16,t:18,b:52};
 
   function drawHeatingCurve(segs, Qnow, Tnow, Tm, Tb, Qmax){
     const Qmin=0, QmaxPlot=Qmax;
@@ -509,9 +468,8 @@
     const yOfT=(T)=>hH-hM.b - (T-TminPlot)*(hH-hM.t-hM.b)/(TmaxPlot-TminPlot);
 
     const xTicks=[];
-    const tickCount=5;
-    for (let i=0;i<=tickCount;i++){
-      const q=Qmin + (QmaxPlot-Qmin)*i/tickCount;
+    for (let i=0;i<=5;i++){
+      const q=Qmin + (QmaxPlot-Qmin)*i/5;
       xTicks.push({x:xOfQ(q), label:String(Math.round(q))});
     }
     const yTicks=[];
@@ -536,7 +494,7 @@
     hctx.stroke();
     hctx.restore();
 
-    // melt/boil lines
+    // dashed lines and labels: Tₘ and Tᵦ
     function hLine(T, label){
       const y=yOfT(T);
       hctx.save();
@@ -549,8 +507,8 @@
       hctx.fillText(label, hM.l+8, y-6);
       hctx.restore();
     }
-    hLine(Tm, "Tm");
-    hLine(Tb, "Tb");
+    hLine(Tm, "Tₘ");
+    hLine(Tb, "Tᵦ");
 
     // current point
     const x=xOfQ(Qnow), y=yOfT(Tnow);
@@ -588,6 +546,12 @@
     });
   }
 
+  function formatP(Pbar){
+    if (Pbar < 0.1) return Pbar.toExponential(2);
+    if (Pbar < 1000) return Pbar.toFixed(2);
+    return Pbar.toExponential(2);
+  }
+
   function updateAll(){
     const logP=parseFloat(Pslider.value);
     const Pbar=Math.pow(10,logP);
@@ -596,7 +560,7 @@
 
     const {segs, Tm, Tb, Qmax} = buildHeatingSegments(Pbar, T0, mkg);
 
-    // Update Q slider max dynamically
+    // dynamic Q slider range
     const QmaxRounded = Math.max(200, Math.ceil(Qmax/50)*50);
     Qslider.max = QmaxRounded;
     QmaxLabel.textContent = `${QmaxRounded} kJ`;
@@ -607,21 +571,18 @@
     const {T: Tnow, label} = TfromQ(segs, Qnow);
     const ph = phaseOf(Tnow, Pbar);
 
-    Pout.textContent = (Pbar<0.1? Pbar.toExponential(2): (Pbar<1000? Pbar.toFixed(2): Pbar.toExponential(2)));
-    logPout.textContent = `log₁₀P = ${logP.toFixed(2)}`;
+    logPout.textContent = logP.toFixed(2);
+    Pout.textContent = formatP(Pbar);
     TstartOut.textContent = T0.toFixed(0);
     Qout.textContent = Qnow.toFixed(0);
     TnowOut.textContent = Tnow.toFixed(1);
-
-    let stateText = label;
-    stateText += ` (${ph})`;
-    stateOut.textContent = stateText;
 
     let col="#0b8a3b";
     if (ph.startsWith("Solid")) col="#555";
     else if (ph==="Vapour") col="#1e5aa8";
     else if (ph.startsWith("Supercritical")) col="#b22";
     stateOut.style.color = col;
+    stateOut.textContent = `${label} (${ph})`;
 
     TmOut.textContent = Tm.toFixed(1);
     TbOut.textContent = Tb.toFixed(1);
