@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>p–V Process Widget</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --accent-2: #34d399;
+      --warn: #f59e0b;
+      --danger: #f87171;
+      --grid: rgba(255,255,255,0.08);
+      --axis: rgba(255,255,255,0.35);
+      --border: rgba(255,255,255,0.12);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .title {
+      margin: 0 0 6px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: rgba(17,24,39,0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .controls {
+      padding: 16px;
+    }
+
+    .section {
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+    .section h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    label { font-size: 14px; color: var(--text); }
+
+    .value {
+      color: var(--accent);
+      font-weight: 700;
+      min-width: 84px;
+      text-align: right;
+      font-size: 13px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 0.06s ease, opacity 0.2s ease;
+    }
+
+    button:hover { opacity: 0.95; }
+    button:active { transform: translateY(1px); }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .primary { background: #1d4ed8; }
+    .secondary { background: #374151; }
+
+    .main {
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 14px;
+    }
+
+    .top-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .card .k {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .card .v {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .equation {
+      background: rgba(96,165,250,0.08);
+      border: 1px solid rgba(96,165,250,0.25);
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: #dbeafe;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .plot-wrap {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 10px;
+      min-height: 520px;
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 4px 4px 0;
+    }
+
+    .dot {
+      width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .note {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      background: rgba(245,158,11,0.10);
+      border: 1px solid rgba(245,158,11,0.25);
+      color: #fde68a;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .top-cards { grid-template-columns: repeat(2, 1fr); }
+      .plot-wrap { min-height: 440px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="title">Interactive p–V Process Widget</h1>
+    <p class="subtitle">Explore how pressure and volume change for common closed-system processes. Drag the sliders, switch process type, and watch the path traced on the p–V diagram. For simplicity, the gas is treated as an ideal gas and pressure is shown in kPa, volume in m³.</p>
+
+    <div class="layout">
+      <div class="panel controls">
+        <div class="section">
+          <h3>Process type</h3>
+          <select id="processType">
+            <option value="isobaric">Isobaric (constant pressure)</option>
+            <option value="isochoric">Isochoric (constant volume)</option>
+            <option value="isothermal">Isothermal (constant temperature)</option>
+            <option value="adiabatic">Adiabatic (Q = 0)</option>
+            <option value="polytropic">Polytropic (pVⁿ = constant)</option>
+          </select>
+        </div>
+
+        <div class="section">
+          <h3>Initial state</h3>
+
+          <label for="p1">Initial pressure, p₁</label>
+          <div class="row"><span></span><span class="value" id="p1Val"></span></div>
+          <input id="p1" type="range" min="50" max="600" step="10" value="200" />
+
+          <label for="v1">Initial volume, V₁</label>
+          <div class="row"><span></span><span class="value" id="v1Val"></span></div>
+          <input id="v1" type="range" min="0.2" max="5.0" step="0.1" value="1.0" />
+        </div>
+
+        <div class="section">
+          <h3>Final-state control</h3>
+          <label for="targetSlider" id="targetLabel">Final volume, V₂</label>
+          <div class="row"><span></span><span class="value" id="targetVal"></span></div>
+          <input id="targetSlider" type="range" min="0.3" max="5.0" step="0.1" value="2.0" />
+
+          <div id="nWrap" style="display:none; margin-top:12px;">
+            <label for="nSlider">Polytropic index, n</label>
+            <div class="row"><span></span><span class="value" id="nVal"></span></div>
+            <input id="nSlider" type="range" min="0" max="2.0" step="0.1" value="1.3" />
+          </div>
+
+          <div id="gammaWrap" style="display:none; margin-top:12px;">
+            <label for="gammaSlider">Heat capacity ratio, γ</label>
+            <div class="row"><span></span><span class="value" id="gammaVal"></span></div>
+            <input id="gammaSlider" type="range" min="1.1" max="1.67" step="0.01" value="1.40" />
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Animation</h3>
+          <label for="progressSlider">Progress along path</label>
+          <div class="row"><span></span><span class="value" id="progressVal"></span></div>
+          <input id="progressSlider" type="range" min="0" max="100" step="1" value="100" />
+
+          <div class="btn-row" style="margin-top: 10px;">
+            <button class="primary" id="playBtn">Play</button>
+            <button class="secondary" id="resetBtn">Reset</button>
+          </div>
+        </div>
+
+        <div class="help">
+          The shaded area under the curve represents boundary work for processes where volume changes. Positive work here means work done <strong>by</strong> the gas during expansion.
+        </div>
+
+        <div class="note" id="processNote"></div>
+      </div>
+
+      <div class="panel main">
+        <div class="top-cards">
+          <div class="card"><div class="k">State 1</div><div class="v" id="state1Text">200 kPa, 1.00 m³</div></div>
+          <div class="card"><div class="k">State 2</div><div class="v" id="state2Text">200 kPa, 2.00 m³</div></div>
+          <div class="card"><div class="k">Boundary work</div><div class="v" id="workText">200.0 kJ</div></div>
+          <div class="card"><div class="k">Useful relation</div><div class="v" id="relationText" style="font-size:18px;">p = constant</div></div>
+        </div>
+
+        <div class="equation" id="equationBox"></div>
+
+        <div class="plot-wrap">
+          <svg id="pvSvg" viewBox="0 0 860 520" aria-label="Pressure volume diagram"></svg>
+          <div class="legend">
+            <span><span class="dot" style="background:#60a5fa"></span>Process path</span>
+            <span><span class="dot" style="background:#34d399"></span>Initial state</span>
+            <span><span class="dot" style="background:#f87171"></span>Current/final state</span>
+            <span><span class="dot" style="background:#f59e0b"></span>Work area</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const p1 = document.getElementById('p1');
+    const v1 = document.getElementById('v1');
+    const targetSlider = document.getElementById('targetSlider');
+    const nSlider = document.getElementById('nSlider');
+    const gammaSlider = document.getElementById('gammaSlider');
+    const progressSlider = document.getElementById('progressSlider');
+    const processType = document.getElementById('processType');
+
+    const p1Val = document.getElementById('p1Val');
+    const v1Val = document.getElementById('v1Val');
+    const targetVal = document.getElementById('targetVal');
+    const nVal = document.getElementById('nVal');
+    const gammaVal = document.getElementById('gammaVal');
+    const progressVal = document.getElementById('progressVal');
+
+    const targetLabel = document.getElementById('targetLabel');
+    const nWrap = document.getElementById('nWrap');
+    const gammaWrap = document.getElementById('gammaWrap');
+    const equationBox = document.getElementById('equationBox');
+    const processNote = document.getElementById('processNote');
+    const state1Text = document.getElementById('state1Text');
+    const state2Text = document.getElementById('state2Text');
+    const workText = document.getElementById('workText');
+    const relationText = document.getElementById('relationText');
+    const svg = document.getElementById('pvSvg');
+
+    const playBtn = document.getElementById('playBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let playing = false;
+    let rafId = null;
+
+    function fmt(num, d = 2) {
+      return Number(num).toFixed(d);
+    }
+
+    function updateLabels() {
+      p1Val.textContent = `${fmt(p1.value, 0)} kPa`;
+      v1Val.textContent = `${fmt(v1.value, 2)} m³`;
+      nVal.textContent = fmt(nSlider.value, 1);
+      gammaVal.textContent = fmt(gammaSlider.value, 2);
+      progressVal.textContent = `${progressSlider.value}%`;
+    }
+
+    function processConfig() {
+      const type = processType.value;
+      nWrap.style.display = type === 'polytropic' ? 'block' : 'none';
+      gammaWrap.style.display = type === 'adiabatic' ? 'block' : 'none';
+
+      if (type === 'isochoric') {
+        targetLabel.textContent = 'Final pressure, p₂';
+        targetSlider.min = '50';
+        targetSlider.max = '600';
+        targetSlider.step = '10';
+        if (+targetSlider.value < 50 || +targetSlider.value > 600) targetSlider.value = '350';
+        targetVal.textContent = `${fmt(targetSlider.value, 0)} kPa`;
+      } else {
+        targetLabel.textContent = 'Final volume, V₂';
+        targetSlider.min = '0.3';
+        targetSlider.max = '5.0';
+        targetSlider.step = '0.1';
+        if (+targetSlider.value < 0.3 || +targetSlider.value > 5.0) targetSlider.value = '2.0';
+        targetVal.textContent = `${fmt(targetSlider.value, 2)} m³`;
+      }
+    }
+
+    function generatePath() {
+      const type = processType.value;
+      const P1 = +p1.value;
+      const V1 = +v1.value;
+      const prog = +progressSlider.value / 100;
+      const points = [];
+      let P2 = P1;
+      let V2 = V1;
+      let W = 0;
+      let relation = '';
+      let extra = '';
+
+      if (type === 'isobaric') {
+        V2 = +targetSlider.value;
+        P2 = P1;
+        relation = 'p = constant';
+        for (let i = 0; i <= 120; i++) {
+          const t = i / 120;
+          const V = V1 + (V2 - V1) * t;
+          points.push({ V, P: P1 });
+        }
+        W = P1 * (V2 - V1);
+        extra = 'For a constant-pressure process, the boundary work is the rectangular area under the horizontal line: W = p(V₂ − V₁).';
+      }
+
+      if (type === 'isochoric') {
+        P2 = +targetSlider.value;
+        V2 = V1;
+        relation = 'V = constant';
+        for (let i = 0; i <= 120; i++) {
+          const t = i / 120;
+          const P = P1 + (P2 - P1) * t;
+          points.push({ V: V1, P });
+        }
+        W = 0;
+        extra = 'At constant volume, the gas does no boundary work because the piston does not move: W = 0.';
+      }
+
+      if (type === 'isothermal') {
+        V2 = +targetSlider.value;
+        const C = P1 * V1;
+        P2 = C / V2;
+        relation = 'pV = constant';
+        for (let i = 0; i <= 140; i++) {
+          const t = i / 140;
+          const V = V1 + (V2 - V1) * t;
+          const P = C / V;
+          points.push({ V, P });
+        }
+        W = C * Math.log(V2 / V1);
+        extra = 'For an ideal gas at constant temperature, internal energy does not change, so heat transferred equals boundary work: Q = W.';
+      }
+
+      if (type === 'adiabatic') {
+        V2 = +targetSlider.value;
+        const gamma = +gammaSlider.value;
+        const C = P1 * Math.pow(V1, gamma);
+        P2 = C / Math.pow(V2, gamma);
+        relation = 'pV^γ = constant';
+        for (let i = 0; i <= 140; i++) {
+          const t = i / 140;
+          const V = V1 + (V2 - V1) * t;
+          const P = C / Math.pow(V, gamma);
+          points.push({ V, P });
+        }
+        W = (P2 * V2 - P1 * V1) / (1 - gamma);
+        extra = 'In an adiabatic process, Q = 0, so any work done comes from a drop in internal energy (or vice versa during compression).';
+      }
+
+      if (type === 'polytropic') {
+        V2 = +targetSlider.value;
+        const n = +nSlider.value;
+        relation = `pV^n = constant`;
+        if (Math.abs(n - 1) < 1e-9) {
+          const C = P1 * V1;
+          P2 = C / V2;
+          for (let i = 0; i <= 140; i++) {
+            const t = i / 140;
+            const V = V1 + (V2 - V1) * t;
+            const P = C / V;
+            points.push({ V, P });
+          }
+          W = C * Math.log(V2 / V1);
+        } else {
+          const C = P1 * Math.pow(V1, n);
+          P2 = C / Math.pow(V2, n);
+          for (let i = 0; i <= 140; i++) {
+            const t = i / 140;
+            const V = V1 + (V2 - V1) * t;
+            const P = C / Math.pow(V, n);
+            points.push({ V, P });
+          }
+          W = (P2 * V2 - P1 * V1) / (1 - n);
+        }
+        extra = 'A polytropic process is a flexible model that can imitate several familiar processes depending on the value of n.';
+      }
+
+      const idx = Math.max(0, Math.min(points.length - 1, Math.round((points.length - 1) * prog)));
+      const shownPoints = points.slice(0, idx + 1);
+      const current = shownPoints[shownPoints.length - 1] || { V: V1, P: P1 };
+      const partialW = estimateWork(shownPoints);
+
+      return { type, P1, V1, P2, V2, W, relation, extra, points, shownPoints, current, partialW };
+    }
+
+    function estimateWork(points) {
+      if (points.length < 2) return 0;
+      let sum = 0;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        sum += 0.5 * (a.P + b.P) * (b.V - a.V);
+      }
+      return sum;
+    }
+
+    function draw() {
+      updateLabels();
+      processConfig();
+      const data = generatePath();
+
+      const allPoints = data.points.concat([{ V: data.V1, P: data.P1 }, { V: data.V2, P: data.P2 }]);
+      const maxV = Math.max(5.2, ...allPoints.map(p => p.V)) * 1.02;
+      const maxP = Math.max(620, ...allPoints.map(p => p.P)) * 1.05;
+
+      const W = 860, H = 520;
+      const m = { l: 78, r: 22, t: 20, b: 56 };
+      const pw = W - m.l - m.r;
+      const ph = H - m.t - m.b;
+
+      const x = V => m.l + (V / maxV) * pw;
+      const y = P => H - m.b - (P / maxP) * ph;
+
+      let out = '';
+
+      // Grid lines
+      for (let i = 0; i <= 8; i++) {
+        const gx = m.l + (pw * i / 8);
+        out += `<line x1="${gx}" y1="${m.t}" x2="${gx}" y2="${H - m.b}" stroke="var(--grid)" stroke-width="1" />`;
+      }
+      for (let j = 0; j <= 8; j++) {
+        const gy = m.t + (ph * j / 8);
+        out += `<line x1="${m.l}" y1="${gy}" x2="${W - m.r}" y2="${gy}" stroke="var(--grid)" stroke-width="1" />`;
+      }
+
+      // Axes
+      out += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="2" />`;
+      out += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="2" />`;
+
+      // Axis labels/ticks
+      for (let i = 0; i <= 8; i++) {
+        const val = maxV * i / 8;
+        const gx = m.l + (pw * i / 8);
+        out += `<line x1="${gx}" y1="${H - m.b}" x2="${gx}" y2="${H - m.b + 6}" stroke="var(--axis)" stroke-width="1.5" />`;
+        out += `<text x="${gx}" y="${H - 16}" text-anchor="middle" fill="var(--muted)" font-size="12">${val.toFixed(1)}</text>`;
+      }
+      for (let j = 0; j <= 8; j++) {
+        const val = maxP * j / 8;
+        const gy = H - m.b - (ph * j / 8);
+        out += `<line x1="${m.l - 6}" y1="${gy}" x2="${m.l}" y2="${gy}" stroke="var(--axis)" stroke-width="1.5" />`;
+        out += `<text x="${m.l - 10}" y="${gy + 4}" text-anchor="end" fill="var(--muted)" font-size="12">${val.toFixed(0)}</text>`;
+      }
+      out += `<text x="${m.l + pw/2}" y="${H - 2}" text-anchor="middle" fill="var(--text)" font-size="16">Volume, V (m³)</text>`;
+      out += `<text x="18" y="${m.t + ph/2}" transform="rotate(-90 18 ${m.t + ph/2})" text-anchor="middle" fill="var(--text)" font-size="16">Pressure, p (kPa)</text>`;
+
+      // Work area
+      if (data.shownPoints.length > 1) {
+        let areaPath = `M ${x(data.shownPoints[0].V)} ${y(0)}`;
+        for (const pt of data.shownPoints) areaPath += ` L ${x(pt.V)} ${y(pt.P)}`;
+        const last = data.shownPoints[data.shownPoints.length - 1];
+        areaPath += ` L ${x(last.V)} ${y(0)} Z`;
+        out += `<path d="${areaPath}" fill="rgba(245,158,11,0.20)" stroke="none" />`;
+      }
+
+      // Path
+      if (data.shownPoints.length > 0) {
+        let path = `M ${x(data.shownPoints[0].V)} ${y(data.shownPoints[0].P)}`;
+        for (let i = 1; i < data.shownPoints.length; i++) {
+          const pt = data.shownPoints[i];
+          path += ` L ${x(pt.V)} ${y(pt.P)}`;
+        }
+        out += `<path d="${path}" fill="none" stroke="#60a5fa" stroke-width="4" stroke-linecap="round" />`;
+      }
+
+      // Full path faintly
+      if (data.points.length > 0) {
+        let faint = `M ${x(data.points[0].V)} ${y(data.points[0].P)}`;
+        for (let i = 1; i < data.points.length; i++) {
+          const pt = data.points[i];
+          faint += ` L ${x(pt.V)} ${y(pt.P)}`;
+        }
+        out += `<path d="${faint}" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2" stroke-dasharray="6 5" />`;
+      }
+
+      // State markers
+      out += `<circle cx="${x(data.V1)}" cy="${y(data.P1)}" r="7" fill="#34d399" stroke="#d1fae5" stroke-width="2" />`;
+      out += `<text x="${x(data.V1) + 10}" y="${y(data.P1) - 10}" fill="#d1fae5" font-size="14" font-weight="700">1</text>`;
+      out += `<circle cx="${x(data.current.V)}" cy="${y(data.current.P)}" r="8" fill="#f87171" stroke="#fee2e2" stroke-width="2" />`;
+      out += `<text x="${x(data.current.V) + 10}" y="${y(data.current.P) - 10}" fill="#fee2e2" font-size="14" font-weight="700">2</text>`;
+
+      svg.innerHTML = out;
+
+      state1Text.textContent = `${fmt(data.P1,0)} kPa, ${fmt(data.V1,2)} m³`;
+      state2Text.textContent = `${fmt(data.current.P,0)} kPa, ${fmt(data.current.V,2)} m³`;
+      workText.textContent = `${fmt(data.partialW,1)} kJ`;
+      relationText.textContent = data.relation;
+
+      equationBox.innerHTML = buildEquationText(data);
+      processNote.textContent = data.extra;
+    }
+
+    function buildEquationText(data) {
+      const { type, P1, V1, P2, V2, W, relation } = data;
+      let text = `<strong>${niceName(type)}</strong> &nbsp;|&nbsp; <strong>Relation:</strong> ${relation}<br>`;
+
+      if (type === 'isobaric') {
+        text += `Here p₁ = p₂ = ${fmt(P1,0)} kPa and W = p(V₂ − V₁) = ${fmt(P1,0)}(${fmt(V2,2)} − ${fmt(V1,2)}) = <strong>${fmt(W,1)} kJ</strong>.`;
+      } else if (type === 'isochoric') {
+        text += `Here V₁ = V₂ = ${fmt(V1,2)} m³, so there is no boundary work: <strong>W = 0</strong>. Pressure changes from ${fmt(P1,0)} kPa to ${fmt(P2,0)} kPa.`;
+      } else if (type === 'isothermal') {
+        text += `Since pV is constant, p₁V₁ = p₂V₂ = ${fmt(P1*V1,1)} kPa·m³. The work is W = p₁V₁ ln(V₂/V₁) = <strong>${fmt(W,1)} kJ</strong>.`;
+      } else if (type === 'adiabatic') {
+        const g = +gammaSlider.value;
+        text += `Using γ = ${fmt(g,2)}, pV^γ = constant. This gives p₂ = ${fmt(P2,0)} kPa and W ≈ <strong>${fmt(W,1)} kJ</strong>. For an adiabatic process, Q = 0.`;
+      } else {
+        const n = +nSlider.value;
+        text += `Using n = ${fmt(n,1)}, pVⁿ = constant. This gives p₂ = ${fmt(P2,0)} kPa and W ≈ <strong>${fmt(W,1)} kJ</strong>.`;
+      }
+      return text;
+    }
+
+    function niceName(type) {
+      return ({
+        isobaric: 'Isobaric process',
+        isochoric: 'Isochoric process',
+        isothermal: 'Isothermal process',
+        adiabatic: 'Adiabatic process',
+        polytropic: 'Polytropic process'
+      })[type];
+    }
+
+    function play() {
+      if (playing) {
+        playing = false;
+        playBtn.textContent = 'Play';
+        if (rafId) cancelAnimationFrame(rafId);
+        return;
+      }
+      playing = true;
+      playBtn.textContent = 'Pause';
+      let p = +progressSlider.value;
+
+      const step = () => {
+        if (!playing) return;
+        p += 0.5;
+        if (p > 100) {
+          p = 100;
+          playing = false;
+          playBtn.textContent = 'Play';
+        }
+        progressSlider.value = p;
+        draw();
+        if (playing) rafId = requestAnimationFrame(step);
+      };
+      rafId = requestAnimationFrame(step);
+    }
+
+    function reset() {
+      playing = false;
+      playBtn.textContent = 'Play';
+      if (rafId) cancelAnimationFrame(rafId);
+      progressSlider.value = 0;
+      draw();
+    }
+
+    [p1, v1, targetSlider, nSlider, gammaSlider, progressSlider, processType].forEach(el => {
+      el.addEventListener('input', draw);
+      el.addEventListener('change', draw);
+    });
+
+    playBtn.addEventListener('click', play);
+    resetBtn.addEventListener('click', reset);
+
+    progressSlider.value = 100;
+    draw();
+  </script>
+</body>
+</html>
