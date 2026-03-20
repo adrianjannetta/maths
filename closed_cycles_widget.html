@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Closed Cycles Widget</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --muted: #64748b;
+      --text: #0f172a;
+      --border: #cbd5e1;
+      --soft: #e2e8f0;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --green: #16a34a;
+      --violet: #7c3aed;
+      --orange: #ea580c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .main-card {
+      background: var(--card);
+      border-radius: 28px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      padding: 22px;
+    }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: end;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      line-height: 1.15;
+    }
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      max-width: 900px;
+      line-height: 1.55;
+      font-size: 0.98rem;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    button, select, input[type="range"] {
+      font: inherit;
+    }
+    .btn {
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 16px;
+      padding: 10px 14px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .btn:hover { background: #f8fafc; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 14px;
+      margin-top: 18px;
+      background: #f8fafc;
+      border-radius: 24px;
+      padding: 16px;
+    }
+    .control {
+      background: transparent;
+    }
+    .control label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      color: #334155;
+    }
+    .control .value {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+    select {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+    input[type="range"] { width: 100%; }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .legend-btn {
+      text-align: left;
+      border: 1px solid var(--soft);
+      border-radius: 18px;
+      background: white;
+      padding: 12px;
+      cursor: pointer;
+    }
+    .legend-btn.active {
+      border-color: var(--text);
+      background: #f1f5f9;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.05);
+    }
+    .legend-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; }
+    .visuals {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .panel {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 4px 14px rgba(15,23,42,0.04);
+      overflow: hidden;
+      border: 1px solid #eef2f7;
+    }
+    .panel-head {
+      padding: 16px 18px 8px;
+      font-weight: 700;
+      font-size: 1.2rem;
+    }
+    .panel-badge {
+      display: inline-block;
+      margin-left: 8px;
+      font-size: 0.78rem;
+      background: #e2e8f0;
+      color: #334155;
+      border-radius: 999px;
+      padding: 4px 9px;
+      vertical-align: middle;
+      font-weight: 600;
+    }
+    .panel-body {
+      padding: 14px 18px 18px;
+    }
+    .svg-frame {
+      background: white;
+      border: 1px solid var(--soft);
+      border-radius: 18px;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 1.55 / 1;
+    }
+    .svg-frame.engine {
+      aspect-ratio: 1.15 / 1;
+      background: #f8fafc;
+    }
+    .info-grid {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 14px;
+    }
+    .info-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 150px;
+    }
+    .info-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+      color: #1e293b;
+    }
+    .pill {
+      display: inline-block;
+      background: #e2e8f0;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #334155;
+      margin-right: 8px;
+    }
+    .muted-box {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 14px;
+      color: #475569;
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+    .state-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--soft);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #334155;
+    }
+    .state-row strong { color: var(--text); }
+    @media (max-width: 1100px) {
+      .controls, .legend-grid, .info-grid, .visuals { grid-template-columns: 1fr 1fr; }
+      .controls .control:last-child { grid-column: auto; }
+    }
+    @media (max-width: 760px) {
+      .controls, .legend-grid, .visuals, .info-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="main-card">
+      <div class="header">
+        <div>
+          <h1>Closed cycles on a PV diagram</h1>
+          <div class="subtitle">Compare Carnot, Otto, Diesel and Dual cycles. The moving marker traces the PV loop while the piston / cylinder sketch shows what the engine is doing during each process.</div>
+        </div>
+        <div class="toolbar">
+          <button id="playBtn" class="btn">Pause</button>
+          <button id="resetBtn" class="btn">Reset</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <label for="cycle">Cycle</label>
+          <select id="cycle">
+            <option value="otto">Otto</option>
+            <option value="carnot">Carnot</option>
+            <option value="diesel">Diesel</option>
+            <option value="dual">Dual</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="speed">Animation speed</label>
+          <input id="speed" type="range" min="20" max="90" step="1" value="48" />
+          <div id="speedVal" class="value"></div>
+        </div>
+        <div class="control">
+          <label for="r">Compression ratio, r</label>
+          <input id="r" type="range" min="2" max="20" step="0.5" value="8" />
+          <div id="rVal" class="value"></div>
+        </div>
+        <div class="control">
+          <label for="alpha">Heat-addition factor</label>
+          <input id="alpha" type="range" min="1.2" max="4" step="0.05" value="2.2" />
+          <div id="alphaVal" class="value"></div>
+        </div>
+        <div class="control">
+          <label for="rc">Cut-off / temperature ratio</label>
+          <input id="rc" type="range" min="1.1" max="3" step="0.05" value="1.6" />
+          <div id="rcVal" class="value"></div>
+        </div>
+      </div>
+
+      <div id="legend" class="legend-grid"></div>
+
+      <div class="visuals">
+        <div class="panel">
+          <div class="panel-head"><span id="loopName"></span><span class="panel-badge">PV diagram</span></div>
+          <div class="panel-body"><svg id="pvSvg" class="svg-frame" viewBox="0 0 760 460"></svg></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">What the engine is doing</div>
+          <div class="panel-body"><svg id="engineSvg" class="svg-frame engine" viewBox="0 0 420 380"></svg></div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-title"><span class="pill">Current process</span><span id="procName"></span></div>
+          <div id="procText" class="muted-box"></div>
+        </div>
+        <div class="info-card">
+          <div class="info-title">Instantaneous state</div>
+          <div class="state-row"><span>Volume</span><strong id="volVal"></strong></div>
+          <div class="state-row"><span>Pressure</span><strong id="presVal"></strong></div>
+          <div class="state-row"><span>Highlighted branch</span><strong id="branchVal"></strong></div>
+        </div>
+        <div class="info-card">
+          <div class="info-title">Cycle summary</div>
+          <div class="muted-box">Otto adds heat at constant volume, Diesel at constant pressure, and Dual uses a mixture of both. Carnot is the reversible benchmark cycle made of two isotherms and two adiabats.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-title">Teaching tip</div>
+          <div class="muted-box">Ask students to pause the animation on each branch and describe whether the piston is moving up or down, whether heat is entering or leaving, and whether the gas is doing work or having work done on it.</div>
+        </div>
+        <div class="info-card">
+          <div class="info-title">Model assumptions</div>
+          <div class="muted-box">This widget uses simple idealised relations so the geometry of each PV loop is clear. It is designed for conceptual teaching rather than detailed engine design.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const W = 760, H = 460, M = { l: 68, r: 24, t: 24, b: 54 };
+    const state = {
+      cycle: 'otto',
+      playing: true,
+      speed: 48,
+      gamma: 1.4,
+      r: 8,
+      alpha: 2.2,
+      rc: 1.6,
+      progress: 0,
+      lastTs: null,
+    };
+
+    const el = {
+      cycle: document.getElementById('cycle'),
+      speed: document.getElementById('speed'),
+      r: document.getElementById('r'),
+      alpha: document.getElementById('alpha'),
+      rc: document.getElementById('rc'),
+      speedVal: document.getElementById('speedVal'),
+      rVal: document.getElementById('rVal'),
+      alphaVal: document.getElementById('alphaVal'),
+      rcVal: document.getElementById('rcVal'),
+      legend: document.getElementById('legend'),
+      pvSvg: document.getElementById('pvSvg'),
+      engineSvg: document.getElementById('engineSvg'),
+      loopName: document.getElementById('loopName'),
+      procName: document.getElementById('procName'),
+      procText: document.getElementById('procText'),
+      volVal: document.getElementById('volVal'),
+      presVal: document.getElementById('presVal'),
+      branchVal: document.getElementById('branchVal'),
+      playBtn: document.getElementById('playBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+    };
+
+    function linspace(a, b, n) {
+      return Array.from({ length: n }, (_, i) => a + (b - a) * (i / (n - 1)));
+    }
+    function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+    function fmt(x, d = 2) { return Number(x).toFixed(d); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function lerpColor(a, b, t) {
+      const ah = a.replace('#', ''), bh = b.replace('#', '');
+      const ar = parseInt(ah.slice(0, 2), 16), ag = parseInt(ah.slice(2, 4), 16), ab = parseInt(ah.slice(4, 6), 16);
+      const br = parseInt(bh.slice(0, 2), 16), bg = parseInt(bh.slice(2, 4), 16), bb = parseInt(bh.slice(4, 6), 16);
+      return `rgb(${Math.round(lerp(ar, br, t))}, ${Math.round(lerp(ag, bg, t))}, ${Math.round(lerp(ab, bb, t))})`;
+    }
+
+    function buildCycle(cycle, params) {
+      const { gamma, r, rc, alpha, p1, V1 } = params;
+      const V2 = V1 / r;
+      const p2 = p1 * Math.pow(V1 / V2, gamma);
+
+      if (cycle === 'carnot') {
+        const rCarnot = Math.max(r, 1.2);
+        const rcCarnot = Math.max(rc, 1.05);
+        const V1c = V1, p1c = p1;
+        const V2c = V1c / rCarnot;
+        const p2c = p1c * Math.pow(V1c / V2c, gamma);
+        const V3c = V2c * rcCarnot;
+        const p3c = p2c * (V2c / V3c);
+        const V4c = V3c * rCarnot;
+        const p4c = p3c * Math.pow(V3c / V4c, gamma);
+        const isoHot = linspace(V2c, V3c, 60).map(V => ({ V, p: p2c * (V2c / V) }));
+        const adiExp = linspace(V3c, V4c, 60).map(V => ({ V, p: p3c * Math.pow(V3c / V, gamma) }));
+        const isoCold = linspace(V4c, V1c, 60).map(V => ({ V, p: p4c * (V4c / V) }));
+        const adiComp = linspace(V1c, V2c, 60).map(V => ({ V, p: p1c * Math.pow(V1c / V, gamma) }));
+        return {
+          loopName: 'Carnot cycle',
+          segments: [
+            { key: '1-2', name: 'Adiabatic compression', engineText: 'The piston moves inward and compresses the gas with no heat transfer.', color: '#2563eb', points: adiComp },
+            { key: '2-3', name: 'Isothermal expansion', engineText: 'The gas expands at high temperature while heat enters from the hot reservoir.', color: '#dc2626', points: isoHot },
+            { key: '3-4', name: 'Adiabatic expansion', engineText: 'The gas keeps expanding and doing work, but now no heat is exchanged.', color: '#16a34a', points: adiExp },
+            { key: '4-1', name: 'Isothermal compression', engineText: 'The piston moves inward while heat is rejected to the cold reservoir.', color: '#7c3aed', points: isoCold },
+          ],
+          states: [
+            { label: '1', V: V1c, p: p1c }, { label: '2', V: V2c, p: p2c }, { label: '3', V: V3c, p: p3c }, { label: '4', V: V4c, p: p4c }
+          ]
+        };
+      }
+
+      if (cycle === 'otto') {
+        const p3 = p2 * alpha, V3 = V2, V4 = V1, p4 = p3 * Math.pow(V3 / V4, gamma);
+        return {
+          loopName: 'Otto cycle',
+          segments: [
+            { key: '1-2', name: 'Adiabatic compression', engineText: 'The piston moves up and compresses the working gas quickly, with negligible heat transfer.', color: '#2563eb', points: linspace(V1, V2, 60).map(V => ({ V, p: p1 * Math.pow(V1 / V, gamma) })) },
+            { key: '2-3', name: 'Constant-volume heat addition', engineText: 'Near top dead centre, combustion adds heat very rapidly while volume is almost fixed.', color: '#dc2626', points: linspace(p2, p3, 40).map(p => ({ V: V2, p })) },
+            { key: '3-4', name: 'Adiabatic expansion (power stroke)', engineText: 'High-pressure gas pushes the piston down and does useful work.', color: '#16a34a', points: linspace(V3, V4, 60).map(V => ({ V, p: p3 * Math.pow(V3 / V, gamma) })) },
+            { key: '4-1', name: 'Constant-volume heat rejection', engineText: 'Heat is rejected to close the ideal cycle before the next compression begins.', color: '#7c3aed', points: linspace(p4, p1, 40).map(p => ({ V: V1, p })) },
+          ],
+          states: [
+            { label: '1', V: V1, p: p1 }, { label: '2', V: V2, p: p2 }, { label: '3', V: V3, p: p3 }, { label: '4', V: V4, p: p4 }
+          ]
+        };
+      }
+
+      if (cycle === 'diesel') {
+        const V3 = V2 * rc, p3 = p2, V4 = V1, p4 = p3 * Math.pow(V3 / V4, gamma);
+        return {
+          loopName: 'Diesel cycle',
+          segments: [
+            { key: '1-2', name: 'Adiabatic compression', engineText: 'Air is compressed strongly as the piston rises.', color: '#2563eb', points: linspace(V1, V2, 60).map(V => ({ V, p: p1 * Math.pow(V1 / V, gamma) })) },
+            { key: '2-3', name: 'Constant-pressure heat addition', engineText: 'Fuel burns while the piston starts moving down, so pressure stays roughly constant as volume increases.', color: '#dc2626', points: linspace(V2, V3, 50).map(V => ({ V, p: p2 })) },
+            { key: '3-4', name: 'Adiabatic expansion (power stroke)', engineText: 'The hot gas expands and drives the piston downward.', color: '#16a34a', points: linspace(V3, V4, 60).map(V => ({ V, p: p3 * Math.pow(V3 / V, gamma) })) },
+            { key: '4-1', name: 'Constant-volume heat rejection', engineText: 'The idealised cycle rejects heat at fixed volume to return to the initial state.', color: '#7c3aed', points: linspace(p4, p1, 40).map(p => ({ V: V1, p })) },
+          ],
+          states: [
+            { label: '1', V: V1, p: p1 }, { label: '2', V: V2, p: p2 }, { label: '3', V: V3, p: p3 }, { label: '4', V: V4, p: p4 }
+          ]
+        };
+      }
+
+      const V3 = V2 * rc, p3 = p2 * alpha, p4 = p3, V4 = V1, p5 = p4 * Math.pow(V3 / V4, gamma);
+      return {
+        loopName: 'Dual cycle',
+        segments: [
+          { key: '1-2', name: 'Adiabatic compression', engineText: 'The piston rises and compresses the gas.', color: '#2563eb', points: linspace(V1, V2, 60).map(V => ({ V, p: p1 * Math.pow(V1 / V, gamma) })) },
+          { key: '2-3', name: 'Constant-volume heat addition', engineText: 'The first part of combustion is fast, so pressure rises at nearly fixed volume.', color: '#dc2626', points: linspace(p2, p3, 35).map(p => ({ V: V2, p })) },
+          { key: '3-4', name: 'Constant-pressure heat addition', engineText: 'Combustion continues while the piston begins moving downward, keeping pressure nearly constant.', color: '#ea580c', points: linspace(V2, V3, 40).map(V => ({ V, p: p3 })) },
+          { key: '4-5', name: 'Adiabatic expansion (power stroke)', engineText: 'The hot gas expands and produces work on the piston.', color: '#16a34a', points: linspace(V3, V4, 60).map(V => ({ V, p: p4 * Math.pow(V3 / V, gamma) })) },
+          { key: '5-1', name: 'Constant-volume heat rejection', engineText: 'The ideal cycle rejects heat to return to the initial state.', color: '#7c3aed', points: linspace(p5, p1, 35).map(p => ({ V: V1, p })) },
+        ],
+        states: [
+          { label: '1', V: V1, p: p1 }, { label: '2', V: V2, p: p2 }, { label: '3', V: V2, p: p3 }, { label: '4', V: V3, p: p4 }, { label: '5', V: V4, p: p5 }
+        ]
+      };
+    }
+
+    function flattenSegments(segments) {
+      const all = [];
+      segments.forEach((seg, segIndex) => {
+        seg.points.forEach((pt, i) => all.push({ ...pt, segIndex, pointIndex: i, segName: seg.name, segKey: seg.key, color: seg.color, engineText: seg.engineText }));
+      });
+      return all;
+    }
+
+    function scaleFactory(points) {
+      const minV = Math.min(...points.map(d => d.V));
+      const maxV = Math.max(...points.map(d => d.V));
+      const minP = 0;
+      const maxP = Math.max(...points.map(d => d.p)) * 1.1;
+      return {
+        minV, maxV, minP, maxP,
+        x: V => M.l + ((V - minV) / (maxV - minV || 1)) * (W - M.l - M.r),
+        y: p => H - M.b - ((p - minP) / (maxP - minP || 1)) * (H - M.t - M.b),
+      };
+    }
+
+    function pathFromPoints(points, x, y) {
+      return points.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(d.V)} ${y(d.p)}`).join(' ');
+    }
+
+    function thermalProfileForCycle(loopName, nSegs) {
+      const name = loopName.toLowerCase();
+      if (name.includes('otto')) return [[0.15,0.62],[0.62,1],[1,0.38],[0.38,0.15]];
+      if (name.includes('diesel')) return [[0.15,0.62],[0.62,1],[1,0.35],[0.35,0.15]];
+      if (name.includes('dual')) return [[0.15,0.58],[0.58,0.84],[0.84,1],[1,0.35],[0.35,0.15]];
+      if (name.includes('carnot')) return [[0.2,0.82],[0.82,1],[1,0.35],[0.35,0.2]];
+      return Array.from({length:nSegs},()=>[0.2,0.8]);
+    }
+
+    function createSvg(tag, attrs = {}, text) {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k, v));
+      if (text != null) el.textContent = text;
+      return el;
+    }
+
+    function getData() {
+      const params = { gamma: state.gamma, r: state.r, alpha: state.alpha, rc: state.rc, p1: 1, V1: 1 };
+      const data = buildCycle(state.cycle, params);
+      const flat = flattenSegments(data.segments);
+      const activePoint = Math.floor(state.progress * (flat.length - 1));
+      const active = flat[activePoint] || flat[0];
+      return { data, flat, activePoint, active };
+    }
+
+    function renderLegend(data, activeSegIndex, flat) {
+      el.legend.innerHTML = '';
+      data.segments.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'legend-btn' + (i === activeSegIndex ? ' active' : '');
+        btn.innerHTML = `<div class="legend-top"><span class="dot" style="background:${s.color}"></span>${s.key}</div><div style="font-size:0.92rem;color:#1f2937;font-weight:600;">${s.name}</div>`;
+        btn.onclick = () => {
+          const firstIndex = flat.findIndex(d => d.segIndex === i);
+          if (firstIndex >= 0) state.progress = firstIndex / Math.max(flat.length - 1, 1);
+          render();
+        };
+        el.legend.appendChild(btn);
+      });
+    }
+
+    function renderPV(data, flat, activePoint) {
+      const svg = el.pvSvg;
+      svg.innerHTML = '';
+      const scales = scaleFactory(flat);
+      const active = flat[activePoint] || flat[0];
+
+      svg.appendChild(createSvg('rect', { x:0, y:0, width:W, height:H, rx:24, fill:'white' }));
+
+      for (let i=0;i<=6;i++) {
+        const V = scales.minV + (i / 6) * (scales.maxV - scales.minV);
+        const xx = scales.x(V);
+        svg.appendChild(createSvg('line', { x1:xx, y1:M.t, x2:xx, y2:H-M.b, stroke:'#e2e8f0', 'stroke-width':1 }));
+        svg.appendChild(createSvg('text', { x:xx, y:H-M.b+22, 'text-anchor':'middle', 'font-size':13, fill:'#475569' }, fmt(V)));
+      }
+      for (let i=0;i<=6;i++) {
+        const p = scales.minP + (i / 6) * (scales.maxP - scales.minP);
+        const yy = scales.y(p);
+        svg.appendChild(createSvg('line', { x1:M.l, y1:yy, x2:W-M.r, y2:yy, stroke:'#e2e8f0', 'stroke-width':1 }));
+        svg.appendChild(createSvg('text', { x:M.l-10, y:yy+4, 'text-anchor':'end', 'font-size':13, fill:'#475569' }, fmt(p)));
+      }
+
+      svg.appendChild(createSvg('line', { x1:M.l, y1:H-M.b, x2:W-M.r, y2:H-M.b, stroke:'#0f172a', 'stroke-width':2 }));
+      svg.appendChild(createSvg('line', { x1:M.l, y1:H-M.b, x2:M.l, y2:M.t, stroke:'#0f172a', 'stroke-width':2 }));
+      svg.appendChild(createSvg('text', { x:(W+M.l-M.r)/2, y:H-10, 'text-anchor':'middle', 'font-size':16, fill:'#0f172a', 'font-weight':600 }, 'Volume, V'));
+      const ytxt = createSvg('text', { x:20, y:H/2, 'text-anchor':'middle', 'font-size':16, fill:'#0f172a', 'font-weight':600, transform:`rotate(-90 20 ${H/2})` }, 'Pressure, p');
+      svg.appendChild(ytxt);
+
+      data.segments.forEach((seg, i) => {
+        svg.appendChild(createSvg('path', {
+          d: pathFromPoints(seg.points, scales.x, scales.y), fill:'none', stroke:seg.color, 'stroke-width': i === active.segIndex ? 5 : 3, 'stroke-linecap':'round'
+        }));
+        if (seg.points.length > 5) {
+          const mid = seg.points[Math.floor(seg.points.length * 0.55)];
+          const prev = seg.points[Math.max(0, Math.floor(seg.points.length * 0.55) - 2)];
+          const dx = scales.x(mid.V) - scales.x(prev.V), dy = scales.y(mid.p) - scales.y(prev.p);
+          const L = Math.hypot(dx, dy) || 1, ux = dx/L, uy = dy/L;
+          const px = scales.x(mid.V), py = scales.y(mid.p);
+          svg.appendChild(createSvg('polygon', { points:`${px},${py} ${px-10*ux-5*uy},${py-10*uy+5*ux} ${px-10*ux+5*uy},${py-10*uy-5*ux}`, fill:seg.color, opacity:0.9 }));
+        }
+      });
+
+      data.states.forEach(s => {
+        svg.appendChild(createSvg('circle', { cx:scales.x(s.V), cy:scales.y(s.p), r:5.5, fill:'#111827' }));
+        svg.appendChild(createSvg('text', { x:scales.x(s.V)+8, y:scales.y(s.p)-8, 'font-size':14, 'font-weight':700, fill:'#111827' }, s.label));
+      });
+      svg.appendChild(createSvg('circle', { cx:scales.x(active.V), cy:scales.y(active.p), r:8, fill:active.color, stroke:'white', 'stroke-width':3 }));
+    }
+
+    function renderEngine(data, flat, activePoint) {
+      const svg = el.engineSvg;
+      svg.innerHTML = '';
+      const active = flat[activePoint] || flat[0];
+      const isCarnot = /carnot/i.test(data.loopName);
+      const currentSegment = data.segments[active.segIndex] || data.segments[0];
+      const segmentLength = Math.max(((currentSegment && currentSegment.points && currentSegment.points.length) || 1) - 1, 1);
+      const localFrac = clamp((active.pointIndex || 0) / segmentLength, 0, 1);
+      const Vvals = flat.map(d => d.V);
+      const minV = Math.min(...Vvals), maxV = Math.max(...Vvals);
+      const frac = clamp((active.V - minV) / (maxV - minV || 1), 0, 1);
+      const cycleCompressionRatio = Math.max(maxV / Math.max(minV, 1e-6), 1);
+
+      const cylinderTop = 34, cylinderBottom = 330, pistonHeight = 30;
+      const maxClearance = 128, minClearance = 16;
+      const compressionBoost = clamp((cycleCompressionRatio - 1) / 11, 0, 1);
+      const visualClearance = maxClearance - compressionBoost * (maxClearance - minClearance);
+      const clearance = visualClearance;
+      const crankCx = 210, crankCy = 316, crankRadius = 34, rodLength = 122;
+      const sliderTop = cylinderTop + clearance;
+      const sliderBottom = cylinderBottom - pistonHeight - 18;
+      const stroke = sliderBottom - sliderTop;
+
+      function crankStateFromTheta(theta) {
+        const pinX = crankCx + crankRadius * Math.sin(theta);
+        const pinY = crankCy - crankRadius * Math.cos(theta);
+        const underRoot = Math.max(rodLength * rodLength - (pinX - crankCx) * (pinX - crankCx), 1);
+        const rodProj = Math.sqrt(underRoot);
+        const rodTopY = pinY - rodProj;
+        const pistonY = rodTopY - 84 - pistonHeight;
+        return { pinX, pinY, rodTopY, pistonY };
+      }
+
+      function thetaFromCycle() {
+        const name = data.loopName.toLowerCase(), seg = active.segIndex;
+        if (name.includes('otto')) {
+          if (seg === 0) return Math.PI * localFrac;
+          if (seg === 1) return Math.PI;
+          if (seg === 2) return Math.PI + Math.PI * localFrac;
+          return 2 * Math.PI;
+        }
+        if (name.includes('diesel')) {
+          if (seg === 0) return Math.PI * localFrac;
+          if (seg === 1) return Math.PI + 0.42*Math.PI*localFrac;
+          if (seg === 2) return 1.42*Math.PI + 0.58*Math.PI*localFrac;
+          return 2*Math.PI;
+        }
+        if (name.includes('dual')) {
+          if (seg === 0) return Math.PI * localFrac;
+          if (seg === 1) return Math.PI;
+          if (seg === 2) return Math.PI + 0.28*Math.PI*localFrac;
+          if (seg === 3) return 1.28*Math.PI + 0.72*Math.PI*localFrac;
+          return 2*Math.PI;
+        }
+        if (name.includes('carnot')) {
+          if (seg === 0) return Math.PI * localFrac;
+          if (seg === 1) return Math.PI + 0.35*Math.PI*localFrac;
+          if (seg === 2) return 1.35*Math.PI + 0.35*Math.PI*localFrac;
+          return 1.7*Math.PI - 0.7*Math.PI*localFrac;
+        }
+        return 2 * Math.PI * state.progress;
+      }
+
+      const cycleTheta = thetaFromCycle();
+      const crankState = crankStateFromTheta(cycleTheta);
+      const y = clamp(sliderTop + frac * stroke, sliderTop, sliderBottom);
+      const gasTop = cylinderTop + 10;
+      const gasHeight = Math.max(12, y - gasTop);
+      const power = /expansion|power stroke/i.test(active.segName);
+      const arrows = power ? 3 : /compression/i.test(active.segName) ? -3 : 0;
+      const heatInActive = !isCarnot && /heat addition|combustion/i.test(active.segName);
+      const heatOutActive = !isCarnot && /heat rejection/i.test(active.segName);
+      const hotActive = isCarnot && /isothermal expansion/i.test(active.segName);
+      const coldActive = isCarnot && /isothermal compression/i.test(active.segName);
+      const adiabaticActive = isCarnot && /adiabatic/i.test(active.segName);
+      const profile = thermalProfileForCycle(data.loopName, data.segments.length);
+      const thermalRange = profile[active.segIndex] || [0.2, 0.8];
+      const thermalMix = lerp(thermalRange[0], thermalRange[1], localFrac);
+      const gasTopColor = lerpColor('#bfdbfe', '#fdba74', thermalMix);
+      const gasBottomColor = lerpColor('#93c5fd', '#fb7185', thermalMix);
+
+      const defs = createSvg('defs');
+      const grad = createSvg('linearGradient', { id:'gasFill', x1:0, x2:0, y1:0, y2:1 });
+      grad.appendChild(createSvg('stop', { offset:'0%', 'stop-color':gasTopColor }));
+      grad.appendChild(createSvg('stop', { offset:'100%', 'stop-color':gasBottomColor }));
+      defs.appendChild(grad);
+      svg.appendChild(defs);
+
+      svg.appendChild(createSvg('rect', { x:110, y:cylinderTop, width:200, height:cylinderBottom-cylinderTop, rx:16, fill:'#e2e8f0', stroke:'#475569', 'stroke-width':3 }));
+      svg.appendChild(createSvg('rect', { x:122, y:gasTop, width:176, height:gasHeight, fill:'url(#gasFill)', opacity:0.95 }));
+      svg.appendChild(createSvg('rect', { x:120, y:y, width:180, height:pistonHeight, rx:8, fill:'#64748b', stroke:'#334155', 'stroke-width':2 }));
+      svg.appendChild(createSvg('rect', { x:191, y:y+pistonHeight, width:38, height:84, rx:8, fill:'#94a3b8', stroke:'#475569', 'stroke-width':2 }));
+      svg.appendChild(createSvg('line', { x1:120, y1:sliderTop, x2:300, y2:sliderTop, stroke:'#94a3b8', 'stroke-dasharray':'6 6', 'stroke-width':2 }));
+      svg.appendChild(createSvg('line', { x1:120, y1:sliderBottom+pistonHeight, x2:300, y2:sliderBottom+pistonHeight, stroke:'#cbd5e1', 'stroke-dasharray':'6 6', 'stroke-width':2 }));
+
+      if (!isCarnot) {
+        const mech = createSvg('g', { opacity:0.35 });
+        mech.appendChild(createSvg('circle', { cx:210, cy:316, r:40, fill:'#e5e7eb', stroke:'#94a3b8', 'stroke-width':2 }));
+        mech.appendChild(createSvg('circle', { cx:210, cy:316, r:6, fill:'#64748b' }));
+        mech.appendChild(createSvg('line', { x1:210, y1:316, x2:210 + 34*Math.cos(cycleTheta - Math.PI/2), y2:316 + 34*Math.sin(cycleTheta - Math.PI/2), stroke:'#64748b', 'stroke-width':3, 'stroke-linecap':'round', 'stroke-dasharray':'6 4' }));
+        mech.appendChild(createSvg('line', { x1:210, y1:y+pistonHeight+84, x2:crankState.pinX, y2:crankState.pinY, stroke:'#94a3b8', 'stroke-width':3, 'stroke-linecap':'round' }));
+        svg.appendChild(mech);
+      }
+
+      if (isCarnot) {
+        svg.appendChild(createSvg('rect', { x:22, y:64, width:70, height:82, rx:12, fill:hotActive ? '#fb923c' : '#fed7aa', stroke:'#c2410c', 'stroke-width':2 }));
+        svg.appendChild(createSvg('text', { x:57, y:96, 'text-anchor':'middle', 'font-size':14, 'font-weight':700, fill:'#7c2d12' }, 'Hot'));
+        svg.appendChild(createSvg('text', { x:57, y:116, 'text-anchor':'middle', 'font-size':12, fill:'#7c2d12' }, 'reservoir'));
+        svg.appendChild(createSvg('line', { x1:92, y1:104, x2:120, y2:104, stroke:'#c2410c', 'stroke-width':3, 'stroke-dasharray':hotActive ? '0' : '6 5' }));
+        if (hotActive) svg.appendChild(createSvg('polygon', { points:'120,104 109,98 109,110', fill:'#c2410c' }));
+
+        svg.appendChild(createSvg('rect', { x:22, y:190, width:70, height:82, rx:12, fill:coldActive ? '#93c5fd' : '#dbeafe', stroke:'#1d4ed8', 'stroke-width':2 }));
+        svg.appendChild(createSvg('text', { x:57, y:222, 'text-anchor':'middle', 'font-size':14, 'font-weight':700, fill:'#1e3a8a' }, 'Cold'));
+        svg.appendChild(createSvg('text', { x:57, y:242, 'text-anchor':'middle', 'font-size':12, fill:'#1e3a8a' }, 'reservoir'));
+        svg.appendChild(createSvg('line', { x1:120, y1:230, x2:92, y2:230, stroke:'#1d4ed8', 'stroke-width':3, 'stroke-dasharray':coldActive ? '0' : '6 5' }));
+        if (coldActive) svg.appendChild(createSvg('polygon', { points:'92,230 103,224 103,236', fill:'#1d4ed8' }));
+
+        svg.appendChild(createSvg('rect', { x:326, y:124, width:70, height:90, rx:12, fill:adiabaticActive ? '#ecfeff' : '#f8fafc', stroke:'#0891b2', 'stroke-width':2 }));
+        svg.appendChild(createSvg('text', { x:361, y:154, 'text-anchor':'middle', 'font-size':13, 'font-weight':700, fill:'#155e75' }, 'Adiabatic'));
+        svg.appendChild(createSvg('text', { x:361, y:174, 'text-anchor':'middle', 'font-size':12, fill:'#155e75' }, 'insulation'));
+        svg.appendChild(createSvg('text', { x:361, y:194, 'text-anchor':'middle', 'font-size':12, fill:'#155e75' }, 'Q = 0'));
+      } else {
+        svg.appendChild(createSvg('rect', { x:78, y:118, width:24, height:128, rx:12, fill:'#f8fafc', stroke:'#cbd5e1', 'stroke-width':1.5 }));
+        if (heatInActive) {
+          for (let i=0;i<4;i++) {
+            const yy = 132 + i*28;
+            const g = createSvg('g', { opacity:0.95 - i*0.12 });
+            g.appendChild(createSvg('line', { x1:48, y1:yy, x2:88, y2:yy, stroke:'#ea580c', 'stroke-width':4, 'stroke-linecap':'round' }));
+            g.appendChild(createSvg('polygon', { points:`88,${yy} 76,${yy-6} 76,${yy+6}`, fill:'#ea580c' }));
+            svg.appendChild(g);
+          }
+          svg.appendChild(createSvg('text', { x:66, y:108, 'text-anchor':'middle', 'font-size':12, 'font-weight':700, fill:'#9a3412' }, 'Q in'));
+        }
+        if (heatOutActive) {
+          for (let i=0;i<4;i++) {
+            const yy = 132 + i*28;
+            const g = createSvg('g', { opacity:0.95 - i*0.12 });
+            g.appendChild(createSvg('line', { x1:88, y1:yy, x2:48, y2:yy, stroke:'#2563eb', 'stroke-width':4, 'stroke-linecap':'round' }));
+            g.appendChild(createSvg('polygon', { points:`48,${yy} 60,${yy-6} 60,${yy+6}`, fill:'#2563eb' }));
+            svg.appendChild(g);
+          }
+          svg.appendChild(createSvg('text', { x:66, y:108, 'text-anchor':'middle', 'font-size':12, 'font-weight':700, fill:'#1d4ed8' }, 'Q out'));
+        }
+      }
+
+      if (!isCarnot && arrows !== 0) {
+        for (let i=0;i<Math.abs(arrows);i++) {
+          const x = 334 + i*22;
+          const dir = arrows > 0 ? 1 : -1;
+          const g = createSvg('g', { transform:`translate(${x}, ${176 + i*22})` });
+          g.appendChild(createSvg('line', { x1:0, y1:0, x2:0, y2:dir*28, stroke:'#0f172a', 'stroke-width':4, 'stroke-linecap':'round' }));
+          g.appendChild(createSvg('polygon', { points:`0,${dir*36} -6,${dir*24} 6,${dir*24}`, fill:'#0f172a' }));
+          svg.appendChild(g);
+        }
+      }
+
+      svg.appendChild(createSvg('text', { x:308, y:sliderTop+4, 'font-size':12, fill:'#475569' }, 'minimum volume'));
+      svg.appendChild(createSvg('text', { x:308, y:sliderBottom+pistonHeight+4, 'font-size':12, fill:'#64748b' }, 'maximum volume'));
+      svg.appendChild(createSvg('text', { x:334, y:sliderTop-6, 'font-size':11, fill:'#64748b' }, 'stroke'));
+      svg.appendChild(createSvg('text', { x:334, y:sliderBottom+pistonHeight+18, 'font-size':11, fill:'#64748b' }, `r = ${fmt(cycleCompressionRatio, 1)}`));
+      svg.appendChild(createSvg('text', { x:210, y:24, 'text-anchor':'middle', 'font-size':18, 'font-weight':700, fill:'#0f172a' }, isCarnot ? 'Carnot piston / reservoir view' : 'Piston / cylinder view'));
+    }
+
+    function updateReadouts(data, flat, activePoint) {
+      const active = flat[activePoint] || flat[0];
+      el.loopName.textContent = data.loopName;
+      el.procName.textContent = active.segName;
+      el.procText.textContent = active.engineText;
+      el.volVal.textContent = `${fmt(active.V)} units`;
+      el.presVal.textContent = `${fmt(active.p)} units`;
+      el.branchVal.textContent = active.segKey || '—';
+      el.speedVal.textContent = `Cycle duration ≈ ${fmt(state.speed / 10, 1)} s`;
+      el.rVal.textContent = `r = ${fmt(state.r, 1)} — higher r moves the minimum-volume line upward and reduces the clearance volume`;
+      el.alphaVal.textContent = `α = ${fmt(state.alpha, 2)}`;
+      el.rcVal.textContent = `r_c = ${fmt(state.rc, 2)}`;
+    }
+
+    function render() {
+      const { data, flat, activePoint } = getData();
+      const activeSegIndex = flat[activePoint] ? flat[activePoint].segIndex : 0;
+      renderLegend(data, activeSegIndex, flat);
+      renderPV(data, flat, activePoint);
+      renderEngine(data, flat, activePoint);
+      updateReadouts(data, flat, activePoint);
+    }
+
+    el.cycle.addEventListener('change', e => { state.cycle = e.target.value; state.progress = 0; render(); });
+    el.speed.addEventListener('input', e => { state.speed = +e.target.value; render(); });
+    el.r.addEventListener('input', e => { state.r = +e.target.value; state.progress = 0; render(); });
+    el.alpha.addEventListener('input', e => { state.alpha = +e.target.value; state.progress = 0; render(); });
+    el.rc.addEventListener('input', e => { state.rc = +e.target.value; state.progress = 0; render(); });
+    el.playBtn.addEventListener('click', () => {
+      state.playing = !state.playing;
+      el.playBtn.textContent = state.playing ? 'Pause' : 'Play';
+      if (state.playing) requestAnimationFrame(tick);
+    });
+    el.resetBtn.addEventListener('click', () => { state.progress = 0; state.lastTs = null; render(); });
+
+    function tick(ts) {
+      if (!state.playing) return;
+      if (state.lastTs == null) state.lastTs = ts;
+      const dt = (ts - state.lastTs) / 1000;
+      state.lastTs = ts;
+      state.progress = (state.progress + dt / (state.speed / 10)) % 1;
+      render();
+      requestAnimationFrame(tick);
+    }
+
+    render();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
