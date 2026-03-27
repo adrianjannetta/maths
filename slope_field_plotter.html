@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Slope Field Plotter</title>
+  <style>
+    :root {
+      --bg: #08111f;
+      --panel: #0f1b2d;
+      --panel-2: #13233a;
+      --text: #eaf2ff;
+      --muted: #a8bddf;
+      --accent: #78b7ff;
+      --accent-2: #ffd166;
+      --grid: rgba(170, 205, 255, 0.14);
+      --axis: rgba(255,255,255,0.55);
+      --curve: #ffcf5a;
+      --curve-2: #7df0c9;
+      --point: #ff7b7b;
+      --error: #ff9d9d;
+      --ok: #93f3b0;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top, #132847 0%, #08111f 50%, #050b14 100%);
+      color: var(--text);
+    }
+
+    .app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      min-height: 100vh;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(19,35,58,0.96), rgba(11,22,37,0.96));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.28);
+    }
+
+    .controls {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      line-height: 1.2;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.45;
+      margin-top: 2px;
+    }
+
+    .group {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .group h2 {
+      margin: 0 0 2px 0;
+      font-size: 1rem;
+      color: #d9e9ff;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.92rem;
+      color: #d7e6ff;
+    }
+
+    input[type="text"], select, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(8, 17, 31, 0.9);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .checkbox-row input {
+      transform: scale(1.1);
+    }
+
+    button {
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.2);
+      background: rgba(18, 32, 57, 0.95);
+    }
+
+    .primary {
+      background: linear-gradient(180deg, #18335a, #122845);
+    }
+
+    .status {
+      min-height: 1.3em;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .status.error { color: var(--error); }
+    .status.ok { color: var(--ok); }
+
+    .canvas-wrap {
+      padding: 12px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 10px;
+      min-height: 720px;
+    }
+
+    .topbar, .footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding: 6px 8px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 4px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      min-height: 620px;
+      display: block;
+      border-radius: 16px;
+      background:
+        linear-gradient(180deg, rgba(9,17,30,1), rgba(6,12,22,1));
+      border: 1px solid rgba(255,255,255,0.08);
+      touch-action: none;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.4;
+    }
+
+    .pill {
+      background: rgba(255,255,255,0.06);
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 1020px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+      .canvas-wrap {
+        min-height: 600px;
+      }
+      canvas {
+        min-height: 500px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel controls">
+      <div>
+        <h1>Interactive Slope Field Plotter</h1>
+        <div class="sub">
+          Enter a first-order differential equation in the form <code>y' = f(x,y)</code>,
+          choose a preset, and click anywhere on the field to draw the solution through that point.
+          Drag the initial point to update the solution curve live.
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Differential equation</h2>
+        <label>
+          Preset
+          <select id="presetSelect"></select>
+        </label>
+        <label>
+          Enter <code>f(x,y)</code>
+          <input id="exprInput" type="text" value="x - y" spellcheck="false" />
+        </label>
+        <div class="row2">
+          <button id="applyBtn" class="primary">Apply equation</button>
+          <button id="clearCurvesBtn">Clear curves</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="small">
+          Allowed: <code>x</code>, <code>y</code>, numbers, brackets, <code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>^</code>,
+          and functions like <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>exp</code>, <code>log</code>, <code>sqrt</code>, <code>abs</code>.
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>View window</h2>
+        <div class="row2">
+          <label>
+            x min
+            <input id="xMinInput" type="text" value="-5" />
+          </label>
+          <label>
+            x max
+            <input id="xMaxInput" type="text" value="5" />
+          </label>
+        </div>
+        <div class="row2">
+          <label>
+            y min
+            <input id="yMinInput" type="text" value="-5" />
+          </label>
+          <label>
+            y max
+            <input id="yMaxInput" type="text" value="5" />
+          </label>
+        </div>
+        <div class="row2">
+          <button id="applyWindowBtn">Apply window</button>
+          <button id="resetViewBtn">Reset view</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Field and solver controls</h2>
+        <label>
+          Segment density: <span id="densityValue">23</span>
+          <input id="densitySlider" type="range" min="9" max="41" step="2" value="23" />
+        </label>
+        <label>
+          Solution step size: <span id="stepValue">0.035</span>
+          <input id="stepSlider" type="range" min="0.005" max="0.12" step="0.005" value="0.035" />
+        </label>
+        <label>
+          Max solver steps: <span id="maxStepsValue">2200</span>
+          <input id="maxStepsSlider" type="range" min="400" max="5000" step="100" value="2200" />
+        </label>
+        <div class="checkbox-row">
+          <input id="showGridCheck" type="checkbox" checked />
+          <span>Show grid</span>
+        </div>
+        <div class="checkbox-row">
+          <input id="showAxesCheck" type="checkbox" checked />
+          <span>Show axes</span>
+        </div>
+        <div class="checkbox-row">
+          <input id="showWindowBorderCheck" type="checkbox" checked />
+          <span>Show view-window border</span>
+        </div>
+        <div class="checkbox-row">
+          <input id="normaliseCheck" type="checkbox" checked />
+          <span>Normalise segment lengths</span>
+        </div>
+        <div class="checkbox-row">
+          <input id="equalAspectCheck" type="checkbox" />
+          <span>Lock equal x–y scale</span>
+        </div>
+        <div class="small">
+          Mouse wheel zooms about the cursor. Shift + drag pans the window. Drag the red point normally to move the initial condition.
+        </div>
+      </div>
+
+      <div class="group">
+        <h2>Helpful presets</h2>
+        <div class="small">
+          Try equilibrium behaviour, separable forms, nonlinear examples, and autonomous equations.
+          Clicking multiple times adds more solution curves. Drag the red point to move the active initial condition.
+        </div>
+      </div>
+    </aside>
+
+    <main class="panel canvas-wrap">
+      <div class="topbar">
+        <div class="legend">
+          <span><i class="swatch" style="background: rgba(200,225,255,0.8)"></i> slope field</span>
+          <span><i class="swatch" style="background: var(--curve)"></i> active solution</span>
+          <span><i class="swatch" style="background: var(--curve-2)"></i> stored solutions</span>
+          <span><i class="swatch" style="background: var(--point)"></i> draggable initial point</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="zoomOutBtn" style="width:auto; min-width:44px; padding:6px 12px;">−</button>
+          <button id="zoomInBtn" style="width:auto; min-width:44px; padding:6px 12px;">+</button>
+          <div class="pill" id="eqnDisplay">y' = x - y</div>
+        </div>
+      </div>
+
+      <canvas id="plotCanvas"></canvas>
+
+      <div class="footer">
+        <div>Click to place a solution. Drag the red point to move it.</div>
+        <div id="coordDisplay">(x₀, y₀) = —</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const presets = [
+      { name: "Linear: y' = x - y", expr: "x - y", window: [-5, 5, -5, 5] },
+      { name: "Autonomous logistic: y' = y(1-y)", expr: "y*(1-y)", window: [-4, 4, -2.5, 3] },
+      { name: "Simple harmonic phase-like: y' = cos(x)", expr: "cos(x)", window: [-10, 10, -4, 4] },
+      { name: "Nonlinear: y' = x^2 - y^2", expr: "x^2 - y^2", window: [-3, 3, -3, 3] },
+      { name: "Separable: y' = x*y", expr: "x*y", window: [-4, 4, -4, 4] },
+      { name: "Bernoulli-style: y' = y - x*y^2", expr: "y - x*y^2", window: [-4, 4, -1.5, 3] },
+      { name: "Isoclines-rich: y' = sin(x) - y", expr: "sin(x) - y", window: [-8, 8, -4, 4] },
+      { name: "Autonomous cubic: y' = y(1-y)(y+1)", expr: "y*(1-y)*(y+1)", window: [-4, 4, -2.2, 2.2] },
+      { name: "Riccati-like: y' = 1 + x - y^2", expr: "1 + x - y^2", window: [-4, 4, -4, 4] },
+      { name: "Clairaut-style family field: y' = x/y", expr: "x/y", window: [-5, 5, -5, 5] }
+    ];
+
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const exprInput = document.getElementById('exprInput');
+    const presetSelect = document.getElementById('presetSelect');
+    const applyBtn = document.getElementById('applyBtn');
+    const clearCurvesBtn = document.getElementById('clearCurvesBtn');
+    const applyWindowBtn = document.getElementById('applyWindowBtn');
+    const resetViewBtn = document.getElementById('resetViewBtn');
+    const statusEl = document.getElementById('status');
+    const eqnDisplay = document.getElementById('eqnDisplay');
+    const coordDisplay = document.getElementById('coordDisplay');
+
+    const xMinInput = document.getElementById('xMinInput');
+    const xMaxInput = document.getElementById('xMaxInput');
+    const yMinInput = document.getElementById('yMinInput');
+    const yMaxInput = document.getElementById('yMaxInput');
+
+    const densitySlider = document.getElementById('densitySlider');
+    const densityValue = document.getElementById('densityValue');
+    const stepSlider = document.getElementById('stepSlider');
+    const stepValue = document.getElementById('stepValue');
+    const maxStepsSlider = document.getElementById('maxStepsSlider');
+    const maxStepsValue = document.getElementById('maxStepsValue');
+    const showGridCheck = document.getElementById('showGridCheck');
+    const showAxesCheck = document.getElementById('showAxesCheck');
+    const normaliseCheck = document.getElementById('normaliseCheck');
+    const showWindowBorderCheck = document.getElementById('showWindowBorderCheck');
+    const equalAspectCheck = document.getElementById('equalAspectCheck');
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+
+    let state = {
+      xMin: -5,
+      xMax: 5,
+      yMin: -5,
+      yMax: 5,
+      density: 23,
+      step: 0.035,
+      maxSteps: 2200,
+      showGrid: true,
+      showAxes: true,
+      showWindowBorder: true,
+      normalise: true,
+      equalAspect: false,
+      activePoint: null,
+      activeCurve: null,
+      storedCurves: [],
+      dragging: false,
+      panning: false,
+      panStart: null,
+      panWindowStart: null,
+      hoverPoint: null,
+      evaluator: null,
+      expr: 'x - y',
+      defaultWindow: [-5, 5, -5, 5]
+    };
+
+    function populatePresets() {
+      presets.forEach((p, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = p.name;
+        presetSelect.appendChild(opt);
+      });
+      presetSelect.value = 0;
+    }
+
+    function setStatus(msg, type = '') {
+      statusEl.textContent = msg;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    function clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    function niceStep(span) {
+      const raw = span / 10;
+      const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+      const scaled = raw / pow;
+      let step;
+      if (scaled < 1.5) step = 1;
+      else if (scaled < 3.5) step = 2;
+      else if (scaled < 7.5) step = 5;
+      else step = 10;
+      return step * pow;
+    }
+
+    function toCanvasX(x) {
+      return (x - state.xMin) / (state.xMax - state.xMin) * canvas.clientWidth;
+    }
+
+    function toCanvasY(y) {
+      return canvas.clientHeight - (y - state.yMin) / (state.yMax - state.yMin) * canvas.clientHeight;
+    }
+
+    function toWorldX(px) {
+      return state.xMin + (px / canvas.clientWidth) * (state.xMax - state.xMin);
+    }
+
+    function toWorldY(py) {
+      return state.yMin + ((canvas.clientHeight - py) / canvas.clientHeight) * (state.yMax - state.yMin);
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (state.equalAspect) enforceEqualAspect();
+      draw();
+    }
+
+    function compileExpression(expr) {
+      let safe = expr.trim();
+      if (!safe) throw new Error('Please enter an expression for f(x,y).');
+      safe = safe.replace(/\^/g, '**');
+      safe = safe.replace(/\bpi\b/gi, 'PI');
+      safe = safe.replace(/\be\b/g, 'E');
+
+      const allowedPattern = /^[0-9+\-*/()., x yA-Za-z_]*$/;
+      if (!allowedPattern.test(safe.replace(/\s+/g, ''))) {
+        throw new Error('Expression contains unsupported characters.');
+      }
+
+      const names = [
+        'sin','cos','tan','asin','acos','atan','atan2','sinh','cosh','tanh',
+        'exp','log','sqrt','abs','floor','ceil','round','min','max','pow','PI','E'
+      ];
+
+      const body = `
+        const { sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh,
+                exp, log, sqrt, abs, floor, ceil, round, min, max, pow, PI, E } = Math;
+        return (${safe});
+      `;
+
+      const fn = new Function('x', 'y', body);
+      return function(x, y) {
+        const v = fn(x, y);
+        if (!Number.isFinite(v)) return NaN;
+        return v;
+      };
+    }
+
+    function setEquation(expr, keepCurves = false) {
+      try {
+        const evaluator = compileExpression(expr);
+        evaluator(0.2, -0.3);
+        state.evaluator = evaluator;
+        state.expr = expr.trim();
+        eqnDisplay.textContent = `y' = ${state.expr}`;
+        if (!keepCurves) {
+          state.storedCurves = [];
+          state.activePoint = null;
+          state.activeCurve = null;
+          coordDisplay.textContent = '(x₀, y₀) = —';
+        } else if (state.activePoint) {
+          state.activeCurve = solveCurve(state.activePoint.x, state.activePoint.y);
+        }
+        setStatus('Equation applied.', 'ok');
+        draw();
+      } catch (err) {
+        setStatus(err.message || 'Could not parse the equation.', 'error');
+      }
+    }
+
+    function getF(x, y) {
+      if (!state.evaluator) return NaN;
+      try {
+        return state.evaluator(x, y);
+      } catch {
+        return NaN;
+      }
+    }
+
+    function rk4Step(x, y, h) {
+      const f = getF;
+      const k1 = f(x, y);
+      if (!Number.isFinite(k1)) return null;
+      const k2 = f(x + h / 2, y + h * k1 / 2);
+      if (!Number.isFinite(k2)) return null;
+      const k3 = f(x + h / 2, y + h * k2 / 2);
+      if (!Number.isFinite(k3)) return null;
+      const k4 = f(x + h, y + h * k3);
+      if (!Number.isFinite(k4)) return null;
+      return { x: x + h, y: y + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4) };
+    }
+
+    function inExpandedBounds(x, y) {
+      const mx = 0.08 * (state.xMax - state.xMin);
+      const my = 0.08 * (state.yMax - state.yMin);
+      return x >= state.xMin - mx && x <= state.xMax + mx && y >= state.yMin - my && y <= state.yMax + my;
+    }
+
+    function solveOneDirection(x0, y0, sign) {
+      const pts = [{ x: x0, y: y0 }];
+      let x = x0, y = y0;
+      const h = state.step * sign;
+      for (let i = 0; i < state.maxSteps; i++) {
+        const next = rk4Step(x, y, h);
+        if (!next) break;
+        x = next.x;
+        y = next.y;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) break;
+        if (!inExpandedBounds(x, y)) break;
+        pts.push({ x, y });
+      }
+      return pts;
+    }
+
+    function solveCurve(x0, y0) {
+      const back = solveOneDirection(x0, y0, -1).reverse();
+      const fwd = solveOneDirection(x0, y0, 1);
+      return back.slice(0, -1).concat(fwd);
+    }
+
+    function drawGrid() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid');
+
+      if (state.showGrid) {
+        const xs = niceStep(state.xMax - state.xMin);
+        const ys = niceStep(state.yMax - state.yMin);
+
+        for (let x = Math.ceil(state.xMin / xs) * xs; x <= state.xMax + 1e-9; x += xs) {
+          const px = toCanvasX(x);
+          ctx.beginPath();
+          ctx.moveTo(px, 0);
+          ctx.lineTo(px, h);
+          ctx.stroke();
+        }
+
+        for (let y = Math.ceil(state.yMin / ys) * ys; y <= state.yMax + 1e-9; y += ys) {
+          const py = toCanvasY(y);
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(w, py);
+          ctx.stroke();
+        }
+      }
+
+      if (state.showAxes) {
+        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--axis');
+        ctx.lineWidth = 1.6;
+        if (state.xMin <= 0 && state.xMax >= 0) {
+          const px = toCanvasX(0);
+          ctx.beginPath();
+          ctx.moveTo(px, 0);
+          ctx.lineTo(px, h);
+          ctx.stroke();
+        }
+        if (state.yMin <= 0 && state.yMax >= 0) {
+          const py = toCanvasY(0);
+          ctx.beginPath();
+          ctx.moveTo(0, py);
+          ctx.lineTo(w, py);
+          ctx.stroke();
+        }
+      }
+
+      if (state.showWindowBorder) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1.3;
+        ctx.strokeRect(0.65, 0.65, w - 1.3, h - 1.3);
+        ctx.restore();
+      }
+
+      drawAxisLabels();
+      ctx.restore();
+    }
+
+    function drawAxisLabels() {
+      ctx.save();
+      ctx.fillStyle = 'rgba(235,245,255,0.8)';
+      ctx.font = '12px Inter, sans-serif';
+      const xs = niceStep(state.xMax - state.xMin);
+      const ys = niceStep(state.yMax - state.yMin);
+
+      for (let x = Math.ceil(state.xMin / xs) * xs; x <= state.xMax + 1e-9; x += xs) {
+        if (Math.abs(x) < 1e-9) continue;
+        const px = toCanvasX(x);
+        const py = state.yMin <= 0 && state.yMax >= 0 ? toCanvasY(0) + 14 : canvas.clientHeight - 8;
+        ctx.fillText(trimNum(x), px + 4, py);
+      }
+
+      for (let y = Math.ceil(state.yMin / ys) * ys; y <= state.yMax + 1e-9; y += ys) {
+        if (Math.abs(y) < 1e-9) continue;
+        const px = state.xMin <= 0 && state.xMax >= 0 ? toCanvasX(0) + 6 : 6;
+        const py = toCanvasY(y) - 4;
+        ctx.fillText(trimNum(y), px, py);
+      }
+      ctx.restore();
+    }
+
+    function trimNum(v) {
+      const s = Number(v).toFixed(6);
+      return s.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    function drawSlopeField() {
+      const nx = state.density;
+      const ny = state.density;
+      const dx = (state.xMax - state.xMin) / (nx - 1);
+      const dy = (state.yMax - state.yMin) / (ny - 1);
+      const segPix = 0.58 * Math.min(canvas.clientWidth / nx, canvas.clientHeight / ny);
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(220, 235, 255, 0.78)';
+      ctx.lineWidth = 1.15;
+
+      for (let i = 0; i < nx; i++) {
+        const x = state.xMin + i * dx;
+        for (let j = 0; j < ny; j++) {
+          const y = state.yMin + j * dy;
+          let m = getF(x, y);
+          if (!Number.isFinite(m)) continue;
+
+          let vx = 1;
+          let vy = m;
+          if (state.normalise) {
+            const len = Math.hypot(vx, vy);
+            if (!Number.isFinite(len) || len === 0) continue;
+            vx /= len;
+            vy /= len;
+          } else {
+            const capped = clamp(m, -8, 8);
+            vx = 1;
+            vy = capped;
+            const len = Math.hypot(vx, vy);
+            vx /= len;
+            vy /= len;
+          }
+
+          const cx = toCanvasX(x);
+          const cy = toCanvasY(y);
+          const sx = vx * segPix * 0.5;
+          const sy = -vy * segPix * 0.5;
+
+          ctx.beginPath();
+          ctx.moveTo(cx - sx, cy - sy);
+          ctx.lineTo(cx + sx, cy + sy);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawCurve(points, color, width) {
+      if (!points || points.length < 2) return;
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      for (let i = 0; i < points.length; i++) {
+        const px = toCanvasX(points[i].x);
+        const py = toCanvasY(points[i].y);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPoint(p, color, radius = 6) {
+      if (!p) return;
+      const px = toCanvasX(p.x);
+      const py = toCanvasY(p.y);
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, py, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function draw() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      drawGrid();
+      drawSlopeField();
+
+      for (const curve of state.storedCurves) {
+        drawCurve(curve.points, getComputedStyle(document.documentElement).getPropertyValue('--curve-2'), 2.1);
+      }
+      drawCurve(state.activeCurve, getComputedStyle(document.documentElement).getPropertyValue('--curve'), 2.8);
+      drawPoint(state.activePoint, getComputedStyle(document.documentElement).getPropertyValue('--point'), 6.5);
+    }
+
+    function enforceEqualAspect(centerX = (state.xMin + state.xMax) / 2, centerY = (state.yMin + state.yMax) / 2) {
+      const plotW = Math.max(canvas.clientWidth, 1);
+      const plotH = Math.max(canvas.clientHeight, 1);
+      if (!plotW || !plotH) return;
+      const unitsPerPixel = Math.max(
+        (state.xMax - state.xMin) / plotW,
+        (state.yMax - state.yMin) / plotH
+      );
+      const halfX = 0.5 * unitsPerPixel * plotW;
+      const halfY = 0.5 * unitsPerPixel * plotH;
+      state.xMin = centerX - halfX;
+      state.xMax = centerX + halfX;
+      state.yMin = centerY - halfY;
+      state.yMax = centerY + halfY;
+      syncWindowInputs();
+    }
+
+    function syncWindowInputs() {
+      xMinInput.value = trimNum(state.xMin);
+      xMaxInput.value = trimNum(state.xMax);
+      yMinInput.value = trimNum(state.yMin);
+      yMaxInput.value = trimNum(state.yMax);
+    }
+
+    function recomputeAllCurves() {
+      if (state.activePoint) state.activeCurve = solveCurve(state.activePoint.x, state.activePoint.y);
+      state.storedCurves = state.storedCurves.map(c => ({ ...c, points: solveCurve(c.point.x, c.point.y) }));
+    }
+
+    function setWindow(xMin, xMax, yMin, yMax, keepAspectCenter = true) {
+      state.xMin = xMin;
+      state.xMax = xMax;
+      state.yMin = yMin;
+      state.yMax = yMax;
+      if (state.equalAspect) {
+        const cx = keepAspectCenter ? (xMin + xMax) / 2 : (state.xMin + state.xMax) / 2;
+        const cy = keepAspectCenter ? (yMin + yMax) / 2 : (state.yMin + state.yMax) / 2;
+        enforceEqualAspect(cx, cy);
+      } else {
+        syncWindowInputs();
+      }
+      recomputeAllCurves();
+      draw();
+    }
+
+    function zoomAbout(centerX, centerY, factor) {
+      state.xMin = centerX + (state.xMin - centerX) * factor;
+      state.xMax = centerX + (state.xMax - centerX) * factor;
+      state.yMin = centerY + (state.yMin - centerY) * factor;
+      state.yMax = centerY + (state.yMax - centerY) * factor;
+      if (state.equalAspect) {
+        enforceEqualAspect(centerX, centerY);
+      } else {
+        syncWindowInputs();
+      }
+      recomputeAllCurves();
+      draw();
+    }
+
+    function resetView() {
+      const [xMin, xMax, yMin, yMax] = state.defaultWindow;
+      setWindow(xMin, xMax, yMin, yMax, true);
+      setStatus('View reset.', 'ok');
+    }
+
+    function getMousePos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+    }
+
+    function getWorldPos(evt) {
+      const p = getMousePos(evt);
+      return { x: toWorldX(p.x), y: toWorldY(p.y) };
+    }
+
+    function pointHitTest(evt) {
+      if (!state.activePoint) return false;
+      const p = getMousePos(evt);
+      const px = toCanvasX(state.activePoint.x);
+      const py = toCanvasY(state.activePoint.y);
+      return Math.hypot(p.x - px, p.y - py) <= 12;
+    }
+
+    function updateActivePoint(x, y) {
+      state.activePoint = { x, y };
+      state.activeCurve = solveCurve(x, y);
+      coordDisplay.textContent = `(x₀, y₀) = (${trimNum(x)}, ${trimNum(y)})`;
+      draw();
+    }
+
+    function storeCurrentCurve() {
+      if (state.activePoint && state.activeCurve && state.activeCurve.length > 1) {
+        state.storedCurves.push({
+          point: { ...state.activePoint },
+          points: state.activeCurve.map(p => ({ ...p }))
+        });
+      }
+    }
+
+    canvas.addEventListener('pointerdown', (evt) => {
+      canvas.setPointerCapture(evt.pointerId);
+      if (evt.shiftKey) {
+        state.panning = true;
+        state.panStart = getMousePos(evt);
+        state.panWindowStart = {
+          xMin: state.xMin,
+          xMax: state.xMax,
+          yMin: state.yMin,
+          yMax: state.yMax
+        };
+        return;
+      }
+      if (pointHitTest(evt)) {
+        state.dragging = true;
+        return;
+      }
+      if (state.activeCurve) storeCurrentCurve();
+      const p = getWorldPos(evt);
+      updateActivePoint(p.x, p.y);
+      state.dragging = true;
+    });
+
+    canvas.addEventListener('pointermove', (evt) => {
+      if (state.panning && state.panStart && state.panWindowStart) {
+        const p = getMousePos(evt);
+        const dxPix = p.x - state.panStart.x;
+        const dyPix = p.y - state.panStart.y;
+        const dx = dxPix * (state.panWindowStart.xMax - state.panWindowStart.xMin) / canvas.clientWidth;
+        const dy = dyPix * (state.panWindowStart.yMax - state.panWindowStart.yMin) / canvas.clientHeight;
+        state.xMin = state.panWindowStart.xMin - dx;
+        state.xMax = state.panWindowStart.xMax - dx;
+        state.yMin = state.panWindowStart.yMin + dy;
+        state.yMax = state.panWindowStart.yMax + dy;
+        syncWindowInputs();
+        recomputeAllCurves();
+        draw();
+        return;
+      }
+      if (!state.dragging) return;
+      const p = getWorldPos(evt);
+      updateActivePoint(p.x, p.y);
+    });
+
+    function endDrag() {
+      state.dragging = false;
+      state.panning = false;
+      state.panStart = null;
+      state.panWindowStart = null;
+    }
+
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('pointerleave', () => {});
+
+    canvas.addEventListener('wheel', (evt) => {
+      evt.preventDefault();
+      const mouse = getMousePos(evt);
+      const wx = toWorldX(mouse.x);
+      const wy = toWorldY(mouse.y);
+      const zoomFactor = evt.deltaY < 0 ? 0.9 : 1 / 0.9;
+
+      zoomAbout(wx, wy, zoomFactor);
+    }, { passive: false });
+
+    applyBtn.addEventListener('click', () => {
+      setEquation(exprInput.value, false);
+    });
+
+    exprInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') setEquation(exprInput.value, false);
+    });
+
+    clearCurvesBtn.addEventListener('click', () => {
+      state.activePoint = null;
+      state.activeCurve = null;
+      state.storedCurves = [];
+      coordDisplay.textContent = '(x₀, y₀) = —';
+      draw();
+    });
+
+    applyWindowBtn.addEventListener('click', () => {
+      const xMin = parseFloat(xMinInput.value);
+      const xMax = parseFloat(xMaxInput.value);
+      const yMin = parseFloat(yMinInput.value);
+      const yMax = parseFloat(yMaxInput.value);
+      if (![xMin, xMax, yMin, yMax].every(Number.isFinite)) {
+        setStatus('Window values must all be valid numbers.', 'error');
+        return;
+      }
+      if (xMax <= xMin || yMax <= yMin) {
+        setStatus('Need x max > x min and y max > y min.', 'error');
+        return;
+      }
+      setWindow(xMin, xMax, yMin, yMax, true);
+      setStatus('Window updated.', 'ok');
+    });
+
+    densitySlider.addEventListener('input', () => {
+      state.density = parseInt(densitySlider.value, 10);
+      densityValue.textContent = state.density;
+      draw();
+    });
+
+    stepSlider.addEventListener('input', () => {
+      state.step = parseFloat(stepSlider.value);
+      stepValue.textContent = state.step.toFixed(3);
+      recomputeAllCurves();
+      draw();
+    });
+
+    maxStepsSlider.addEventListener('input', () => {
+      state.maxSteps = parseInt(maxStepsSlider.value, 10);
+      maxStepsValue.textContent = state.maxSteps;
+      recomputeAllCurves();
+      draw();
+    });
+
+    showGridCheck.addEventListener('change', () => {
+      state.showGrid = showGridCheck.checked;
+      draw();
+    });
+
+    showAxesCheck.addEventListener('change', () => {
+      state.showAxes = showAxesCheck.checked;
+      draw();
+    });
+
+    showWindowBorderCheck.addEventListener('change', () => {
+      state.showWindowBorder = showWindowBorderCheck.checked;
+      draw();
+    });
+
+    normaliseCheck.addEventListener('change', () => {
+      state.normalise = normaliseCheck.checked;
+      draw();
+    });
+
+    equalAspectCheck.addEventListener('change', () => {
+      state.equalAspect = equalAspectCheck.checked;
+      if (state.equalAspect) enforceEqualAspect();
+      else syncWindowInputs();
+      recomputeAllCurves();
+      draw();
+    });
+
+    resetViewBtn.addEventListener('click', () => {
+      resetView();
+    });
+
+    zoomInBtn.addEventListener('click', () => {
+      const cx = (state.xMin + state.xMax) / 2;
+      const cy = (state.yMin + state.yMax) / 2;
+      zoomAbout(cx, cy, 0.85);
+    });
+
+    zoomOutBtn.addEventListener('click', () => {
+      const cx = (state.xMin + state.xMax) / 2;
+      const cy = (state.yMin + state.yMax) / 2;
+      zoomAbout(cx, cy, 1 / 0.85);
+    });
+
+    presetSelect.addEventListener('change', () => {
+      const p = presets[parseInt(presetSelect.value, 10)];
+      exprInput.value = p.expr;
+      state.defaultWindow = [...p.window];
+      setWindow(p.window[0], p.window[1], p.window[2], p.window[3], true);
+      setEquation(p.expr, false);
+    });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    function init() {
+      populatePresets();
+      const p = presets[0];
+      exprInput.value = p.expr;
+      [state.xMin, state.xMax, state.yMin, state.yMax] = p.window;
+      state.defaultWindow = [...p.window];
+      syncWindowInputs();
+      densityValue.textContent = state.density;
+      stepValue.textContent = state.step.toFixed(3);
+      maxStepsValue.textContent = state.maxSteps;
+      showWindowBorderCheck.checked = state.showWindowBorder;
+      equalAspectCheck.checked = state.equalAspect;
+      setEquation(p.expr, false);
+      resizeCanvas();
+    }
+
+    init();
+  </script>
+</body>
+</html>
