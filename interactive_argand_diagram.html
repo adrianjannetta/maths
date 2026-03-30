@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Argand Diagram</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #475569;
+      --soft: #e2e8f0;
+      --blue-soft: #eff6ff;
+      --green-soft: #ecfdf5;
+      --violet-soft: #f5f3ff;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      padding: 16px;
+    }
+
+    .layout {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+      grid-template-columns: 360px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--soft);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 20px 22px 0;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.6rem;
+      line-height: 1.2;
+    }
+
+    .card-body {
+      padding: 20px 22px 22px;
+    }
+
+    .stack { display: grid; gap: 18px; }
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button, input, select {
+      font: inherit;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .btn:hover { background: #f8fafc; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.primary {
+      background: #0f172a;
+      color: white;
+      border-color: #0f172a;
+    }
+    .btn.primary:hover { background: #1e293b; }
+
+    .range-wrap { display: grid; gap: 8px; }
+    .range-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    input[type="range"] { width: 100%; }
+
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .panel {
+      border: 1px solid var(--soft);
+      background: #f8fafc;
+      border-radius: 18px;
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .panel strong { color: var(--text); }
+    .panel.green { background: var(--green-soft); border-color: #bbf7d0; }
+    .panel.violet { background: var(--violet-soft); border-color: #ddd6fe; }
+    .panel.blue { background: var(--blue-soft); border-color: #bfdbfe; }
+
+    .point-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .point-item {
+      width: 100%;
+      text-align: left;
+      background: white;
+      border: 1px solid var(--soft);
+      border-radius: 18px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .point-item:hover { background: #f8fafc; }
+    .point-item.active {
+      border-color: var(--text);
+      background: #f1f5f9;
+    }
+
+    .point-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .point-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .point-meta {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .svg-wrap {
+      padding: 16px;
+    }
+
+    .svg-frame {
+      border: 1px solid var(--soft);
+      border-radius: 20px;
+      overflow: hidden;
+      background: white;
+    }
+
+    svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="layout">
+      <section class="card">
+        <div class="card-header">
+          <h1 class="card-title">Interactive Argand Diagram</h1>
+        </div>
+        <div class="card-body stack">
+          <div class="controls-row">
+            <button class="btn primary" id="addPointBtn">Add point</button>
+            <button class="btn" id="zoomInBtn">Zoom in</button>
+            <button class="btn" id="zoomOutBtn">Zoom out</button>
+            <button class="btn" id="fitBtn">Fit to points</button>
+            <button class="btn" id="resetBtn">Reset view</button>
+            <button class="btn" id="deleteBtn">Delete selected</button>
+          </div>
+
+          <div class="range-wrap">
+            <div class="range-head">
+              <span>Axis extent</span>
+              <span id="extentLabel">±5.0</span>
+            </div>
+            <input id="extentSlider" type="range" min="2" max="20" step="0.5" value="5" />
+          </div>
+
+          <div class="toggle-grid">
+            <label class="toggle"><input type="checkbox" id="showGrid" checked /> Show grid</label>
+            <label class="toggle"><input type="checkbox" id="showLabels" checked /> Show labels</label>
+            <label class="toggle"><input type="checkbox" id="showConjugates" /> Show conjugates</label>
+            <label class="toggle"><input type="checkbox" id="showPolar" checked /> Show polar form</label>
+            <label class="toggle"><input type="checkbox" id="snapToGrid" /> Snap to grid</label>
+            <label class="toggle"><input type="checkbox" id="showAddition" /> Show A + B</label>
+            <label class="toggle" style="grid-column: 1 / -1;"><input type="checkbox" id="showMultiplication" /> Show A × B as rotation + scaling</label>
+            <label class="toggle" style="grid-column: 1 / -1;"><input type="checkbox" id="integerTicksOnly" /> Integer-only tick labels</label>
+          </div>
+
+          <div class="panel" id="centrePanel">Centre of view: (0, 0)</div>
+
+          <div>
+            <div style="font-size:0.95rem;font-weight:700;color:var(--muted);margin-bottom:10px;">Points</div>
+            <div class="point-list" id="pointList"></div>
+          </div>
+
+          <div class="panel" id="selectedPanel"></div>
+          <div class="panel green" id="additionPanel" hidden></div>
+          <div class="panel violet" id="multiplicationPanel" hidden></div>
+
+          <div class="panel blue">
+            <div>Drag any point on the diagram.</div>
+            <div>Drag the background to move the grid.</div>
+            <div>Use the mouse wheel to zoom in and out around the cursor.</div>
+            <div>Use <strong>Fit to points</strong> to include all plotted points, and also <strong>A + B</strong> or <strong>A × B</strong> when those overlays are enabled.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="svg-wrap">
+          <div class="svg-frame">
+            <svg id="diagram" viewBox="0 0 560 560" aria-label="Interactive Argand diagram"></svg>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2"];
+    const DEFAULT_POINTS = [
+      { id: 1, name: "A", x: 2, y: 1.5, color: COLORS[0] },
+      { id: 2, name: "B", x: -1.5, y: 2.5, color: COLORS[1] },
+    ];
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+
+    const state = {
+      size: 560,
+      margin: 36,
+      extent: 5,
+      pan: { x: 0, y: 0 },
+      showGrid: true,
+      showLabels: true,
+      showConjugates: false,
+      showPolar: true,
+      snapToGrid: false,
+      showAddition: false,
+      showMultiplication: false,
+      integerTicksOnly: false,
+      points: structuredClone(DEFAULT_POINTS),
+      activeId: 1,
+      dragPointId: null,
+      dragOffset: { dx: 0, dy: 0 },
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      panOrigin: { x: 0, y: 0 },
+    };
+
+    const el = {
+      svg: document.getElementById("diagram"),
+      pointList: document.getElementById("pointList"),
+      selectedPanel: document.getElementById("selectedPanel"),
+      additionPanel: document.getElementById("additionPanel"),
+      multiplicationPanel: document.getElementById("multiplicationPanel"),
+      centrePanel: document.getElementById("centrePanel"),
+      extentLabel: document.getElementById("extentLabel"),
+      extentSlider: document.getElementById("extentSlider"),
+      addPointBtn: document.getElementById("addPointBtn"),
+      zoomInBtn: document.getElementById("zoomInBtn"),
+      zoomOutBtn: document.getElementById("zoomOutBtn"),
+      fitBtn: document.getElementById("fitBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      deleteBtn: document.getElementById("deleteBtn"),
+      showGrid: document.getElementById("showGrid"),
+      showLabels: document.getElementById("showLabels"),
+      showConjugates: document.getElementById("showConjugates"),
+      showPolar: document.getElementById("showPolar"),
+      snapToGrid: document.getElementById("snapToGrid"),
+      showAddition: document.getElementById("showAddition"),
+      showMultiplication: document.getElementById("showMultiplication"),
+      integerTicksOnly: document.getElementById("integerTicksOnly"),
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function nicePiLabel(theta) {
+      const pi = Math.PI;
+      const candidates = [
+        [-pi, "−π"],
+        [-(3 * pi) / 4, "−3π/4"],
+        [-pi / 2, "−π/2"],
+        [-pi / 4, "−π/4"],
+        [0, "0"],
+        [pi / 4, "π/4"],
+        [pi / 2, "π/2"],
+        [(3 * pi) / 4, "3π/4"],
+        [pi, "π"],
+      ];
+      for (const [value, label] of candidates) {
+        if (Math.abs(theta - value) < 0.001) return label;
+      }
+      return `${theta.toFixed(2)} rad`;
+    }
+
+    function formatComplex(x, y) {
+      const xr = Math.abs(x) < 1e-9 ? 0 : x;
+      const yr = Math.abs(y) < 1e-9 ? 0 : y;
+      const sign = yr >= 0 ? "+" : "−";
+      return `${xr.toFixed(2)} ${sign} ${Math.abs(yr).toFixed(2)}i`;
+    }
+
+    function polarString(x, y) {
+      const r = Math.hypot(x, y);
+      const theta = Math.atan2(y, x);
+      return `${r.toFixed(2)}e^{i(${nicePiLabel(theta)})}`;
+    }
+
+    function addComplex(a, b) {
+      return { x: a.x + b.x, y: a.y + b.y };
+    }
+
+    function multiplyComplex(a, b) {
+      return {
+        x: a.x * b.x - a.y * b.y,
+        y: a.x * b.y + a.y * b.x,
+      };
+    }
+
+    function worldToScreen(x, y) {
+      const inner = state.size - 2 * state.margin;
+      const stepPx = inner / (2 * state.extent);
+      return {
+        sx: state.margin + (x - state.pan.x + state.extent) * stepPx,
+        sy: state.margin + (state.extent - (y - state.pan.y)) * stepPx,
+      };
+    }
+
+    function screenToWorld(sx, sy) {
+      const inner = state.size - 2 * state.margin;
+      const stepPx = inner / (2 * state.extent);
+      return {
+        x: (sx - state.margin) / stepPx - state.extent + state.pan.x,
+        y: state.extent - (sy - state.margin) / stepPx + state.pan.y,
+      };
+    }
+
+    function zoomExtent(current, deltaY) {
+      const zoomFactor = Math.exp(deltaY * 0.0012);
+      return clamp(current * zoomFactor, 2, 20);
+    }
+
+    function formatAxisValue(value) {
+      const rounded = Math.round(value);
+      return Math.abs(value - rounded) < 1e-9 ? String(rounded) : value.toFixed(1);
+    }
+
+    function getTickStep(extent, integerOnly) {
+      const targetLines = 8;
+      const rough = (2 * extent) / targetLines;
+      if (integerOnly) return Math.max(1, Math.ceil(rough));
+      if (rough <= 0.25) return 0.25;
+      if (rough <= 0.5) return 0.5;
+      if (rough <= 1) return 1;
+      if (rough <= 2) return 2;
+      if (rough <= 5) return 5;
+      return Math.ceil(rough / 5) * 5;
+    }
+
+    function getAxisValues(center, extent, step) {
+      const start = Math.ceil((center - extent) / step) * step;
+      const end = center + extent + 1e-9;
+      const values = [];
+      for (let value = start; value <= end; value += step) {
+        values.push(Number(value.toFixed(10)));
+      }
+      return values;
+    }
+
+    function getViewForPoints(points) {
+      if (points.length === 0) return { pan: { x: 0, y: 0 }, extent: 5 };
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const halfSpan = Math.max((maxX - minX) / 2, (maxY - minY) / 2, 1.5);
+      const padding = Math.max(1, halfSpan * 0.25);
+      return {
+        pan: { x: centerX, y: centerY },
+        extent: clamp(halfSpan + padding, 2, 20),
+      };
+    }
+
+    function getFitTargets(points, showAddition, showMultiplication) {
+      const targets = points.map((p) => ({ x: p.x, y: p.y }));
+      const pointA = points[0];
+      const pointB = points[1];
+      if (showAddition && pointA && pointB) targets.push(addComplex(pointA, pointB));
+      if (showMultiplication && pointA && pointB) targets.push(multiplyComplex(pointA, pointB));
+      return targets;
+    }
+
+    function runSelfTests() {
+      const approx = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
+      console.assert(clamp(12, -2, 5) === 5, "clamp upper bound failed");
+      console.assert(clamp(-5, -2, 5) === -2, "clamp lower bound failed");
+      console.assert(formatComplex(3, -4) === "3.00 − 4.00i", "formatComplex failed");
+      const sum = addComplex({ x: 2, y: 3 }, { x: -1, y: 4 });
+      console.assert(sum.x === 1 && sum.y === 7, "addComplex failed");
+      const product = multiplyComplex({ x: 1, y: 2 }, { x: 3, y: 4 });
+      console.assert(product.x === -5 && product.y === 10, "multiplyComplex failed");
+      const polar = polarString(1, 0);
+      console.assert(polar.includes("1.00") && polar.includes("0"), "polarString failed");
+      const world = (() => {
+        const saved = { extent: state.extent, pan: { ...state.pan } };
+        state.extent = 5; state.pan = { x: 0, y: 0 };
+        const w = screenToWorld(280, 280);
+        state.extent = saved.extent; state.pan = saved.pan;
+        return w;
+      })();
+      console.assert(approx(world.x, 0) && approx(world.y, 0), "screenToWorld centre failed");
+      const fitTargets = getFitTargets([
+        { id: 1, name: "A", x: 2, y: 1, color: "#000" },
+        { id: 2, name: "B", x: 3, y: 2, color: "#000" },
+      ], true, true);
+      console.assert(fitTargets.length === 4, "fit targets inclusion failed");
+      console.assert(fitTargets.some((p) => approx(p.x, 5) && approx(p.y, 3)), "A+B fit target failed");
+      console.assert(fitTargets.some((p) => approx(p.x, 4) && approx(p.y, 7)), "A×B fit target failed");
+    }
+
+    function createSvg(tag, attrs = {}) {
+      const node = document.createElementNS(SVG_NS, tag);
+      for (const [key, value] of Object.entries(attrs)) {
+        node.setAttribute(key, String(value));
+      }
+      return node;
+    }
+
+    function getActivePoint() {
+      return state.points.find((p) => p.id === state.activeId) || state.points[0];
+    }
+
+    function getPointA() { return state.points[0] || null; }
+    function getPointB() { return state.points[1] || null; }
+
+    function applyZoomAtCenter(factor) {
+      state.extent = clamp(state.extent * factor, 2, 20);
+      render();
+    }
+
+    function fitToPoints() {
+      const fitTargets = getFitTargets(state.points, state.showAddition, state.showMultiplication);
+      const fit = getViewForPoints(fitTargets);
+      state.pan = fit.pan;
+      state.extent = fit.extent;
+      render();
+    }
+
+    function addPoint() {
+      const nextId = Math.max(0, ...state.points.map((p) => p.id)) + 1;
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const name = nextId <= alphabet.length ? alphabet[nextId - 1] : `P${nextId}`;
+      const color = COLORS[(nextId - 1) % COLORS.length];
+      state.points.push({ id: nextId, name, x: 1, y: 1, color });
+      state.activeId = nextId;
+      render();
+    }
+
+    function deleteActive() {
+      if (state.points.length <= 1) return;
+      state.points = state.points.filter((p) => p.id !== state.activeId);
+      state.activeId = state.points[0].id;
+      render();
+    }
+
+    function resetView() {
+      state.points = structuredClone(DEFAULT_POINTS);
+      state.activeId = DEFAULT_POINTS[0].id;
+      state.extent = 5;
+      state.pan = { x: 0, y: 0 };
+      state.dragPointId = null;
+      state.isPanning = false;
+      render();
+    }
+
+    function bindControls() {
+      el.addPointBtn.addEventListener("click", addPoint);
+      el.zoomInBtn.addEventListener("click", () => applyZoomAtCenter(0.8));
+      el.zoomOutBtn.addEventListener("click", () => applyZoomAtCenter(1.25));
+      el.fitBtn.addEventListener("click", fitToPoints);
+      el.resetBtn.addEventListener("click", resetView);
+      el.deleteBtn.addEventListener("click", deleteActive);
+
+      el.extentSlider.addEventListener("input", (e) => {
+        state.extent = Number(e.target.value);
+        render();
+      });
+
+      [
+        ["showGrid", "showGrid"],
+        ["showLabels", "showLabels"],
+        ["showConjugates", "showConjugates"],
+        ["showPolar", "showPolar"],
+        ["snapToGrid", "snapToGrid"],
+        ["showAddition", "showAddition"],
+        ["showMultiplication", "showMultiplication"],
+        ["integerTicksOnly", "integerTicksOnly"],
+      ].forEach(([id, key]) => {
+        el[id].addEventListener("change", (e) => {
+          state[key] = e.target.checked;
+          render();
+        });
+      });
+
+      el.svg.addEventListener("pointerdown", (e) => {
+        if (e.target.dataset.pointId) return;
+        const rect = el.svg.getBoundingClientRect();
+        state.isPanning = true;
+        state.dragPointId = null;
+        state.panStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        state.panOrigin = { ...state.pan };
+        try { el.svg.setPointerCapture(e.pointerId); } catch {}
+      });
+
+      el.svg.addEventListener("pointermove", (e) => {
+        const rect = el.svg.getBoundingClientRect();
+        const pointerX = e.clientX - rect.left;
+        const pointerY = e.clientY - rect.top;
+        const inner = state.size - 2 * state.margin;
+        const stepPx = inner / (2 * state.extent);
+
+        if (state.dragPointId != null) {
+          const sx = clamp(pointerX - state.dragOffset.dx, state.margin, state.size - state.margin);
+          const sy = clamp(pointerY - state.dragOffset.dy, state.margin, state.size - state.margin);
+          const math = screenToWorld(sx, sy);
+          const snapStep = 0.5;
+          const x = state.snapToGrid ? Math.round(math.x / snapStep) * snapStep : Math.round(math.x * 20) / 20;
+          const y = state.snapToGrid ? Math.round(math.y / snapStep) * snapStep : Math.round(math.y * 20) / 20;
+          state.points = state.points.map((p) => p.id === state.dragPointId ? { ...p, x, y } : p);
+          render();
+          return;
+        }
+
+        if (state.isPanning) {
+          const dxPx = pointerX - state.panStart.x;
+          const dyPx = pointerY - state.panStart.y;
+          state.pan = {
+            x: state.panOrigin.x - dxPx / stepPx,
+            y: state.panOrigin.y + dyPx / stepPx,
+          };
+          render();
+        }
+      });
+
+      ["pointerup", "pointerleave", "pointercancel"].forEach((eventName) => {
+        el.svg.addEventListener(eventName, () => {
+          state.dragPointId = null;
+          state.isPanning = false;
+        });
+      });
+
+      el.svg.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = el.svg.getBoundingClientRect();
+        const sx = clamp(e.clientX - rect.left, state.margin, state.size - state.margin);
+        const sy = clamp(e.clientY - rect.top, state.margin, state.size - state.margin);
+        const worldBefore = screenToWorld(sx, sy);
+        const nextExtent = zoomExtent(state.extent, e.deltaY);
+        const innerLocal = state.size - 2 * state.margin;
+        const nextStepPx = innerLocal / (2 * nextExtent);
+        state.extent = nextExtent;
+        state.pan = {
+          x: worldBefore.x - ((sx - state.margin) / nextStepPx - nextExtent),
+          y: worldBefore.y - (nextExtent - (sy - state.margin) / nextStepPx),
+        };
+        render();
+      }, { passive: false });
+    }
+
+    function renderPointList() {
+      el.pointList.innerHTML = "";
+      for (const p of state.points) {
+        const selected = p.id === state.activeId;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `point-item${selected ? " active" : ""}`;
+        btn.addEventListener("click", () => {
+          state.activeId = p.id;
+          render();
+        });
+
+        btn.innerHTML = `
+          <div class="point-top">
+            <div class="point-name"><span class="swatch" style="background:${p.color}"></span>${p.name}</div>
+            <div style="font-size:0.9rem;color:var(--muted);">z = ${formatComplex(p.x, p.y)}</div>
+          </div>
+          <div class="point-meta">modulus = ${Math.hypot(p.x, p.y).toFixed(3)}, argument = ${Math.atan2(p.y, p.x).toFixed(3)} rad</div>
+        `;
+        el.pointList.appendChild(btn);
+      }
+      el.deleteBtn.disabled = state.points.length <= 1;
+    }
+
+    function renderPanels() {
+      const activePoint = getActivePoint();
+      const pointA = getPointA();
+      const pointB = getPointB();
+      const sumPoint = pointA && pointB ? addComplex(pointA, pointB) : null;
+      const productPoint = pointA && pointB ? multiplyComplex(pointA, pointB) : null;
+
+      el.extentSlider.value = String(state.extent);
+      el.extentLabel.textContent = `±${state.extent.toFixed(1)}`;
+      el.centrePanel.textContent = `Centre of view: (${formatAxisValue(state.pan.x)}, ${formatAxisValue(state.pan.y)})`;
+
+      el.selectedPanel.innerHTML = activePoint ? `
+        <div style="margin-bottom:8px;font-size:1rem;font-weight:700;color:var(--text);">Selected point: ${activePoint.name}</div>
+        <div><strong>Cartesian:</strong> z = ${formatComplex(activePoint.x, activePoint.y)}</div>
+        <div><strong>Coordinates:</strong> (${activePoint.x.toFixed(2)}, ${activePoint.y.toFixed(2)})</div>
+        <div><strong>Modulus:</strong> |z| = ${Math.hypot(activePoint.x, activePoint.y).toFixed(3)}</div>
+        <div><strong>Argument:</strong> arg(z) = ${Math.atan2(activePoint.y, activePoint.x).toFixed(3)} rad</div>
+        ${state.showPolar ? `<div><strong>Exponential form:</strong> ${polarString(activePoint.x, activePoint.y)}</div>` : ""}
+        <div><strong>Conjugate:</strong> ${formatComplex(activePoint.x, -activePoint.y)}</div>
+      ` : "";
+
+      if (state.showAddition && pointA && pointB && sumPoint) {
+        el.additionPanel.hidden = false;
+        el.additionPanel.innerHTML = `
+          <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Vector addition</div>
+          <div>${pointA.name} + ${pointB.name} = ${formatComplex(sumPoint.x, sumPoint.y)}</div>
+          <div>Shown geometrically with the triangle/parallelogram rule.</div>
+        `;
+      } else {
+        el.additionPanel.hidden = true;
+      }
+
+      if (state.showMultiplication && pointA && pointB && productPoint) {
+        const modA = Math.hypot(pointA.x, pointA.y);
+        const modB = Math.hypot(pointB.x, pointB.y);
+        const argA = Math.atan2(pointA.y, pointA.x);
+        const argB = Math.atan2(pointB.y, pointB.x);
+        el.multiplicationPanel.hidden = false;
+        el.multiplicationPanel.innerHTML = `
+          <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Complex multiplication</div>
+          <div>${pointA.name} × ${pointB.name} = ${formatComplex(productPoint.x, productPoint.y)}</div>
+          <div>|${pointA.name} × ${pointB.name}| = |${pointA.name}| |${pointB.name}| = ${(modA * modB).toFixed(3)}</div>
+          <div>arg(${pointA.name} × ${pointB.name}) = arg(${pointA.name}) + arg(${pointB.name}) = ${(argA + argB).toFixed(3)} rad</div>
+          <div>So multiplying by ${pointB.name} scales by |${pointB.name}| and rotates by arg(${pointB.name}).</div>
+        `;
+      } else {
+        el.multiplicationPanel.hidden = true;
+      }
+
+      [
+        [el.showGrid, state.showGrid],
+        [el.showLabels, state.showLabels],
+        [el.showConjugates, state.showConjugates],
+        [el.showPolar, state.showPolar],
+        [el.snapToGrid, state.snapToGrid],
+        [el.showAddition, state.showAddition],
+        [el.showMultiplication, state.showMultiplication],
+        [el.integerTicksOnly, state.integerTicksOnly],
+      ].forEach(([node, value]) => { node.checked = value; });
+    }
+
+    function renderSvg() {
+      el.svg.innerHTML = "";
+      const inner = state.size - 2 * state.margin;
+      const stepPx = inner / (2 * state.extent);
+      const origin = worldToScreen(0, 0);
+      const pointA = getPointA();
+      const pointB = getPointB();
+      const sumPoint = pointA && pointB ? addComplex(pointA, pointB) : null;
+      const productPoint = pointA && pointB ? multiplyComplex(pointA, pointB) : null;
+      const xTickStep = getTickStep(state.extent, state.integerTicksOnly);
+      const yTickStep = getTickStep(state.extent, state.integerTicksOnly);
+      const axisValues = getAxisValues(state.pan.x, state.extent, xTickStep);
+      const axisValuesY = getAxisValues(state.pan.y, state.extent, yTickStep);
+
+      el.svg.appendChild(createSvg("rect", { x: 0, y: 0, width: state.size, height: state.size, fill: "#ffffff" }));
+
+      if (state.showGrid) {
+        for (const value of axisValues) {
+          const x = worldToScreen(value, state.pan.y).sx;
+          el.svg.appendChild(createSvg("line", { x1: x, y1: state.margin, x2: x, y2: state.size - state.margin, stroke: "#e2e8f0", "stroke-width": 1 }));
+        }
+        for (const value of axisValuesY) {
+          const y = worldToScreen(state.pan.x, value).sy;
+          el.svg.appendChild(createSvg("line", { x1: state.margin, y1: y, x2: state.size - state.margin, y2: y, stroke: "#e2e8f0", "stroke-width": 1 }));
+        }
+      }
+
+      el.svg.appendChild(createSvg("rect", {
+        x: state.margin, y: state.margin, width: inner, height: inner,
+        fill: "none", stroke: "#cbd5e1", "stroke-width": 1.5
+      }));
+      el.svg.appendChild(createSvg("line", { x1: state.margin, y1: origin.sy, x2: state.size - state.margin, y2: origin.sy, stroke: "#0f172a", "stroke-width": 2 }));
+      el.svg.appendChild(createSvg("line", { x1: origin.sx, y1: state.margin, x2: origin.sx, y2: state.size - state.margin, stroke: "#0f172a", "stroke-width": 2 }));
+
+      for (const value of axisValues) {
+        const x = worldToScreen(value, state.pan.y).sx;
+        const g = createSvg("g");
+        g.appendChild(createSvg("line", { x1: x, y1: origin.sy - 5, x2: x, y2: origin.sy + 5, stroke: "#0f172a", "stroke-width": 1.5 }));
+        if (Math.abs(value) > 1e-9) {
+          const text = createSvg("text", { x, y: origin.sy + 18, "text-anchor": "middle", "font-size": 12, fill: "#334155" });
+          text.textContent = formatAxisValue(value);
+          g.appendChild(text);
+        }
+        el.svg.appendChild(g);
+      }
+
+      for (const value of axisValuesY) {
+        const y = worldToScreen(state.pan.x, value).sy;
+        const g = createSvg("g");
+        g.appendChild(createSvg("line", { x1: origin.sx - 5, y1: y, x2: origin.sx + 5, y2: y, stroke: "#0f172a", "stroke-width": 1.5 }));
+        if (Math.abs(value) > 1e-9) {
+          const text = createSvg("text", { x: origin.sx - 12, y: y + 4, "text-anchor": "end", "font-size": 12, fill: "#334155" });
+          text.textContent = formatAxisValue(value);
+          g.appendChild(text);
+        }
+        el.svg.appendChild(g);
+      }
+
+      const reLabel = createSvg("text", { x: state.size - 14, y: origin.sy - 10, "text-anchor": "end", "font-size": 14, fill: "#0f172a", "font-weight": 600 });
+      reLabel.textContent = "Re(z)";
+      el.svg.appendChild(reLabel);
+      const imLabel = createSvg("text", { x: origin.sx + 12, y: 18, "font-size": 14, fill: "#0f172a", "font-weight": 600 });
+      imLabel.textContent = "Im(z)";
+      el.svg.appendChild(imLabel);
+      const oLabel = createSvg("text", { x: origin.sx + 8, y: origin.sy + 18, "font-size": 12, fill: "#475569" });
+      oLabel.textContent = "O";
+      el.svg.appendChild(oLabel);
+
+      if (state.showAddition && pointA && pointB && sumPoint) {
+        const a = worldToScreen(pointA.x, pointA.y);
+        const b = worldToScreen(pointB.x, pointB.y);
+        const s = worldToScreen(sumPoint.x, sumPoint.y);
+        el.svg.appendChild(createSvg("line", { x1: a.sx, y1: a.sy, x2: s.sx, y2: s.sy, stroke: pointB.color, "stroke-width": 2, "stroke-dasharray": "6 5", opacity: 0.7 }));
+        el.svg.appendChild(createSvg("line", { x1: b.sx, y1: b.sy, x2: s.sx, y2: s.sy, stroke: pointA.color, "stroke-width": 2, "stroke-dasharray": "6 5", opacity: 0.7 }));
+        el.svg.appendChild(createSvg("line", { x1: origin.sx, y1: origin.sy, x2: s.sx, y2: s.sy, stroke: "#059669", "stroke-width": 3, opacity: 0.9 }));
+        el.svg.appendChild(createSvg("circle", { cx: s.sx, cy: s.sy, r: 6, fill: "#059669", stroke: "#ffffff", "stroke-width": 2.5 }));
+        const txt = createSvg("text", { x: s.sx + 10, y: s.sy - 10, "font-size": 14, "font-weight": 600, fill: "#059669" });
+        txt.textContent = `${pointA.name} + ${pointB.name}`;
+        el.svg.appendChild(txt);
+      }
+
+      if (state.showMultiplication && pointA && pointB && productPoint) {
+        const p = worldToScreen(productPoint.x, productPoint.y);
+        const modA = Math.hypot(pointA.x, pointA.y);
+        const modB = Math.hypot(pointB.x, pointB.y);
+        const argA = Math.atan2(pointA.y, pointA.x);
+        const argB = Math.atan2(pointB.y, pointB.x);
+        const argProduct = argA + argB;
+        const arcRadius1 = 34;
+        const arcRadius2 = 48;
+        const aEndX = origin.sx + arcRadius1 * Math.cos(argA);
+        const aEndY = origin.sy - arcRadius1 * Math.sin(argA);
+        const pStartX = origin.sx + arcRadius2 * Math.cos(argA);
+        const pStartY = origin.sy - arcRadius2 * Math.sin(argA);
+        const pEndX = origin.sx + arcRadius2 * Math.cos(argProduct);
+        const pEndY = origin.sy - arcRadius2 * Math.sin(argProduct);
+
+        el.svg.appendChild(createSvg("line", { x1: origin.sx, y1: origin.sy, x2: p.sx, y2: p.sy, stroke: "#7c3aed", "stroke-width": 3, opacity: 0.95 }));
+        el.svg.appendChild(createSvg("circle", { cx: p.sx, cy: p.sy, r: 6, fill: "#7c3aed", stroke: "#ffffff", "stroke-width": 2.5 }));
+        const txt = createSvg("text", { x: p.sx + 10, y: p.sy + 18, "font-size": 14, "font-weight": 600, fill: "#7c3aed" });
+        txt.textContent = `${pointA.name} × ${pointB.name}`;
+        el.svg.appendChild(txt);
+
+        if (modA > 0.15) {
+          el.svg.appendChild(createSvg("circle", { cx: origin.sx, cy: origin.sy, r: modA * stepPx, fill: "none", stroke: "#7c3aed", "stroke-dasharray": "5 5", opacity: 0.22 }));
+        }
+        if (modA * modB > 0.15 && modA * modB <= state.extent) {
+          el.svg.appendChild(createSvg("circle", { cx: origin.sx, cy: origin.sy, r: modA * modB * stepPx, fill: "none", stroke: "#7c3aed", "stroke-dasharray": "8 6", opacity: 0.28 }));
+        }
+        el.svg.appendChild(createSvg("path", {
+          d: `M ${origin.sx + arcRadius1} ${origin.sy} A ${arcRadius1} ${arcRadius1} 0 0 ${argA >= 0 ? 0 : 1} ${aEndX} ${aEndY}`,
+          fill: "none", stroke: pointA.color, "stroke-width": 2, opacity: 0.55
+        }));
+        el.svg.appendChild(createSvg("path", {
+          d: `M ${pStartX} ${pStartY} A ${arcRadius2} ${arcRadius2} 0 0 ${argB >= 0 ? 0 : 1} ${pEndX} ${pEndY}`,
+          fill: "none", stroke: pointB.color, "stroke-width": 2, opacity: 0.75
+        }));
+      }
+
+      for (const p of state.points) {
+        const { sx, sy } = worldToScreen(p.x, p.y);
+        const isActive = p.id === state.activeId;
+        const arg = Math.atan2(p.y, p.x);
+        const r = Math.hypot(p.x, p.y);
+        const conjugateY = worldToScreen(p.x, -p.y).sy;
+        const arcEndX = origin.sx + 22 * Math.cos(arg);
+        const arcEndY = origin.sy - 22 * Math.sin(arg);
+
+        const g = createSvg("g");
+        g.appendChild(createSvg("line", { x1: origin.sx, y1: origin.sy, x2: sx, y2: sy, stroke: p.color, "stroke-width": 2.5, opacity: 0.9 }));
+        g.appendChild(createSvg("line", { x1: sx, y1: origin.sy, x2: sx, y2: sy, stroke: p.color, "stroke-dasharray": "5 5", opacity: 0.45 }));
+        g.appendChild(createSvg("line", { x1: origin.sx, y1: sy, x2: sx, y2: sy, stroke: p.color, "stroke-dasharray": "5 5", opacity: 0.45 }));
+
+        if (r > 0.15) {
+          g.appendChild(createSvg("path", {
+            d: `M ${origin.sx + 22} ${origin.sy} A 22 22 0 0 ${arg >= 0 ? 0 : 1} ${arcEndX} ${arcEndY}`,
+            fill: "none", stroke: p.color, "stroke-width": 2, opacity: 0.75
+          }));
+        }
+
+        const circle = createSvg("circle", {
+          cx: sx, cy: sy, r: isActive ? 8 : 7, fill: p.color, stroke: "#ffffff", "stroke-width": 3,
+          "data-point-id": p.id, style: "cursor: grab;"
+        });
+        circle.addEventListener("pointerdown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = el.svg.getBoundingClientRect();
+          const pointerX = e.clientX - rect.left;
+          const pointerY = e.clientY - rect.top;
+          state.dragOffset = { dx: pointerX - sx, dy: pointerY - sy };
+          state.dragPointId = p.id;
+          state.isPanning = false;
+          state.activeId = p.id;
+          try { circle.setPointerCapture(e.pointerId); } catch {}
+          render();
+        });
+        g.appendChild(circle);
+
+        if (state.showLabels) {
+          const label = createSvg("text", { x: sx + 10, y: sy - 10, "font-size": 14, "font-weight": 600, fill: p.color });
+          label.textContent = `${p.name} (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`;
+          g.appendChild(label);
+        }
+
+        if (state.showConjugates) {
+          g.appendChild(createSvg("circle", { cx: sx, cy: conjugateY, r: 5, fill: p.color, opacity: 0.28 }));
+          g.appendChild(createSvg("line", { x1: sx, y1: sy, x2: sx, y2: conjugateY, stroke: p.color, "stroke-dasharray": "4 4", opacity: 0.28 }));
+        }
+
+        el.svg.appendChild(g);
+      }
+    }
+
+    function render() {
+      renderPointList();
+      renderPanels();
+      renderSvg();
+    }
+
+    runSelfTests();
+    bindControls();
+    render();
+  </script>
+</body>
+</html>
