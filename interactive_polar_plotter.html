@@ -8,12 +8,9 @@
     :root {
       --bg: #0f172a;
       --panel: #111827;
-      --panel-2: #1f2937;
       --border: #334155;
       --text: #e5e7eb;
       --muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent-2: #22c55e;
     }
 
     * { box-sizing: border-box; }
@@ -26,7 +23,7 @@
     }
 
     .wrap {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       padding: 20px;
     }
@@ -73,7 +70,9 @@
       font-weight: 600;
     }
 
-    input[type="text"], input[type="number"], select {
+    input[type="text"],
+    input[type="number"],
+    select {
       width: 100%;
       padding: 10px 12px;
       border-radius: 10px;
@@ -145,9 +144,32 @@
       padding: 12px;
     }
 
+    .canvas-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .plot-box {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .plot-box.hidden {
+      display: none;
+    }
+
+    .plot-title {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
     canvas {
       width: 100%;
-      height: min(72vh, 760px);
       display: block;
       background: #ffffff;
       border-radius: 12px;
@@ -173,8 +195,9 @@
       .layout {
         grid-template-columns: 1fr;
       }
-      canvas {
-        height: 58vh;
+
+      .canvas-grid {
+        grid-template-columns: 1fr !important;
       }
     }
   </style>
@@ -240,10 +263,19 @@
             <label><input id="showAxes" type="checkbox" checked /> Show axes</label>
           </div>
           <div class="field">
-            <label><input id="showGrid" type="checkbox" checked /> Show polar grid</label>
+            <label><input id="showGrid" type="checkbox" checked /> Show grid</label>
           </div>
           <div class="field">
             <label><input id="showPoint" type="checkbox" checked /> Show tracer</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label><input id="lockAspect" type="checkbox" checked /> Lock 1:1 aspect ratio</label>
+          </div>
+          <div class="field">
+            <label><input id="splitView" type="checkbox" /> Split polar / Cartesian view</label>
           </div>
         </div>
 
@@ -258,12 +290,21 @@
         <div id="status" class="status ok">Ready.</div>
 
         <div class="hint">
-          Mouse controls: drag to pan, mouse wheel to zoom. Functions/constants include <code>PI</code>, <code>E</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>sqrt</code>, <code>abs</code>, <code>log</code>, and <code>exp</code>. Negative values of <code>r</code> are allowed.
+          Mouse controls: drag to pan, mouse wheel to zoom. Negative values of <code>r</code> are allowed. In split view, the left panel uses a polar grid and the right panel shows the same traced curve on a Cartesian grid.
         </div>
       </div>
 
       <div class="panel canvas-panel">
-        <canvas id="plotCanvas" width="900" height="700"></canvas>
+        <div class="canvas-grid" id="canvasGrid">
+          <div class="plot-box" id="polarBox">
+            <div class="plot-title">Polar view</div>
+            <canvas id="plotCanvas"></canvas>
+          </div>
+          <div class="plot-box hidden" id="cartesianBox">
+            <div class="plot-title">Equivalent Cartesian path</div>
+            <canvas id="cartesianCanvas"></canvas>
+          </div>
+        </div>
         <div class="footer-stats" id="stats"></div>
       </div>
     </div>
@@ -272,6 +313,8 @@
   <script>
     const canvas = document.getElementById('plotCanvas');
     const ctx = canvas.getContext('2d');
+    const cartesianCanvas = document.getElementById('cartesianCanvas');
+    const cartesianCtx = cartesianCanvas.getContext('2d');
 
     const el = {
       preset: document.getElementById('preset'),
@@ -284,63 +327,37 @@
       showAxes: document.getElementById('showAxes'),
       showGrid: document.getElementById('showGrid'),
       showPoint: document.getElementById('showPoint'),
+      lockAspect: document.getElementById('lockAspect'),
+      splitView: document.getElementById('splitView'),
       plotBtn: document.getElementById('plotBtn'),
       animateBtn: document.getElementById('animateBtn'),
       fitBtn: document.getElementById('fitBtn'),
       resetViewBtn: document.getElementById('resetViewBtn'),
       downloadBtn: document.getElementById('downloadBtn'),
       status: document.getElementById('status'),
-      stats: document.getElementById('stats')
+      stats: document.getElementById('stats'),
+      canvasGrid: document.getElementById('canvasGrid'),
+      cartesianBox: document.getElementById('cartesianBox')
     };
 
     const presets = {
-      rose4: {
-        r: '2*sin(4*theta)',
-        thetaMin: 0,
-        thetaMax: 2 * Math.PI
-      },
-      circle: {
-        r: '3',
-        thetaMin: 0,
-        thetaMax: 2 * Math.PI
-      },
-      cardioid: {
-        r: '2*(1 + cos(theta))',
-        thetaMin: 0,
-        thetaMax: 2 * Math.PI
-      },
-      limacon: {
-        r: '1 + 2*cos(theta)',
-        thetaMin: 0,
-        thetaMax: 2 * Math.PI
-      },
-      lemniscate: {
-        r: 'sqrt(abs(8*cos(2*theta)))',
-        thetaMin: -Math.PI/4,
-        thetaMax: Math.PI/4
-      },
-      spiral: {
-        r: '0.35*theta',
-        thetaMin: 0,
-        thetaMax: 10 * Math.PI
-      },
-      hyperbolic: {
-        r: '6/(theta + 0.2)',
-        thetaMin: 0.2,
-        thetaMax: 8 * Math.PI
-      },
-      butterfly: {
-        r: 'exp(cos(theta)) - 2*cos(4*theta) + pow(sin((2*theta-PI)/24),5)',
-        thetaMin: 0,
-        thetaMax: 24 * Math.PI
-      }
+      rose4: { r: '2*sin(4*theta)', thetaMin: 0, thetaMax: 2 * Math.PI },
+      circle: { r: '3', thetaMin: 0, thetaMax: 2 * Math.PI },
+      cardioid: { r: '2*(1 + cos(theta))', thetaMin: 0, thetaMax: 2 * Math.PI },
+      limacon: { r: '1 + 2*cos(theta)', thetaMin: 0, thetaMax: 2 * Math.PI },
+      lemniscate: { r: 'sqrt(abs(8*cos(2*theta)))', thetaMin: -Math.PI / 4, thetaMax: Math.PI / 4 },
+      spiral: { r: '0.35*theta', thetaMin: 0, thetaMax: 10 * Math.PI },
+      hyperbolic: { r: '6/(theta + 0.2)', thetaMin: 0.2, thetaMax: 8 * Math.PI },
+      butterfly: { r: 'exp(cos(theta)) - 2*cos(4*theta) + pow(sin((2*theta-PI)/24),5)', thetaMin: 0, thetaMax: 24 * Math.PI }
     };
 
     const state = {
       points: [],
       bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1, maxR: 1 },
-      view: { centerX: 0, centerY: 0, scale: 120 },
+      polarView: { centerX: 0, centerY: 0, scale: 120 },
+      cartesianView: { centerX: 0, centerY: 0, scale: 120 },
       dragging: false,
+      dragTarget: 'polar',
       lastMouseX: 0,
       lastMouseY: 0,
       animating: false,
@@ -375,21 +392,27 @@
 
       const fr = compileExpression(rExpr);
       const pts = [];
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxR = 0;
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      let maxR = 0;
 
       for (let i = 0; i <= samples; i++) {
         const theta = thetaMin + (thetaMax - thetaMin) * (i / samples);
-        let r = fr(theta);
+        const r = fr(theta);
         if (!Number.isFinite(r)) continue;
+
         const x = r * Math.cos(theta);
         const y = r * Math.sin(theta);
         if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+
         pts.push({ x, y, r, theta });
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        if (Math.abs(r) > maxR) maxR = Math.abs(r);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        maxR = Math.max(maxR, Math.abs(r));
       }
 
       if (pts.length < 2) {
@@ -399,35 +422,53 @@
       state.points = pts;
       state.bounds = { minX, maxX, minY, maxY, maxR };
       state.traceFraction = Number(el.traceSlider.value) / 1000;
-      updateStats();
     }
 
-    function fitView(padding = 0.12) {
+    function getView(target = 'polar') {
+      return target === 'cartesian' ? state.cartesianView : state.polarView;
+    }
+
+    function getCanvas(target = 'polar') {
+      return target === 'cartesian' ? cartesianCanvas : canvas;
+    }
+
+    function getContext(target = 'polar') {
+      return target === 'cartesian' ? cartesianCtx : ctx;
+    }
+
+    function fitView(target = 'polar', padding = 0.12) {
+      const view = getView(target);
+      const activeCanvas = getCanvas(target);
       const { minX, maxX, minY, maxY } = state.bounds;
       const w = Math.max(1e-9, maxX - minX);
       const h = Math.max(1e-9, maxY - minY);
-      const scaleX = canvas.width * (1 - 2 * padding) / w;
-      const scaleY = canvas.height * (1 - 2 * padding) / h;
-      state.view.scale = Math.max(10, Math.min(scaleX, scaleY));
-      state.view.centerX = (minX + maxX) / 2;
-      state.view.centerY = (minY + maxY) / 2;
+      const scaleX = activeCanvas.clientWidth * (1 - 2 * padding) / w;
+      const scaleY = activeCanvas.clientHeight * (1 - 2 * padding) / h;
+      view.scale = Math.max(10, Math.min(scaleX, scaleY));
+      view.centerX = (minX + maxX) / 2;
+      view.centerY = (minY + maxY) / 2;
     }
 
-    function worldToScreen(x, y) {
+    function worldToScreen(x, y, target = 'polar') {
+      const view = getView(target);
+      const activeCanvas = getCanvas(target);
       return {
-        x: canvas.width / 2 + (x - state.view.centerX) * state.view.scale,
-        y: canvas.height / 2 - (y - state.view.centerY) * state.view.scale
+        x: activeCanvas.clientWidth / 2 + (x - view.centerX) * view.scale,
+        y: activeCanvas.clientHeight / 2 - (y - view.centerY) * view.scale
       };
     }
 
-    function screenToWorld(x, y) {
+    function screenToWorld(x, y, target = 'polar') {
+      const view = getView(target);
+      const activeCanvas = getCanvas(target);
       return {
-        x: state.view.centerX + (x - canvas.width / 2) / state.view.scale,
-        y: state.view.centerY - (y - canvas.height / 2) / state.view.scale
+        x: view.centerX + (x - activeCanvas.clientWidth / 2) / view.scale,
+        y: view.centerY - (y - activeCanvas.clientHeight / 2) / view.scale
       };
     }
 
     function niceStep(raw) {
+      if (!(raw > 0) || !Number.isFinite(raw)) return 1;
       const pow10 = Math.pow(10, Math.floor(Math.log10(raw)));
       const fraction = raw / pow10;
       let niceFraction;
@@ -438,112 +479,162 @@
       return niceFraction * pow10;
     }
 
-    function drawCartesianAxes() {
+    function drawCartesianAxes(target = 'polar') {
       if (!el.showAxes.checked) return;
-      ctx.save();
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 1.5;
-      const y0 = worldToScreen(0, 0).y;
-      const x0 = worldToScreen(0, 0).x;
+      const context = getContext(target);
+      const activeCanvas = getCanvas(target);
+      const y0 = worldToScreen(0, 0, target).y;
+      const x0 = worldToScreen(0, 0, target).x;
 
-      ctx.beginPath();
-      ctx.moveTo(0, y0);
-      ctx.lineTo(canvas.width, y0);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(x0, 0);
-      ctx.lineTo(x0, canvas.height);
-      ctx.stroke();
-      ctx.restore();
+      context.save();
+      context.strokeStyle = '#64748b';
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.moveTo(0, y0);
+      context.lineTo(activeCanvas.clientWidth, y0);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(x0, 0);
+      context.lineTo(x0, activeCanvas.clientHeight);
+      context.stroke();
+      context.restore();
     }
 
-    function drawPolarGrid() {
-      if (!el.showGrid.checked) return;
-      const worldLeft = screenToWorld(0, canvas.height / 2).x;
-      const worldRight = screenToWorld(canvas.width, canvas.height / 2).x;
-      const worldBottom = screenToWorld(canvas.width / 2, canvas.height).y;
-      const worldTop = screenToWorld(canvas.width / 2, 0).y;
+    function drawPolarGrid(target = 'polar') {
+      if (!el.showGrid.checked || target !== 'polar') return;
+      const context = getContext(target);
+      const activeCanvas = getCanvas(target);
+      const worldLeft = screenToWorld(0, activeCanvas.clientHeight / 2, target).x;
+      const worldRight = screenToWorld(activeCanvas.clientWidth, activeCanvas.clientHeight / 2, target).x;
+      const worldBottom = screenToWorld(activeCanvas.clientWidth / 2, activeCanvas.clientHeight, target).y;
+      const worldTop = screenToWorld(activeCanvas.clientWidth / 2, 0, target).y;
       const maxVisibleR = Math.max(
         Math.hypot(worldLeft, worldBottom),
         Math.hypot(worldLeft, worldTop),
         Math.hypot(worldRight, worldBottom),
         Math.hypot(worldRight, worldTop)
       );
+      const radialStep = niceStep(90 / getView(target).scale);
+      const center = worldToScreen(0, 0, target);
 
-      const radialStep = niceStep(90 / state.view.scale);
-      const center = worldToScreen(0, 0);
-
-      ctx.save();
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.fillStyle = '#64748b';
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.45;
+      context.save();
+      context.strokeStyle = '#cbd5e1';
+      context.lineWidth = 1;
+      context.globalAlpha = 0.45;
 
       for (let r = radialStep; r <= maxVisibleR; r += radialStep) {
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, r * state.view.scale, 0, 2 * Math.PI);
-        ctx.stroke();
+        context.beginPath();
+        context.arc(center.x, center.y, r * getView(target).scale, 0, 2 * Math.PI);
+        context.stroke();
       }
 
       for (let k = 0; k < 12; k++) {
         const ang = k * Math.PI / 6;
         const dx = Math.cos(ang);
         const dy = Math.sin(ang);
-        ctx.beginPath();
-        ctx.moveTo(center.x - dx * maxVisibleR * state.view.scale, center.y + dy * maxVisibleR * state.view.scale);
-        ctx.lineTo(center.x + dx * maxVisibleR * state.view.scale, center.y - dy * maxVisibleR * state.view.scale);
-        ctx.stroke();
+        context.beginPath();
+        context.moveTo(center.x - dx * maxVisibleR * getView(target).scale, center.y + dy * maxVisibleR * getView(target).scale);
+        context.lineTo(center.x + dx * maxVisibleR * getView(target).scale, center.y - dy * maxVisibleR * getView(target).scale);
+        context.stroke();
       }
 
-      ctx.restore();
+      context.restore();
     }
 
-    function drawCurve() {
+    function drawCartesianGrid(target = 'cartesian') {
+      if (!el.showGrid.checked || target !== 'cartesian') return;
+      const context = getContext(target);
+      const activeCanvas = getCanvas(target);
+      const left = screenToWorld(0, activeCanvas.clientHeight, target).x;
+      const right = screenToWorld(activeCanvas.clientWidth, 0, target).x;
+      const bottom = screenToWorld(0, activeCanvas.clientHeight, target).y;
+      const top = screenToWorld(activeCanvas.clientWidth, 0, target).y;
+      const step = niceStep(90 / getView(target).scale);
+
+      context.save();
+      context.strokeStyle = '#e5e7eb';
+      context.globalAlpha = 0.45;
+      context.lineWidth = 1;
+
+      for (let x = Math.floor(left / step) * step; x <= right; x += step) {
+        const sx = worldToScreen(x, 0, target).x;
+        context.beginPath();
+        context.moveTo(sx, 0);
+        context.lineTo(sx, activeCanvas.clientHeight);
+        context.stroke();
+      }
+
+      for (let y = Math.floor(bottom / step) * step; y <= top; y += step) {
+        const sy = worldToScreen(0, y, target).y;
+        context.beginPath();
+        context.moveTo(0, sy);
+        context.lineTo(activeCanvas.clientWidth, sy);
+        context.stroke();
+      }
+
+      context.restore();
+    }
+
+    function drawCurve(target = 'polar') {
       const pts = state.points;
       if (pts.length < 2) return;
-
+      const context = getContext(target);
       const maxIndex = Math.max(1, Math.floor((pts.length - 1) * state.traceFraction));
-      ctx.save();
-      ctx.lineWidth = Number(el.lineWidth.value) || 2;
-      ctx.strokeStyle = '#0284c7';
-      ctx.beginPath();
+
+      context.save();
+      context.lineWidth = Number(el.lineWidth.value) || 2;
+      context.strokeStyle = '#0284c7';
+      context.beginPath();
       for (let i = 0; i <= maxIndex; i++) {
-        const p = worldToScreen(pts[i].x, pts[i].y);
-        if (i === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
+        const p = worldToScreen(pts[i].x, pts[i].y, target);
+        if (i === 0) context.moveTo(p.x, p.y);
+        else context.lineTo(p.x, p.y);
       }
-      ctx.stroke();
-      ctx.restore();
+      context.stroke();
+      context.restore();
 
       if (el.showPoint.checked) {
         const p = pts[maxIndex];
-        const s = worldToScreen(p.x, p.y);
-        const origin = worldToScreen(0, 0);
+        const s = worldToScreen(p.x, p.y, target);
+        const origin = worldToScreen(0, 0, target);
 
-        ctx.save();
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(origin.x, origin.y);
-        ctx.lineTo(s.x, s.y);
-        ctx.stroke();
+        context.save();
+        context.strokeStyle = '#f59e0b';
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(origin.x, origin.y);
+        context.lineTo(s.x, s.y);
+        context.stroke();
 
-        ctx.fillStyle = '#dc2626';
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 5.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        context.fillStyle = '#dc2626';
+        context.beginPath();
+        context.arc(s.x, s.y, 5.5, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
       }
     }
 
+    function clearCanvas(target = 'polar') {
+      const context = getContext(target);
+      const activeCanvas = getCanvas(target);
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+      context.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      context.fillStyle = 'white';
+      context.fillRect(0, 0, activeCanvas.clientWidth, activeCanvas.clientHeight);
+    }
+
+    function drawSingle(target = 'polar') {
+      clearCanvas(target);
+      if (target === 'polar') drawPolarGrid(target);
+      else drawCartesianGrid(target);
+      drawCartesianAxes(target);
+      drawCurve(target);
+    }
+
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      drawPolarGrid();
-      drawCartesianAxes();
-      drawCurve();
+      drawSingle('polar');
+      if (el.splitView.checked) drawSingle('cartesian');
     }
 
     function updateStats() {
@@ -552,6 +643,7 @@
         el.stats.innerHTML = '';
         return;
       }
+
       const idx = Math.max(0, Math.min(pts.length - 1, Math.floor((pts.length - 1) * state.traceFraction)));
       const p = pts[idx];
       el.stats.innerHTML = `
@@ -560,14 +652,18 @@
         <span><strong>r:</strong> ${p.r.toFixed(4)}</span>
         <span><strong>x:</strong> ${p.x.toFixed(4)}</span>
         <span><strong>y:</strong> ${p.y.toFixed(4)}</span>
-        <span><strong>Scale:</strong> ${state.view.scale.toFixed(2)} px/unit</span>
+        <span><strong>Polar scale:</strong> ${state.polarView.scale.toFixed(2)} px/unit</span>
+        ${el.splitView.checked ? `<span><strong>Cartesian scale:</strong> ${state.cartesianView.scale.toFixed(2)} px/unit</span>` : ''}
       `;
     }
 
     function plotAndDraw(autoFit = true) {
       try {
         generateCurve();
-        if (autoFit) fitView();
+        if (autoFit) {
+          fitView('polar');
+          fitView('cartesian');
+        }
         draw();
         updateStats();
         setStatus('Polar curve plotted successfully.', 'ok');
@@ -580,7 +676,6 @@
       if (!state.points.length) plotAndDraw(true);
       state.animating = true;
       el.animateBtn.textContent = 'Pause';
-
       let start = null;
       const duration = 5000;
 
@@ -604,20 +699,98 @@
       if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
     }
 
+    function updateSplitView() {
+      el.cartesianBox.classList.toggle('hidden', !el.splitView.checked);
+      el.canvasGrid.style.gridTemplateColumns = el.splitView.checked ? '1fr 1fr' : '1fr';
+    }
+
+    function sizeOneCanvas(activeCanvas) {
+      const ratio = window.devicePixelRatio || 1;
+      const rect = activeCanvas.getBoundingClientRect();
+      const width = Math.max(320, rect.width || 600);
+      const height = el.lockAspect.checked ? width : Math.max(320, width * 0.72);
+      activeCanvas.style.height = `${height}px`;
+      activeCanvas.width = Math.round(width * ratio);
+      activeCanvas.height = Math.round(height * ratio);
+    }
+
+    function resizeCanvas() {
+      sizeOneCanvas(canvas);
+      if (el.splitView.checked) {
+        sizeOneCanvas(cartesianCanvas);
+      }
+      draw();
+    }
+
+    function beginDrag(e, target) {
+      state.dragging = true;
+      state.dragTarget = target;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+    }
+
+    function handleDragMove(e, target) {
+      if (!state.dragging || state.dragTarget !== target) return;
+      const view = getView(target);
+      const dx = e.offsetX - state.lastMouseX;
+      const dy = e.offsetY - state.lastMouseY;
+      view.centerX -= dx / view.scale;
+      view.centerY += dy / view.scale;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+      draw();
+      updateStats();
+    }
+
+    function handleWheel(e, target) {
+      e.preventDefault();
+      const view = getView(target);
+      const mouseBefore = screenToWorld(e.offsetX, e.offsetY, target);
+      const zoomFactor = Math.exp(-e.deltaY * 0.001);
+      view.scale = Math.max(5, Math.min(5000, view.scale * zoomFactor));
+      const mouseAfter = screenToWorld(e.offsetX, e.offsetY, target);
+      view.centerX += mouseBefore.x - mouseAfter.x;
+      view.centerY += mouseBefore.y - mouseAfter.y;
+      draw();
+      updateStats();
+    }
+
+    function runSelfTests() {
+      console.assert(typeof compileExpression('2*sin(theta)') === 'function', 'Expression compiler should return a function.');
+      console.assert(Math.abs(compileExpression('2*sin(theta)')(Math.PI / 2) - 2) < 1e-9, 'Compiled expression should evaluate correctly.');
+      console.assert(niceStep(0.8) > 0, 'niceStep should return a positive step.');
+      console.assert(presets.circle.r === '3', 'Circle preset should be present.');
+
+      const originalExpr = el.rExpr.value;
+      const originalMin = el.thetaMin.value;
+      const originalMax = el.thetaMax.value;
+      el.rExpr.value = '3';
+      el.thetaMin.value = '0';
+      el.thetaMax.value = String(2 * Math.PI);
+      generateCurve();
+      console.assert(state.points.length > 100, 'Curve generation should produce many points.');
+      console.assert(state.bounds.maxX > 2.9 && state.bounds.minX < -2.9, 'Bounds should capture the circle width.');
+      el.rExpr.value = originalExpr;
+      el.thetaMin.value = originalMin;
+      el.thetaMax.value = originalMax;
+    }
+
     el.plotBtn.addEventListener('click', () => {
       stopAnimation();
       plotAndDraw(true);
     });
 
     el.fitBtn.addEventListener('click', () => {
-      fitView();
+      fitView('polar');
+      fitView('cartesian');
       draw();
       updateStats();
     });
 
     el.resetViewBtn.addEventListener('click', () => {
       stopAnimation();
-      fitView();
+      fitView('polar');
+      fitView('cartesian');
       draw();
       updateStats();
     });
@@ -634,8 +807,20 @@
       draw();
     });
 
-    [el.showAxes, el.showGrid, el.showPoint, el.lineWidth].forEach(node => {
-      node.addEventListener('input', () => draw());
+    [el.showAxes, el.showGrid, el.showPoint, el.lineWidth, el.lockAspect].forEach(node => {
+      node.addEventListener('input', () => {
+        resizeCanvas();
+        draw();
+      });
+    });
+
+    el.splitView.addEventListener('input', () => {
+      updateSplitView();
+      resizeCanvas();
+      fitView('polar');
+      fitView('cartesian');
+      draw();
+      updateStats();
     });
 
     el.downloadBtn.addEventListener('click', () => {
@@ -655,46 +840,18 @@
       plotAndDraw(true);
     });
 
-    canvas.addEventListener('mousedown', (e) => {
-      state.dragging = true;
-      state.lastMouseX = e.offsetX;
-      state.lastMouseY = e.offsetY;
-    });
-
-    window.addEventListener('mouseup', () => {
-      state.dragging = false;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (!state.dragging) return;
-      const dx = e.offsetX - state.lastMouseX;
-      const dy = e.offsetY - state.lastMouseY;
-      state.view.centerX -= dx / state.view.scale;
-      state.view.centerY += dy / state.view.scale;
-      state.lastMouseX = e.offsetX;
-      state.lastMouseY = e.offsetY;
-      draw();
-      updateStats();
-    });
-
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const mouseBefore = screenToWorld(e.offsetX, e.offsetY);
-      const zoomFactor = Math.exp(-e.deltaY * 0.001);
-      state.view.scale = Math.max(5, Math.min(5000, state.view.scale * zoomFactor));
-      const mouseAfter = screenToWorld(e.offsetX, e.offsetY);
-      state.view.centerX += mouseBefore.x - mouseAfter.x;
-      state.view.centerY += mouseBefore.y - mouseAfter.y;
-      draw();
-      updateStats();
-    }, { passive: false });
-
-    function resizeCanvas() {
-      draw();
-    }
-
+    canvas.addEventListener('mousedown', (e) => beginDrag(e, 'polar'));
+    cartesianCanvas.addEventListener('mousedown', (e) => beginDrag(e, 'cartesian'));
+    window.addEventListener('mouseup', () => { state.dragging = false; });
+    canvas.addEventListener('mousemove', (e) => handleDragMove(e, 'polar'));
+    cartesianCanvas.addEventListener('mousemove', (e) => handleDragMove(e, 'cartesian'));
+    canvas.addEventListener('wheel', (e) => handleWheel(e, 'polar'), { passive: false });
+    cartesianCanvas.addEventListener('wheel', (e) => handleWheel(e, 'cartesian'), { passive: false });
     window.addEventListener('resize', resizeCanvas);
 
+    updateSplitView();
+    resizeCanvas();
+    runSelfTests();
     plotAndDraw(true);
   </script>
 </body>
