@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Polar Equation Plotter</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --border: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.95rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: #0b1220;
+      color: var(--text);
+      font-size: 0.98rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+    }
+
+    button.secondary { background: #475569; }
+    button.success { background: #16a34a; }
+
+    .hint, .status {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .status.error {
+      color: #fecaca;
+      background: rgba(127, 29, 29, 0.35);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .status.ok {
+      color: #dcfce7;
+      background: rgba(20, 83, 45, 0.35);
+      border: 1px solid rgba(74, 222, 128, 0.4);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .canvas-panel {
+      padding: 12px;
+    }
+
+    canvas {
+      width: 100%;
+      height: min(72vh, 760px);
+      display: block;
+      background: #ffffff;
+      border-radius: 12px;
+    }
+
+    .footer-stats {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    code {
+      background: rgba(148, 163, 184, 0.12);
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #e2e8f0;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      canvas {
+        height: 58vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Interactive Polar Equation Plotter</h1>
+    <div class="subtitle">
+      Edit the polar equation <code>r(θ)</code>, change the angle range, and explore the resulting curve. Use standard JavaScript/Math syntax such as <code>sin(theta)</code>, <code>cos(3*theta)</code>, <code>exp()</code>, <code>pow()</code>, and <code>PI</code>.
+    </div>
+
+    <div class="layout">
+      <div class="panel controls">
+        <div class="field">
+          <label for="preset">Preset curves</label>
+          <select id="preset">
+            <option value="rose4">Rose curve</option>
+            <option value="circle">Circle</option>
+            <option value="cardioid">Cardioid</option>
+            <option value="limacon">Limacon</option>
+            <option value="lemniscate">Lemniscate</option>
+            <option value="spiral">Spiral</option>
+            <option value="hyperbolic">Hyperbolic spiral</option>
+            <option value="butterfly">Butterfly-style polar</option>
+            <option value="custom">Custom (leave current equation)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="rExpr">r(θ)</label>
+          <input id="rExpr" type="text" value="2*sin(4*theta)" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="thetaMin">θ minimum</label>
+            <input id="thetaMin" type="number" step="any" value="0" />
+          </div>
+          <div class="field">
+            <label for="thetaMax">θ maximum</label>
+            <input id="thetaMax" type="number" step="any" value="6.2831853072" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="samples">Plot points</label>
+            <input id="samples" type="number" min="100" max="20000" step="100" value="4000" />
+          </div>
+          <div class="field">
+            <label for="lineWidth">Curve thickness</label>
+            <input id="lineWidth" type="number" min="1" max="8" step="1" value="2" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="traceSlider">Trace angle value</label>
+          <input id="traceSlider" type="range" min="0" max="1000" value="1000" />
+        </div>
+
+        <div class="row3">
+          <div class="field">
+            <label><input id="showAxes" type="checkbox" checked /> Show axes</label>
+          </div>
+          <div class="field">
+            <label><input id="showGrid" type="checkbox" checked /> Show polar grid</label>
+          </div>
+          <div class="field">
+            <label><input id="showPoint" type="checkbox" checked /> Show tracer</label>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="plotBtn">Plot</button>
+          <button id="animateBtn" class="success">Animate</button>
+          <button id="fitBtn" class="secondary">Auto-fit</button>
+          <button id="resetViewBtn" class="secondary">Reset view</button>
+          <button id="downloadBtn" class="secondary">Download PNG</button>
+        </div>
+
+        <div id="status" class="status ok">Ready.</div>
+
+        <div class="hint">
+          Mouse controls: drag to pan, mouse wheel to zoom. Functions/constants include <code>PI</code>, <code>E</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>sqrt</code>, <code>abs</code>, <code>log</code>, and <code>exp</code>. Negative values of <code>r</code> are allowed.
+        </div>
+      </div>
+
+      <div class="panel canvas-panel">
+        <canvas id="plotCanvas" width="900" height="700"></canvas>
+        <div class="footer-stats" id="stats"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const el = {
+      preset: document.getElementById('preset'),
+      rExpr: document.getElementById('rExpr'),
+      thetaMin: document.getElementById('thetaMin'),
+      thetaMax: document.getElementById('thetaMax'),
+      samples: document.getElementById('samples'),
+      lineWidth: document.getElementById('lineWidth'),
+      traceSlider: document.getElementById('traceSlider'),
+      showAxes: document.getElementById('showAxes'),
+      showGrid: document.getElementById('showGrid'),
+      showPoint: document.getElementById('showPoint'),
+      plotBtn: document.getElementById('plotBtn'),
+      animateBtn: document.getElementById('animateBtn'),
+      fitBtn: document.getElementById('fitBtn'),
+      resetViewBtn: document.getElementById('resetViewBtn'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      status: document.getElementById('status'),
+      stats: document.getElementById('stats')
+    };
+
+    const presets = {
+      rose4: {
+        r: '2*sin(4*theta)',
+        thetaMin: 0,
+        thetaMax: 2 * Math.PI
+      },
+      circle: {
+        r: '3',
+        thetaMin: 0,
+        thetaMax: 2 * Math.PI
+      },
+      cardioid: {
+        r: '2*(1 + cos(theta))',
+        thetaMin: 0,
+        thetaMax: 2 * Math.PI
+      },
+      limacon: {
+        r: '1 + 2*cos(theta)',
+        thetaMin: 0,
+        thetaMax: 2 * Math.PI
+      },
+      lemniscate: {
+        r: 'sqrt(abs(8*cos(2*theta)))',
+        thetaMin: -Math.PI/4,
+        thetaMax: Math.PI/4
+      },
+      spiral: {
+        r: '0.35*theta',
+        thetaMin: 0,
+        thetaMax: 10 * Math.PI
+      },
+      hyperbolic: {
+        r: '6/(theta + 0.2)',
+        thetaMin: 0.2,
+        thetaMax: 8 * Math.PI
+      },
+      butterfly: {
+        r: 'exp(cos(theta)) - 2*cos(4*theta) + pow(sin((2*theta-PI)/24),5)',
+        thetaMin: 0,
+        thetaMax: 24 * Math.PI
+      }
+    };
+
+    const state = {
+      points: [],
+      bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1, maxR: 1 },
+      view: { centerX: 0, centerY: 0, scale: 120 },
+      dragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      animating: false,
+      animationFrame: null,
+      traceFraction: 1
+    };
+
+    function setStatus(message, type = 'ok') {
+      el.status.textContent = message;
+      el.status.className = 'status ' + type;
+    }
+
+    function compileExpression(expr) {
+      const sanitized = expr.replace(/\^/g, '**');
+      return new Function('theta', `
+        const {sin, cos, tan, asin, acos, atan, atan2, sqrt, abs, log, exp, pow, min, max, floor, ceil, round, sinh, cosh, tanh} = Math;
+        const PI = Math.PI;
+        const E = Math.E;
+        return ${sanitized};
+      `);
+    }
+
+    function generateCurve() {
+      const rExpr = el.rExpr.value.trim();
+      const thetaMin = Number(el.thetaMin.value);
+      const thetaMax = Number(el.thetaMax.value);
+      const samples = Math.max(100, Math.min(20000, Number(el.samples.value) || 4000));
+
+      if (!Number.isFinite(thetaMin) || !Number.isFinite(thetaMax) || thetaMax === thetaMin) {
+        throw new Error('Please choose valid angle limits with θ maximum different from θ minimum.');
+      }
+
+      const fr = compileExpression(rExpr);
+      const pts = [];
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxR = 0;
+
+      for (let i = 0; i <= samples; i++) {
+        const theta = thetaMin + (thetaMax - thetaMin) * (i / samples);
+        let r = fr(theta);
+        if (!Number.isFinite(r)) continue;
+        const x = r * Math.cos(theta);
+        const y = r * Math.sin(theta);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        pts.push({ x, y, r, theta });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        if (Math.abs(r) > maxR) maxR = Math.abs(r);
+      }
+
+      if (pts.length < 2) {
+        throw new Error('The curve could not be plotted. Try changing the equation or angle range.');
+      }
+
+      state.points = pts;
+      state.bounds = { minX, maxX, minY, maxY, maxR };
+      state.traceFraction = Number(el.traceSlider.value) / 1000;
+      updateStats();
+    }
+
+    function fitView(padding = 0.12) {
+      const { minX, maxX, minY, maxY } = state.bounds;
+      const w = Math.max(1e-9, maxX - minX);
+      const h = Math.max(1e-9, maxY - minY);
+      const scaleX = canvas.width * (1 - 2 * padding) / w;
+      const scaleY = canvas.height * (1 - 2 * padding) / h;
+      state.view.scale = Math.max(10, Math.min(scaleX, scaleY));
+      state.view.centerX = (minX + maxX) / 2;
+      state.view.centerY = (minY + maxY) / 2;
+    }
+
+    function worldToScreen(x, y) {
+      return {
+        x: canvas.width / 2 + (x - state.view.centerX) * state.view.scale,
+        y: canvas.height / 2 - (y - state.view.centerY) * state.view.scale
+      };
+    }
+
+    function screenToWorld(x, y) {
+      return {
+        x: state.view.centerX + (x - canvas.width / 2) / state.view.scale,
+        y: state.view.centerY - (y - canvas.height / 2) / state.view.scale
+      };
+    }
+
+    function niceStep(raw) {
+      const pow10 = Math.pow(10, Math.floor(Math.log10(raw)));
+      const fraction = raw / pow10;
+      let niceFraction;
+      if (fraction < 1.5) niceFraction = 1;
+      else if (fraction < 3) niceFraction = 2;
+      else if (fraction < 7) niceFraction = 5;
+      else niceFraction = 10;
+      return niceFraction * pow10;
+    }
+
+    function drawCartesianAxes() {
+      if (!el.showAxes.checked) return;
+      ctx.save();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      const y0 = worldToScreen(0, 0).y;
+      const x0 = worldToScreen(0, 0).x;
+
+      ctx.beginPath();
+      ctx.moveTo(0, y0);
+      ctx.lineTo(canvas.width, y0);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x0, 0);
+      ctx.lineTo(x0, canvas.height);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPolarGrid() {
+      if (!el.showGrid.checked) return;
+      const worldLeft = screenToWorld(0, canvas.height / 2).x;
+      const worldRight = screenToWorld(canvas.width, canvas.height / 2).x;
+      const worldBottom = screenToWorld(canvas.width / 2, canvas.height).y;
+      const worldTop = screenToWorld(canvas.width / 2, 0).y;
+      const maxVisibleR = Math.max(
+        Math.hypot(worldLeft, worldBottom),
+        Math.hypot(worldLeft, worldTop),
+        Math.hypot(worldRight, worldBottom),
+        Math.hypot(worldRight, worldTop)
+      );
+
+      const radialStep = niceStep(90 / state.view.scale);
+      const center = worldToScreen(0, 0);
+
+      ctx.save();
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.fillStyle = '#64748b';
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.45;
+
+      for (let r = radialStep; r <= maxVisibleR; r += radialStep) {
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r * state.view.scale, 0, 2 * Math.PI);
+        ctx.stroke();
+      }
+
+      for (let k = 0; k < 12; k++) {
+        const ang = k * Math.PI / 6;
+        const dx = Math.cos(ang);
+        const dy = Math.sin(ang);
+        ctx.beginPath();
+        ctx.moveTo(center.x - dx * maxVisibleR * state.view.scale, center.y + dy * maxVisibleR * state.view.scale);
+        ctx.lineTo(center.x + dx * maxVisibleR * state.view.scale, center.y - dy * maxVisibleR * state.view.scale);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCurve() {
+      const pts = state.points;
+      if (pts.length < 2) return;
+
+      const maxIndex = Math.max(1, Math.floor((pts.length - 1) * state.traceFraction));
+      ctx.save();
+      ctx.lineWidth = Number(el.lineWidth.value) || 2;
+      ctx.strokeStyle = '#0284c7';
+      ctx.beginPath();
+      for (let i = 0; i <= maxIndex; i++) {
+        const p = worldToScreen(pts[i].x, pts[i].y);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      if (el.showPoint.checked) {
+        const p = pts[maxIndex];
+        const s = worldToScreen(p.x, p.y);
+        const origin = worldToScreen(0, 0);
+
+        ctx.save();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(s.x, s.y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawPolarGrid();
+      drawCartesianAxes();
+      drawCurve();
+    }
+
+    function updateStats() {
+      const pts = state.points;
+      if (!pts.length) {
+        el.stats.innerHTML = '';
+        return;
+      }
+      const idx = Math.max(0, Math.min(pts.length - 1, Math.floor((pts.length - 1) * state.traceFraction)));
+      const p = pts[idx];
+      el.stats.innerHTML = `
+        <span><strong>Points:</strong> ${pts.length}</span>
+        <span><strong>θ:</strong> ${p.theta.toFixed(4)}</span>
+        <span><strong>r:</strong> ${p.r.toFixed(4)}</span>
+        <span><strong>x:</strong> ${p.x.toFixed(4)}</span>
+        <span><strong>y:</strong> ${p.y.toFixed(4)}</span>
+        <span><strong>Scale:</strong> ${state.view.scale.toFixed(2)} px/unit</span>
+      `;
+    }
+
+    function plotAndDraw(autoFit = true) {
+      try {
+        generateCurve();
+        if (autoFit) fitView();
+        draw();
+        updateStats();
+        setStatus('Polar curve plotted successfully.', 'ok');
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    }
+
+    function startAnimation() {
+      if (!state.points.length) plotAndDraw(true);
+      state.animating = true;
+      el.animateBtn.textContent = 'Pause';
+
+      let start = null;
+      const duration = 5000;
+
+      function step(ts) {
+        if (!state.animating) return;
+        if (start === null) start = ts;
+        const progress = ((ts - start) % duration) / duration;
+        state.traceFraction = progress;
+        el.traceSlider.value = Math.round(progress * 1000);
+        updateStats();
+        draw();
+        state.animationFrame = requestAnimationFrame(step);
+      }
+
+      state.animationFrame = requestAnimationFrame(step);
+    }
+
+    function stopAnimation() {
+      state.animating = false;
+      el.animateBtn.textContent = 'Animate';
+      if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
+    }
+
+    el.plotBtn.addEventListener('click', () => {
+      stopAnimation();
+      plotAndDraw(true);
+    });
+
+    el.fitBtn.addEventListener('click', () => {
+      fitView();
+      draw();
+      updateStats();
+    });
+
+    el.resetViewBtn.addEventListener('click', () => {
+      stopAnimation();
+      fitView();
+      draw();
+      updateStats();
+    });
+
+    el.animateBtn.addEventListener('click', () => {
+      if (state.animating) stopAnimation();
+      else startAnimation();
+    });
+
+    el.traceSlider.addEventListener('input', (e) => {
+      stopAnimation();
+      state.traceFraction = Number(e.target.value) / 1000;
+      updateStats();
+      draw();
+    });
+
+    [el.showAxes, el.showGrid, el.showPoint, el.lineWidth].forEach(node => {
+      node.addEventListener('input', () => draw());
+    });
+
+    el.downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'polar-plot.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    el.preset.addEventListener('change', () => {
+      const key = el.preset.value;
+      if (key === 'custom') return;
+      const p = presets[key];
+      el.rExpr.value = p.r;
+      el.thetaMin.value = p.thetaMin;
+      el.thetaMax.value = p.thetaMax;
+      plotAndDraw(true);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      state.dragging = true;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      state.dragging = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!state.dragging) return;
+      const dx = e.offsetX - state.lastMouseX;
+      const dy = e.offsetY - state.lastMouseY;
+      state.view.centerX -= dx / state.view.scale;
+      state.view.centerY += dy / state.view.scale;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+      draw();
+      updateStats();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const mouseBefore = screenToWorld(e.offsetX, e.offsetY);
+      const zoomFactor = Math.exp(-e.deltaY * 0.001);
+      state.view.scale = Math.max(5, Math.min(5000, state.view.scale * zoomFactor));
+      const mouseAfter = screenToWorld(e.offsetX, e.offsetY);
+      state.view.centerX += mouseBefore.x - mouseAfter.x;
+      state.view.centerY += mouseBefore.y - mouseAfter.y;
+      draw();
+      updateStats();
+    }, { passive: false });
+
+    function resizeCanvas() {
+      draw();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    plotAndDraw(true);
+  </script>
+</body>
+</html>
