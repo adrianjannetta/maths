@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Parametric Equation Plotter</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --border: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --danger: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, #0f172a 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.8rem;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.95rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #475569;
+      background: #0b1220;
+      color: var(--text);
+      font-size: 0.98rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: #2563eb;
+    }
+
+    button.secondary { background: #475569; }
+    button.success { background: #16a34a; }
+    button.warn { background: #dc2626; }
+
+    .hint, .status {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    .status.error {
+      color: #fecaca;
+      background: rgba(127, 29, 29, 0.35);
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .status.ok {
+      color: #dcfce7;
+      background: rgba(20, 83, 45, 0.35);
+      border: 1px solid rgba(74, 222, 128, 0.4);
+      padding: 10px 12px;
+      border-radius: 10px;
+    }
+
+    .canvas-panel {
+      padding: 12px;
+    }
+
+    canvas {
+      width: 100%;
+      height: min(72vh, 760px);
+      display: block;
+      background: #ffffff;
+      border-radius: 12px;
+    }
+
+    .footer-stats {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    code {
+      background: rgba(148, 163, 184, 0.12);
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: #e2e8f0;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      canvas {
+        height: 58vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Interactive Parametric Equation Plotter</h1>
+    <div class="subtitle">
+      Edit the parametric equations, change the parameter range, and explore the curve. Use standard JavaScript/Math syntax such as <code>sin(t)</code>, <code>cos(3*t)</code>, <code>exp()</code>, <code>pow()</code>, and <code>PI</code>.
+    </div>
+
+    <div class="layout">
+      <div class="panel controls">
+        <div class="field">
+          <label for="preset">Preset curves</label>
+          <select id="preset">
+            <option value="lissajous">Lissajous curve</option>
+            <option value="circle">Circle</option>
+            <option value="ellipse">Ellipse</option>
+            <option value="cycloid">Cycloid</option>
+            <option value="epicycloid">Epicycloid</option>
+            <option value="hypotrochoid">Hypotrochoid</option>
+            <option value="spiral">Archimedean spiral</option>
+            <option value="butterfly">Butterfly curve</option>
+            <option value="custom">Custom (leave current equations)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="xExpr">x(t)</label>
+          <input id="xExpr" type="text" value="sin(3*t + PI/2)" />
+        </div>
+
+        <div class="field">
+          <label for="yExpr">y(t)</label>
+          <input id="yExpr" type="text" value="sin(2*t)" />
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="tMin">t minimum</label>
+            <input id="tMin" type="number" step="any" value="0" />
+          </div>
+          <div class="field">
+            <label for="tMax">t maximum</label>
+            <input id="tMax" type="number" step="any" value="6.2831853072" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="samples">Plot points</label>
+            <input id="samples" type="number" min="100" max="20000" step="100" value="3000" />
+          </div>
+          <div class="field">
+            <label for="lineWidth">Curve thickness</label>
+            <input id="lineWidth" type="number" min="1" max="8" step="1" value="2" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="traceSlider">Trace parameter value</label>
+          <input id="traceSlider" type="range" min="0" max="1000" value="1000" />
+        </div>
+
+        <div class="row3">
+          <div class="field">
+            <label><input id="showAxes" type="checkbox" checked /> Show axes</label>
+          </div>
+          <div class="field">
+            <label><input id="showGrid" type="checkbox" checked /> Show grid</label>
+          </div>
+          <div class="field">
+            <label><input id="showPoint" type="checkbox" checked /> Show tracer</label>
+          </div>
+        </div>
+
+        <div class="buttons">
+          <button id="plotBtn">Plot</button>
+          <button id="animateBtn" class="success">Animate</button>
+          <button id="fitBtn" class="secondary">Auto-fit</button>
+          <button id="resetViewBtn" class="secondary">Reset view</button>
+          <button id="downloadBtn" class="secondary">Download PNG</button>
+        </div>
+
+        <div id="status" class="status ok">Ready.</div>
+
+        <div class="hint">
+          Mouse controls: drag to pan, mouse wheel to zoom. Useful constants/functions include <code>PI</code>, <code>E</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>sqrt</code>, <code>abs</code>, <code>log</code>, and <code>exp</code>.
+        </div>
+      </div>
+
+      <div class="panel canvas-panel">
+        <canvas id="plotCanvas" width="900" height="700"></canvas>
+        <div class="footer-stats" id="stats"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('plotCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const el = {
+      preset: document.getElementById('preset'),
+      xExpr: document.getElementById('xExpr'),
+      yExpr: document.getElementById('yExpr'),
+      tMin: document.getElementById('tMin'),
+      tMax: document.getElementById('tMax'),
+      samples: document.getElementById('samples'),
+      lineWidth: document.getElementById('lineWidth'),
+      traceSlider: document.getElementById('traceSlider'),
+      showAxes: document.getElementById('showAxes'),
+      showGrid: document.getElementById('showGrid'),
+      showPoint: document.getElementById('showPoint'),
+      plotBtn: document.getElementById('plotBtn'),
+      animateBtn: document.getElementById('animateBtn'),
+      fitBtn: document.getElementById('fitBtn'),
+      resetViewBtn: document.getElementById('resetViewBtn'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      status: document.getElementById('status'),
+      stats: document.getElementById('stats')
+    };
+
+    const presets = {
+      lissajous: {
+        x: 'sin(3*t + PI/2)',
+        y: 'sin(2*t)',
+        tMin: 0,
+        tMax: 2 * Math.PI
+      },
+      circle: {
+        x: 'cos(t)',
+        y: 'sin(t)',
+        tMin: 0,
+        tMax: 2 * Math.PI
+      },
+      ellipse: {
+        x: '3*cos(t)',
+        y: '2*sin(t)',
+        tMin: 0,
+        tMax: 2 * Math.PI
+      },
+      cycloid: {
+        x: 't - sin(t)',
+        y: '1 - cos(t)',
+        tMin: 0,
+        tMax: 4 * Math.PI
+      },
+      epicycloid: {
+        x: '5*cos(t) - cos(5*t)',
+        y: '5*sin(t) - sin(5*t)',
+        tMin: 0,
+        tMax: 2 * Math.PI
+      },
+      hypotrochoid: {
+        x: '(5-3)*cos(t) + 5*cos((5-3)*t/3)',
+        y: '(5-3)*sin(t) - 5*sin((5-3)*t/3)',
+        tMin: 0,
+        tMax: 12 * Math.PI
+      },
+      spiral: {
+        x: '(0.15*t)*cos(t)',
+        y: '(0.15*t)*sin(t)',
+        tMin: 0,
+        tMax: 12 * Math.PI
+      },
+      butterfly: {
+        x: 'sin(t)*(exp(cos(t)) - 2*cos(4*t) - pow(sin(t/12),5))',
+        y: 'cos(t)*(exp(cos(t)) - 2*cos(4*t) - pow(sin(t/12),5))',
+        tMin: 0,
+        tMax: 24 * Math.PI
+      }
+    };
+
+    const state = {
+      points: [],
+      bounds: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+      view: { centerX: 0, centerY: 0, scale: 120 },
+      dragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      animating: false,
+      animationFrame: null,
+      traceFraction: 1
+    };
+
+    function setStatus(message, type = 'ok') {
+      el.status.textContent = message;
+      el.status.className = 'status ' + type;
+    }
+
+    function compileExpression(expr) {
+      const sanitized = expr.replace(/\^/g, '**');
+      return new Function('t', `
+        const {sin, cos, tan, asin, acos, atan, atan2, sqrt, abs, log, exp, pow, min, max, floor, ceil, round, sinh, cosh, tanh} = Math;
+        const PI = Math.PI;
+        const E = Math.E;
+        return ${sanitized};
+      `);
+    }
+
+    function generateCurve() {
+      const xExpr = el.xExpr.value.trim();
+      const yExpr = el.yExpr.value.trim();
+      const tMin = Number(el.tMin.value);
+      const tMax = Number(el.tMax.value);
+      const samples = Math.max(100, Math.min(20000, Number(el.samples.value) || 3000));
+
+      if (!Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax === tMin) {
+        throw new Error('Please choose valid parameter limits with t maximum different from t minimum.');
+      }
+
+      const fx = compileExpression(xExpr);
+      const fy = compileExpression(yExpr);
+      const pts = [];
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+      for (let i = 0; i <= samples; i++) {
+        const t = tMin + (tMax - tMin) * (i / samples);
+        let x = fx(t);
+        let y = fy(t);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        pts.push({ x, y, t });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+
+      if (pts.length < 2) {
+        throw new Error('The curve could not be plotted. Try changing the equations or parameter range.');
+      }
+
+      state.points = pts;
+      state.bounds = { minX, maxX, minY, maxY };
+      state.traceFraction = Number(el.traceSlider.value) / 1000;
+      updateStats();
+    }
+
+    function fitView(padding = 0.12) {
+      const { minX, maxX, minY, maxY } = state.bounds;
+      const w = Math.max(1e-9, maxX - minX);
+      const h = Math.max(1e-9, maxY - minY);
+      const scaleX = canvas.width * (1 - 2 * padding) / w;
+      const scaleY = canvas.height * (1 - 2 * padding) / h;
+      state.view.scale = Math.max(10, Math.min(scaleX, scaleY));
+      state.view.centerX = (minX + maxX) / 2;
+      state.view.centerY = (minY + maxY) / 2;
+    }
+
+    function resetView() {
+      fitView();
+      draw();
+    }
+
+    function worldToScreen(x, y) {
+      return {
+        x: canvas.width / 2 + (x - state.view.centerX) * state.view.scale,
+        y: canvas.height / 2 - (y - state.view.centerY) * state.view.scale
+      };
+    }
+
+    function screenToWorld(x, y) {
+      return {
+        x: state.view.centerX + (x - canvas.width / 2) / state.view.scale,
+        y: state.view.centerY - (y - canvas.height / 2) / state.view.scale
+      };
+    }
+
+    function niceStep(raw) {
+      const pow10 = Math.pow(10, Math.floor(Math.log10(raw)));
+      const fraction = raw / pow10;
+      let niceFraction;
+      if (fraction < 1.5) niceFraction = 1;
+      else if (fraction < 3) niceFraction = 2;
+      else if (fraction < 7) niceFraction = 5;
+      else niceFraction = 10;
+      return niceFraction * pow10;
+    }
+
+    function drawGrid() {
+      if (!el.showGrid.checked) return;
+      const left = screenToWorld(0, canvas.height).x;
+      const right = screenToWorld(canvas.width, 0).x;
+      const bottom = screenToWorld(0, canvas.height).y;
+      const top = screenToWorld(canvas.width, 0).y;
+      const targetPx = 90;
+      const step = niceStep(targetPx / state.view.scale);
+
+      ctx.save();
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.globalAlpha = 0.45;
+      ctx.lineWidth = 1;
+
+      for (let x = Math.floor(left / step) * step; x <= right; x += step) {
+        const sx = worldToScreen(x, 0).x;
+        ctx.beginPath();
+        ctx.moveTo(sx, 0);
+        ctx.lineTo(sx, canvas.height);
+        ctx.stroke();
+      }
+
+      for (let y = Math.floor(bottom / step) * step; y <= top; y += step) {
+        const sy = worldToScreen(0, y).y;
+        ctx.beginPath();
+        ctx.moveTo(0, sy);
+        ctx.lineTo(canvas.width, sy);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawAxes() {
+      if (!el.showAxes.checked) return;
+      ctx.save();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      const y0 = worldToScreen(0, 0).y;
+      const x0 = worldToScreen(0, 0).x;
+
+      ctx.beginPath();
+      ctx.moveTo(0, y0);
+      ctx.lineTo(canvas.width, y0);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x0, 0);
+      ctx.lineTo(x0, canvas.height);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCurve() {
+      const pts = state.points;
+      if (pts.length < 2) return;
+
+      const maxIndex = Math.max(1, Math.floor((pts.length - 1) * state.traceFraction));
+      ctx.save();
+      ctx.lineWidth = Number(el.lineWidth.value) || 2;
+      ctx.strokeStyle = '#0284c7';
+      ctx.beginPath();
+      for (let i = 0; i <= maxIndex; i++) {
+        const p = worldToScreen(pts[i].x, pts[i].y);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      if (el.showPoint.checked) {
+        const p = pts[maxIndex];
+        const s = worldToScreen(p.x, p.y);
+        ctx.save();
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawAxes();
+      drawCurve();
+    }
+
+    function updateStats() {
+      const pts = state.points;
+      if (!pts.length) {
+        el.stats.innerHTML = '';
+        return;
+      }
+      const idx = Math.max(0, Math.min(pts.length - 1, Math.floor((pts.length - 1) * state.traceFraction)));
+      const p = pts[idx];
+      el.stats.innerHTML = `
+        <span><strong>Points:</strong> ${pts.length}</span>
+        <span><strong>t:</strong> ${p.t.toFixed(4)}</span>
+        <span><strong>x:</strong> ${p.x.toFixed(4)}</span>
+        <span><strong>y:</strong> ${p.y.toFixed(4)}</span>
+        <span><strong>Scale:</strong> ${state.view.scale.toFixed(2)} px/unit</span>
+      `;
+    }
+
+    function plotAndDraw(autoFit = true) {
+      try {
+        generateCurve();
+        if (autoFit) fitView();
+        draw();
+        updateStats();
+        setStatus('Curve plotted successfully.', 'ok');
+      } catch (err) {
+        setStatus(err.message, 'error');
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(rect.width * ratio);
+      canvas.height = Math.round(rect.height * ratio);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(ratio, ratio);
+      canvas.width = Math.round(rect.width);
+      canvas.height = Math.round(rect.height);
+      draw();
+    }
+
+    function startAnimation() {
+      if (!state.points.length) plotAndDraw(true);
+      state.animating = true;
+      el.animateBtn.textContent = 'Pause';
+
+      let start = null;
+      const duration = 5000;
+
+      function step(ts) {
+        if (!state.animating) return;
+        if (start === null) start = ts;
+        const progress = ((ts - start) % duration) / duration;
+        state.traceFraction = progress;
+        el.traceSlider.value = Math.round(progress * 1000);
+        updateStats();
+        draw();
+        state.animationFrame = requestAnimationFrame(step);
+      }
+
+      state.animationFrame = requestAnimationFrame(step);
+    }
+
+    function stopAnimation() {
+      state.animating = false;
+      el.animateBtn.textContent = 'Animate';
+      if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
+    }
+
+    el.plotBtn.addEventListener('click', () => {
+      stopAnimation();
+      plotAndDraw(true);
+    });
+
+    el.fitBtn.addEventListener('click', () => {
+      fitView();
+      draw();
+      updateStats();
+    });
+
+    el.resetViewBtn.addEventListener('click', () => {
+      stopAnimation();
+      resetView();
+      updateStats();
+    });
+
+    el.animateBtn.addEventListener('click', () => {
+      if (state.animating) stopAnimation();
+      else startAnimation();
+    });
+
+    el.traceSlider.addEventListener('input', (e) => {
+      stopAnimation();
+      state.traceFraction = Number(e.target.value) / 1000;
+      updateStats();
+      draw();
+    });
+
+    [el.showAxes, el.showGrid, el.showPoint, el.lineWidth].forEach(node => {
+      node.addEventListener('input', () => draw());
+    });
+
+    el.downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'parametric-plot.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    el.preset.addEventListener('change', () => {
+      const key = el.preset.value;
+      if (key === 'custom') return;
+      const p = presets[key];
+      el.xExpr.value = p.x;
+      el.yExpr.value = p.y;
+      el.tMin.value = p.tMin;
+      el.tMax.value = p.tMax;
+      plotAndDraw(true);
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      state.dragging = true;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      state.dragging = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!state.dragging) return;
+      const dx = e.offsetX - state.lastMouseX;
+      const dy = e.offsetY - state.lastMouseY;
+      state.view.centerX -= dx / state.view.scale;
+      state.view.centerY += dy / state.view.scale;
+      state.lastMouseX = e.offsetX;
+      state.lastMouseY = e.offsetY;
+      draw();
+      updateStats();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const mouseBefore = screenToWorld(e.offsetX, e.offsetY);
+      const zoomFactor = Math.exp(-e.deltaY * 0.001);
+      state.view.scale = Math.max(5, Math.min(5000, state.view.scale * zoomFactor));
+      const mouseAfter = screenToWorld(e.offsetX, e.offsetY);
+      state.view.centerX += mouseBefore.x - mouseAfter.x;
+      state.view.centerY += mouseBefore.y - mouseAfter.y;
+      draw();
+      updateStats();
+    }, { passive: false });
+
+    window.addEventListener('resize', resizeCanvas);
+
+    plotAndDraw(true);
+  </script>
+</body>
+</html>
