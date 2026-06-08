@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mean Value of a Continuous Function</title>
+<style>
+  :root {
+    --bg: #f7f9fc;
+    --panel: #ffffff;
+    --ink: #1f2937;
+    --muted: #5f6b7a;
+    --accent: #2563eb;
+    --area: rgba(37, 99, 235, 0.23);
+    --rect: rgba(245, 158, 11, 0.25);
+    --rect-line: #d97706;
+    --grid: #e5e7eb;
+    --axis: #374151;
+    --bad-bg: #fef2f2;
+    --bad-border: #fecaca;
+    --bad-text: #991b1b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .wrapper {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 18px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid #d9e1ec;
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+
+  .header {
+    padding: 18px 22px 12px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: clamp(1.25rem, 2vw, 1.65rem);
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+  }
+
+  .plot-area {
+    padding: 18px;
+    min-width: 0;
+  }
+
+  .controls {
+    border-left: 1px solid #e5e7eb;
+    padding: 18px;
+    background: #fbfcff;
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: linear-gradient(#ffffff, #fbfdff);
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 650;
+    margin: 13px 0 6px;
+  }
+
+  select, input[type="range"], input[type="text"] {
+    width: 100%;
+  }
+
+  select, input[type="text"] {
+    padding: 8px 10px;
+    border-radius: 9px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    color: var(--ink);
+  }
+
+  input[type="text"] {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+
+  .readout {
+    margin-top: 14px;
+    padding: 13px;
+    border-radius: 14px;
+    background: white;
+    border: 1px solid #e2e8f0;
+  }
+
+  .readout p {
+    margin: 6px 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+
+  .readout strong { color: var(--ink); }
+
+  .formula {
+    font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+    font-size: 1.08rem;
+    color: var(--ink);
+    background: #f8fafc;
+    padding: 10px 11px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    margin-top: 10px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .swatch {
+    width: 18px;
+    height: 11px;
+    border-radius: 3px;
+    display: inline-block;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+
+  .note, .hint {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.42;
+  }
+
+  .hint code {
+    background: #eef2ff;
+    border: 1px solid #dbeafe;
+    border-radius: 5px;
+    padding: 1px 4px;
+  }
+
+  .slider-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .slider-value {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    font-size: 0.88rem;
+    min-width: 3.2em;
+    text-align: right;
+  }
+
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  button {
+    border: 0;
+    background: var(--accent);
+    color: white;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  button.secondary {
+    background: #475569;
+  }
+
+  button:hover { filter: brightness(0.96); }
+
+  .error {
+    display: none;
+    margin-top: 9px;
+    background: var(--bad-bg);
+    border: 1px solid var(--bad-border);
+    color: var(--bad-text);
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 0.86rem;
+  }
+
+  .axis-label, .plot-label {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    fill: #4b5563;
+  }
+
+  .plot-label {
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .axis-label { font-size: 12px; }
+
+  .annotation {
+    font-size: 13px;
+    fill: #1f2937;
+    font-weight: 650;
+  }
+
+  .small-annotation {
+    font-size: 12px;
+    fill: #4b5563;
+  }
+
+  @media (max-width: 880px) {
+    .main { grid-template-columns: 1fr; }
+    .controls {
+      border-left: 0;
+      border-top: 1px solid #e5e7eb;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="card">
+    <div class="header">
+      <h1>Mean value of a continuous function</h1>
+      <p class="subtitle">The mean value is the constant height that gives the same signed area over the interval.</p>
+    </div>
+
+    <div class="main">
+      <div class="plot-area">
+        <svg id="plot" viewBox="0 0 800 500" role="img" aria-label="Graph showing a continuous function and its mean value rectangle"></svg>
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background: var(--area);"></span>Signed area under function</span>
+          <span class="key"><span class="swatch" style="background: var(--rect); border-color: var(--rect-line);"></span>Equal-area mean rectangle</span>
+          <span class="key"><span class="swatch" style="background: #111827;"></span>Function curve</span>
+        </div>
+      </div>
+
+      <aside class="controls">
+        <label for="func">Choose a function</label>
+        <select id="func">
+          <option value="quad">f(x) = 0.18x^2 + 0.35x + 1.2</option>
+          <option value="sine">f(x) = 1.5 + sin(x)</option>
+          <option value="cubic">f(x) = 0.08x^3 - 0.45x + 1.4</option>
+          <option value="wave">f(x) = 1.2 + 0.7cos(1.5x) + 0.25x</option>
+          <option value="mixed">f(x) = 0.45x + 1.1 + 0.65sin(2x)</option>
+          <option value="custom">Custom f(x)</option>
+        </select>
+
+        <label for="customFunction">Custom function</label>
+        <input id="customFunction" type="text" value="1 + 0.5*x + sin(2*x)" />
+        <div id="error" class="error"></div>
+        <p class="hint">
+          Use <code>x</code>, <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>^</code>,
+          brackets, and functions such as <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>exp</code>,
+          <code>log</code>, <code>sqrt</code>, <code>abs</code>. Constants: <code>pi</code>, <code>e</code>.
+        </p>
+
+        <label>Left endpoint a</label>
+        <div class="slider-row">
+          <input id="aSlider" type="range" min="-8" max="7.5" step="0.1" value="-2">
+          <span id="aVal" class="slider-value">-2.0</span>
+        </div>
+
+        <label>Right endpoint b</label>
+        <div class="slider-row">
+          <input id="bSlider" type="range" min="-7.5" max="8" step="0.1" value="3">
+          <span id="bVal" class="slider-value">3.0</span>
+        </div>
+
+        <div class="button-row">
+          <button id="animate">Animate idea</button>
+          <button id="autoscale" class="secondary">Rescale axes</button>
+        </div>
+        <div class="button-row">
+          <button id="reset" class="secondary">Reset</button>
+          <button id="standardAxes" class="secondary">Standard axes</button>
+        </div>
+
+        <div class="readout">
+          <p><strong>Interval:</strong> [<span id="aOut"></span>, <span id="bOut"></span>]</p>
+          <p><strong>Signed area:</strong> <span id="areaOut"></span></p>
+          <p><strong>Mean value:</strong> <span id="meanOut"></span></p>
+          <div class="formula">
+            f&#772; = <span style="font-size:0.95em;">1/(b−a)</span> ∫<sub>a</sub><sup>b</sup> f(x) dx
+          </div>
+        </div>
+
+        <p class="note">
+          The orange rectangle has width <em>b − a</em> and height equal to the mean value.
+          Its signed area is the same as the signed area under the curve.
+        </p>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const svg = document.getElementById("plot");
+  const funcSelect = document.getElementById("func");
+  const customFunction = document.getElementById("customFunction");
+  const errorBox = document.getElementById("error");
+  const aSlider = document.getElementById("aSlider");
+  const bSlider = document.getElementById("bSlider");
+  const aVal = document.getElementById("aVal");
+  const bVal = document.getElementById("bVal");
+  const aOut = document.getElementById("aOut");
+  const bOut = document.getElementById("bOut");
+  const areaOut = document.getElementById("areaOut");
+  const meanOut = document.getElementById("meanOut");
+  const animateButton = document.getElementById("animate");
+  const autoscaleButton = document.getElementById("autoscale");
+  const resetButton = document.getElementById("reset");
+  const standardAxesButton = document.getElementById("standardAxes");
+
+  const W = 800, H = 500;
+  const margin = {left: 62, right: 32, top: 34, bottom: 62};
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+
+  const defaultView = {xMin: -4.2, xMax: 4.2, yMin: -1.2, yMax: 4.2};
+  let view = {...defaultView};
+
+  let animation = null;
+
+  const presets = {
+    quad: {
+      label: "f(x) = 0.18x² + 0.35x + 1.2",
+      f: x => 0.18*x*x + 0.35*x + 1.2
+    },
+    sine: {
+      label: "f(x) = 1.5 + sin(x)",
+      f: x => 1.5 + Math.sin(x)
+    },
+    cubic: {
+      label: "f(x) = 0.08x³ − 0.45x + 1.4",
+      f: x => 0.08*x*x*x - 0.45*x + 1.4
+    },
+    wave: {
+      label: "f(x) = 1.2 + 0.7cos(1.5x) + 0.25x",
+      f: x => 1.2 + 0.7*Math.cos(1.5*x) + 0.25*x
+    },
+    mixed: {
+      label: "f(x) = 0.45x + 1.1 + 0.65sin(2x)",
+      f: x => 0.45*x + 1.1 + 0.65*Math.sin(2*x)
+    }
+  };
+
+  const allowedNames = new Set([
+    "x", "sin", "cos", "tan", "asin", "acos", "atan",
+    "exp", "log", "ln", "sqrt", "abs", "floor", "ceil",
+    "round", "min", "max", "pow", "pi", "e"
+  ]);
+
+  const fnMap = {
+    sin: "Math.sin", cos: "Math.cos", tan: "Math.tan",
+    asin: "Math.asin", acos: "Math.acos", atan: "Math.atan",
+    exp: "Math.exp", log: "Math.log", ln: "Math.log",
+    sqrt: "Math.sqrt", abs: "Math.abs", floor: "Math.floor",
+    ceil: "Math.ceil", round: "Math.round", min: "Math.min",
+    max: "Math.max", pow: "Math.pow", pi: "Math.PI", e: "Math.E"
+  };
+
+  function fmt(v) {
+    if (!Number.isFinite(v)) return "undefined";
+    if (Math.abs(v) < 0.0005) v = 0;
+    return v.toFixed(3);
+  }
+
+  function sx(x) {
+    return margin.left + (x - view.xMin) / (view.xMax - view.xMin) * innerW;
+  }
+
+  function sy(y) {
+    return margin.top + innerH - (y - view.yMin) / (view.yMax - view.yMin) * innerH;
+  }
+
+  function clampFinite(y) {
+    if (!Number.isFinite(y)) return null;
+    const span = view.yMax - view.yMin;
+    return Math.max(view.yMin - span * 2, Math.min(view.yMax + span * 2, y));
+  }
+
+  function sanitiseExpression(expr) {
+    let s = expr.trim().toLowerCase();
+    s = s.replace(/π/g, "pi");
+    s = s.replace(/\s+/g, "");
+    s = s.replace(/\^/g, "**");
+
+    if (!s) throw new Error("Enter a function first.");
+    if (/[^0-9a-z_+\-*/().,]/.test(s)) {
+      throw new Error("The function contains a character this widget does not allow.");
+    }
+
+    const names = s.match(/[a-z_]+/g) || [];
+    for (const name of names) {
+      if (!allowedNames.has(name)) {
+        throw new Error("Unknown name: " + name);
+      }
+    }
+
+    s = s.replace(/[a-z_]+/g, name => {
+      if (name === "x") return "x";
+      return fnMap[name];
+    });
+
+    return s;
+  }
+
+  function compileCustomFunction() {
+    const expression = sanitiseExpression(customFunction.value);
+    const f = new Function("x", `"use strict"; const y = (${expression}); return Number.isFinite(y) ? y : NaN;`);
+    for (const x of [-2, -1, 0, 1, 2]) {
+      const y = f(x);
+      if (!Number.isFinite(y)) throw new Error("The function is undefined for part of the plotted range.");
+    }
+    return {label: "f(x) = " + customFunction.value, f};
+  }
+
+  function currentFunction() {
+    if (funcSelect.value === "custom") {
+      return compileCustomFunction();
+    }
+    return presets[funcSelect.value];
+  }
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = "block";
+  }
+
+  function clearError() {
+    errorBox.textContent = "";
+    errorBox.style.display = "none";
+  }
+
+  function integrate(f, a, b, n=1000) {
+    if (n % 2 === 1) n++;
+    const h = (b - a) / n;
+    let s = safeEval(f, a) + safeEval(f, b);
+    if (!Number.isFinite(s)) return NaN;
+    for (let i = 1; i < n; i++) {
+      const y = safeEval(f, a + i*h);
+      if (!Number.isFinite(y)) return NaN;
+      s += (i % 2 === 0 ? 2 : 4) * y;
+    }
+    return s * h / 3;
+  }
+
+  function safeEval(f, x) {
+    try { return f(x); }
+    catch { return NaN; }
+  }
+
+  function pathFromPoints(points) {
+    return points
+      .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y))
+      .map((p, i) => `${i === 0 ? "M" : "L"} ${sx(p.x).toFixed(2)} ${sy(p.y).toFixed(2)}`)
+      .join(" ");
+  }
+
+  function el(name, attrs={}, parent=svg) {
+    const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    parent.appendChild(node);
+    return node;
+  }
+
+  function addText(text, x, y, cls, anchor="middle") {
+    const t = el("text", {x, y, class: cls, "text-anchor": anchor});
+    t.textContent = text;
+    return t;
+  }
+
+  function niceStep(span) {
+    const raw = span / 8;
+    const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+    const mant = raw / pow;
+    if (mant < 1.5) return pow;
+    if (mant < 3) return 2 * pow;
+    if (mant < 7) return 5 * pow;
+    return 10 * pow;
+  }
+
+  function drawGrid() {
+    const xStep = niceStep(view.xMax - view.xMin);
+    const yStep = niceStep(view.yMax - view.yMin);
+    const x0 = Math.ceil(view.xMin / xStep) * xStep;
+    const y0 = Math.ceil(view.yMin / yStep) * yStep;
+
+    for (let x = x0; x <= view.xMax + 1e-9; x += xStep) {
+      el("line", {x1: sx(x), y1: sy(view.yMin), x2: sx(x), y2: sy(view.yMax), stroke: "var(--grid)", "stroke-width": 1});
+      if (Math.abs(x) > 1e-9) addText(Number(x.toPrecision(3)).toString(), sx(x), sy(0) + 18, "axis-label");
+    }
+
+    for (let y = y0; y <= view.yMax + 1e-9; y += yStep) {
+      el("line", {x1: sx(view.xMin), y1: sy(y), x2: sx(view.xMax), y2: sy(y), stroke: "var(--grid)", "stroke-width": 1});
+      if (Math.abs(y) > 1e-9) addText(Number(y.toPrecision(3)).toString(), sx(0) - 12, sy(y) + 4, "axis-label", "end");
+    }
+
+    if (view.yMin <= 0 && view.yMax >= 0) {
+      el("line", {x1: sx(view.xMin), y1: sy(0), x2: sx(view.xMax), y2: sy(0), stroke: "var(--axis)", "stroke-width": 1.6});
+    }
+    if (view.xMin <= 0 && view.xMax >= 0) {
+      el("line", {x1: sx(0), y1: sy(view.yMin), x2: sx(0), y2: sy(view.yMax), stroke: "var(--axis)", "stroke-width": 1.6});
+    }
+
+    addText("x", sx(view.xMax)-3, sy(0)-8, "plot-label", "end");
+    addText("f(x)", sx(0)+12, sy(view.yMax)+15, "plot-label", "start");
+  }
+
+  function getInterval() {
+    let a = parseFloat(aSlider.value);
+    let b = parseFloat(bSlider.value);
+    if (b <= a + 0.3) {
+      if (document.activeElement === aSlider) a = b - 0.3;
+      else b = a + 0.3;
+    }
+    a = Math.max(parseFloat(aSlider.min), Math.min(parseFloat(aSlider.max), a));
+    b = Math.max(parseFloat(bSlider.min), Math.min(parseFloat(bSlider.max), b));
+    aSlider.value = a.toFixed(1);
+    bSlider.value = b.toFixed(1);
+    return {a, b};
+  }
+
+  function draw(animProgress=0) {
+    svg.innerHTML = "";
+    clearError();
+
+    let fObj;
+    try {
+      fObj = currentFunction();
+    } catch (err) {
+      showError(err.message);
+      fObj = presets.sine;
+    }
+
+    const f = fObj.f;
+    const {a, b} = getInterval();
+    const area = integrate(f, a, b);
+    const mean = area / (b - a);
+
+    aVal.textContent = a.toFixed(1);
+    bVal.textContent = b.toFixed(1);
+    aOut.textContent = a.toFixed(1);
+    bOut.textContent = b.toFixed(1);
+    areaOut.textContent = fmt(area);
+    meanOut.textContent = fmt(mean);
+
+    drawGrid();
+
+    const curvePts = [];
+    let lastWasValid = true;
+    let d = "";
+    const samples = 650;
+
+    for (let i = 0; i <= samples; i++) {
+      const x = view.xMin + (view.xMax - view.xMin) * i / samples;
+      const yRaw = safeEval(f, x);
+      const y = clampFinite(yRaw);
+      if (y === null) {
+        lastWasValid = false;
+      } else {
+        d += `${lastWasValid ? "L" : "M"} ${sx(x).toFixed(2)} ${sy(y).toFixed(2)} `;
+        lastWasValid = true;
+      }
+      curvePts.push({x, y: yRaw});
+    }
+    d = d.replace(/^L/, "M");
+
+    const baseline = 0;
+    const areaPts = [];
+    const N = 260;
+    areaPts.push({x: a, y: baseline});
+    for (let i = 0; i <= N; i++) {
+      const x = a + (b-a) * i / N;
+      const y = clampFinite(safeEval(f, x));
+      if (y !== null) areaPts.push({x, y});
+    }
+    areaPts.push({x: b, y: baseline});
+    areaPts.push({x: a, y: baseline});
+
+    const rectPath = [
+      {x: a, y: baseline},
+      {x: a, y: mean},
+      {x: b, y: mean},
+      {x: b, y: baseline},
+      {x: a, y: baseline}
+    ];
+
+    const showRectangleOpacity = 0.2 + 0.8 * animProgress;
+    const showAreaOpacity = 0.95 - 0.35 * animProgress;
+
+    el("path", {
+      d: pathFromPoints(areaPts),
+      fill: "var(--area)",
+      stroke: "none",
+      opacity: showAreaOpacity
+    });
+
+    el("path", {
+      d: pathFromPoints(rectPath),
+      fill: "var(--rect)",
+      stroke: "var(--rect-line)",
+      "stroke-width": 2.4 + 1.2 * animProgress,
+      opacity: showRectangleOpacity
+    });
+
+    el("line", {x1: sx(a), y1: sy(view.yMin), x2: sx(a), y2: sy(view.yMax), stroke: "#64748b", "stroke-width": 1.2, "stroke-dasharray": "5 5"});
+    el("line", {x1: sx(b), y1: sy(view.yMin), x2: sx(b), y2: sy(view.yMax), stroke: "#64748b", "stroke-width": 1.2, "stroke-dasharray": "5 5"});
+
+    el("path", {
+      d,
+      fill: "none",
+      stroke: "#111827",
+      "stroke-width": 3,
+      "stroke-linejoin": "round",
+      "stroke-linecap": "round"
+    });
+
+    if (Number.isFinite(mean)) {
+      el("line", {
+        x1: sx(a), y1: sy(mean), x2: sx(b), y2: sy(mean),
+        stroke: "var(--rect-line)",
+        "stroke-width": 2.4,
+        "stroke-dasharray": "7 5"
+      });
+
+      addText("mean height = " + fmt(mean), sx((a+b)/2), sy(mean) - 10, "annotation");
+      addText("same signed area", sx((a+b)/2), sy(Math.min(Math.max(mean/2, view.yMin + 0.2), view.yMax - 0.2)), "small-annotation");
+    }
+
+    const fa = safeEval(f, a), fb = safeEval(f, b);
+    if (Number.isFinite(fa)) el("circle", {cx: sx(a), cy: sy(clampFinite(fa)), r: 4.2, fill: "#111827"});
+    if (Number.isFinite(fb)) el("circle", {cx: sx(b), cy: sy(clampFinite(fb)), r: 4.2, fill: "#111827"});
+
+    addText("a", sx(a), sy(0) + 36, "plot-label");
+    addText("b", sx(b), sy(0) + 36, "plot-label");
+    addText(fObj.label, margin.left + 12, margin.top + 18, "plot-label", "start");
+
+    const braceY = sy(view.yMin) + 34;
+    el("line", {x1: sx(a), y1: braceY, x2: sx(b), y2: braceY, stroke: "#64748b", "stroke-width": 1.7});
+    el("line", {x1: sx(a), y1: braceY-6, x2: sx(a), y2: braceY+6, stroke: "#64748b", "stroke-width": 1.7});
+    el("line", {x1: sx(b), y1: braceY-6, x2: sx(b), y2: braceY+6, stroke: "#64748b", "stroke-width": 1.7});
+    addText("width = b − a", sx((a+b)/2), braceY + 20, "small-annotation");
+
+    if (animProgress > 0.03 && animProgress < 0.97) {
+      addText("The blue area is being replaced by an equal-area rectangle.", W/2, H - 18, "annotation");
+    }
+  }
+
+  function autoscale() {
+    clearError();
+    let fObj;
+    try {
+      fObj = currentFunction();
+    } catch (err) {
+      showError(err.message);
+      return;
+    }
+
+    const f = fObj.f;
+    const {a, b} = getInterval();
+    const xs = [];
+    const ys = [0];
+
+    const left = Math.min(a, b) - 0.25 * Math.abs(b - a) - 0.5;
+    const right = Math.max(a, b) + 0.25 * Math.abs(b - a) + 0.5;
+
+    for (let i = 0; i <= 500; i++) {
+      const x = left + (right-left) * i / 500;
+      const y = safeEval(f, x);
+      xs.push(x);
+      if (Number.isFinite(y) && Math.abs(y) < 1e6) ys.push(y);
+    }
+
+    const area = integrate(f, a, b);
+    if (Number.isFinite(area)) ys.push(area/(b-a));
+
+    const yMinData = Math.min(...ys);
+    const yMaxData = Math.max(...ys);
+    const ySpan = Math.max(1, yMaxData - yMinData);
+    const xSpan = Math.max(1, right - left);
+
+    view = {
+      xMin: left - 0.04*xSpan,
+      xMax: right + 0.04*xSpan,
+      yMin: yMinData - 0.18*ySpan,
+      yMax: yMaxData + 0.18*ySpan
+    };
+
+    draw();
+  }
+
+  function resetAll() {
+    funcSelect.value = "quad";
+    customFunction.value = "1 + 0.5*x + sin(2*x)";
+    aSlider.value = "-2";
+    bSlider.value = "3";
+    view = {...defaultView};
+    draw();
+  }
+
+  function animateIdea() {
+    if (animation) cancelAnimationFrame(animation);
+    const start = performance.now();
+    const duration = 2300;
+
+    function frame(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 0.5 - 0.5 * Math.cos(2 * Math.PI * t); 
+      draw(eased);
+      if (t < 1) {
+        animation = requestAnimationFrame(frame);
+      } else {
+        animation = null;
+        draw(1);
+        setTimeout(() => draw(0), 650);
+      }
+    }
+    animation = requestAnimationFrame(frame);
+  }
+
+  funcSelect.addEventListener("change", () => {
+    if (funcSelect.value === "custom") {
+      customFunction.focus();
+    }
+    draw();
+  });
+  customFunction.addEventListener("input", () => {
+    if (funcSelect.value !== "custom") funcSelect.value = "custom";
+    draw();
+  });
+  aSlider.addEventListener("input", draw);
+  bSlider.addEventListener("input", draw);
+  animateButton.addEventListener("click", animateIdea);
+  autoscaleButton.addEventListener("click", autoscale);
+  standardAxesButton.addEventListener("click", () => { view = {...defaultView}; draw(); });
+  resetButton.addEventListener("click", resetAll);
+
+  draw();
+})();
+</script>
+</body>
+</html>
