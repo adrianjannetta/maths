@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple Harmonic Motion Explorer</title>
+<style>
+  :root {
+    --ink: #172033;
+    --muted: #5c667a;
+    --panel: #ffffff;
+    --page: #eef3f9;
+    --line: #cbd5e1;
+    --accent: #1d4ed8;
+    --accent-dark: #173b8f;
+    --x-colour: #2563eb;
+    --v-colour: #059669;
+    --a-colour: #dc2626;
+    --shadow: 0 10px 28px rgba(20, 36, 68, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .app {
+    width: min(1480px, 100%);
+    margin: 0 auto;
+    padding: 18px;
+  }
+
+  .header {
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: clamp(1.45rem, 2.2vw, 2.1rem);
+    line-height: 1.15;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(500px, 1.35fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .panel {
+    min-width: 0;
+    background: var(--panel);
+    border: 1px solid #d7e0ec;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .panel-title {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-weight: 750;
+    letter-spacing: 0.01em;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    min-height: 390px;
+    height: clamp(390px, 48vh, 560px);
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .hint {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    max-width: calc(100% - 24px);
+    padding: 6px 9px;
+    border-radius: 7px;
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(148,163,184,0.45);
+    color: #526078;
+    font-size: 0.78rem;
+    pointer-events: none;
+  }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 10px 12px 12px;
+    border-top: 1px solid #e5eaf1;
+  }
+
+  .readout {
+    border: 1px solid #dbe3ed;
+    border-radius: 9px;
+    padding: 8px 9px;
+    background: #fbfdff;
+  }
+
+  .readout .label {
+    display: block;
+    color: var(--muted);
+    font-size: 0.73rem;
+    margin-bottom: 3px;
+  }
+
+  .readout .value {
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    font-size: 0.95rem;
+  }
+
+  .x-text { color: var(--x-colour); }
+  .v-text { color: var(--v-colour); }
+  .a-text { color: var(--a-colour); }
+
+  .controls {
+    margin-top: 16px;
+    background: var(--panel);
+    border: 1px solid #d7e0ec;
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+
+  .controls-top {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 13px;
+  }
+
+  button, select {
+    font: inherit;
+  }
+
+  button {
+    border: 1px solid #bdc9d8;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    padding: 8px 12px;
+    cursor: pointer;
+    font-weight: 650;
+  }
+
+  button:hover { background: #f1f5f9; }
+  button:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.25);
+    outline-offset: 1px;
+  }
+
+  .primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .primary:hover { background: var(--accent-dark); }
+
+  .time-control {
+    display: grid;
+    grid-template-columns: auto minmax(180px, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    flex: 1 1 380px;
+    min-width: 260px;
+    margin-left: 4px;
+  }
+
+  .time-label {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.87rem;
+    color: var(--muted);
+    min-width: 86px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  .slider-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(175px, 1fr));
+    gap: 12px;
+  }
+
+  .control-card {
+    border: 1px solid #dbe3ed;
+    border-radius: 10px;
+    padding: 10px;
+    background: #fbfdff;
+  }
+
+  .control-card label {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .control-card output {
+    color: var(--accent-dark);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .options-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 18px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .option {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #344056;
+    font-size: 0.86rem;
+  }
+
+  .option select {
+    border: 1px solid #bdc9d8;
+    border-radius: 7px;
+    padding: 6px 8px;
+    background: white;
+    color: var(--ink);
+  }
+
+  .equations {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1.2fr repeat(4, minmax(130px, 0.7fr));
+    gap: 8px;
+  }
+
+  .equation-card {
+    background: #f8fafc;
+    border: 1px solid #dbe3ed;
+    border-radius: 9px;
+    padding: 9px 10px;
+    min-width: 0;
+  }
+
+  .equation-card .small {
+    display: block;
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin-bottom: 3px;
+  }
+
+  .equation-card .math {
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+    font-size: 0.96rem;
+    overflow-wrap: anywhere;
+  }
+
+  .note {
+    margin: 11px 2px 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 1050px) {
+    .workspace { grid-template-columns: 1fr; }
+    .canvas-wrap { height: 430px; }
+    .slider-grid { grid-template-columns: repeat(2, minmax(170px, 1fr)); }
+    .equations { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+    .equation-card:first-child { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 620px) {
+    .app { padding: 10px; }
+    .canvas-wrap { min-height: 330px; height: 370px; }
+    .readouts { grid-template-columns: 1fr; }
+    .slider-grid, .equations { grid-template-columns: 1fr; }
+    .equation-card:first-child { grid-column: auto; }
+    .time-control {
+      order: 2;
+      width: 100%;
+      grid-template-columns: auto minmax(110px, 1fr);
+    }
+    .time-label { grid-column: 1 / -1; text-align: left; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="header">
+    <h1>Simple Harmonic Motion Explorer</h1>
+    <p class="subtitle">Adjust the mass, spring constant and initial conditions, then compare the motion with the displacement, velocity and acceleration graphs.</p>
+  </header>
+
+  <section class="workspace" aria-label="Simple harmonic motion visualisations">
+    <article class="panel">
+      <div class="panel-title">Mass–spring system</div>
+      <div class="canvas-wrap">
+        <canvas id="motionCanvas" aria-label="Animated mass attached to a horizontal spring"></canvas>
+        <div class="hint">When paused, drag the mass horizontally to set a new initial displacement.</div>
+      </div>
+      <div class="readouts" aria-live="polite">
+        <div class="readout">
+          <span class="label">Displacement, x</span>
+          <span class="value x-text" id="xReadout">0.000 m</span>
+        </div>
+        <div class="readout">
+          <span class="label">Velocity, v</span>
+          <span class="value v-text" id="vReadout">0.000 m s⁻¹</span>
+        </div>
+        <div class="readout">
+          <span class="label">Acceleration, a</span>
+          <span class="value a-text" id="aReadout">0.000 m s⁻²</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title">Displacement, velocity and acceleration</div>
+      <div class="canvas-wrap">
+        <canvas id="graphCanvas" aria-label="Graph of displacement, velocity and acceleration against time"></canvas>
+      </div>
+      <div class="readouts">
+        <div class="readout">
+          <span class="label">Amplitude, A</span>
+          <span class="value" id="amplitudeReadout">0.000 m</span>
+        </div>
+        <div class="readout">
+          <span class="label">Angular frequency, ω</span>
+          <span class="value" id="omegaReadout">0.000 rad s⁻¹</span>
+        </div>
+        <div class="readout">
+          <span class="label">Period, T</span>
+          <span class="value" id="periodReadout">0.000 s</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="controls" aria-label="Simulation controls">
+    <div class="controls-top">
+      <button class="primary" id="playButton" type="button">▶ Play</button>
+      <button id="resetButton" type="button">↺ Reset</button>
+      <button id="stepBackButton" type="button" aria-label="Step backward">−0.05 s</button>
+      <button id="stepForwardButton" type="button" aria-label="Step forward">+0.05 s</button>
+
+      <div class="time-control">
+        <strong>Time</strong>
+        <input id="timeSlider" type="range" min="0" max="10" step="0.001" value="0" aria-label="Simulation time">
+        <span class="time-label" id="timeReadout">t = 0.000 s</span>
+      </div>
+    </div>
+
+    <div class="slider-grid">
+      <div class="control-card">
+        <label for="massSlider"><span>Mass, m</span><output id="massOutput">2.00 kg</output></label>
+        <input id="massSlider" type="range" min="0.25" max="10" step="0.05" value="2">
+      </div>
+      <div class="control-card">
+        <label for="springSlider"><span>Spring constant, k</span><output id="springOutput">18.0 N m⁻¹</output></label>
+        <input id="springSlider" type="range" min="1" max="100" step="0.5" value="18">
+      </div>
+      <div class="control-card">
+        <label for="x0Slider"><span>Initial displacement, x₀</span><output id="x0Output">0.60 m</output></label>
+        <input id="x0Slider" type="range" min="-1.2" max="1.2" step="0.01" value="0.6">
+      </div>
+      <div class="control-card">
+        <label for="v0Slider"><span>Initial velocity, v₀</span><output id="v0Output">0.00 m s⁻¹</output></label>
+        <input id="v0Slider" type="range" min="-4" max="4" step="0.05" value="0">
+      </div>
+    </div>
+
+    <div class="options-row">
+      <label class="option">Preset
+        <select id="presetSelect">
+          <option value="released">Released from rest</option>
+          <option value="kick">At equilibrium with a kick</option>
+          <option value="mixed">Mixed initial conditions</option>
+          <option value="slow">Slow oscillation</option>
+          <option value="fast">Fast oscillation</option>
+        </select>
+      </label>
+
+      <label class="option">Graph duration
+        <select id="periodCountSelect">
+          <option value="1">1 period</option>
+          <option value="2" selected>2 periods</option>
+          <option value="3">3 periods</option>
+          <option value="5">5 periods</option>
+        </select>
+      </label>
+
+      <label class="option">Graph scale
+        <select id="scaleModeSelect">
+          <option value="normalised" selected>Normalised amplitudes</option>
+          <option value="actual">Common numerical scale</option>
+        </select>
+      </label>
+
+      <label class="option">Playback speed
+        <select id="speedSelect">
+          <option value="0.25">0.25×</option>
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+
+      <label class="option"><input id="showX" type="checkbox" checked> displacement</label>
+      <label class="option"><input id="showV" type="checkbox" checked> velocity</label>
+      <label class="option"><input id="showA" type="checkbox" checked> acceleration</label>
+      <label class="option"><input id="showVectors" type="checkbox" checked> motion arrows</label>
+    </div>
+
+    <div class="equations">
+      <div class="equation-card">
+        <span class="small">Motion from the chosen initial conditions</span>
+        <span class="math" id="motionEquation">x(t) = x₀ cos(ωt) + (v₀/ω) sin(ωt)</span>
+      </div>
+      <div class="equation-card">
+        <span class="small">Natural angular frequency</span>
+        <span class="math">ω = √(k/m)</span>
+      </div>
+      <div class="equation-card">
+        <span class="small">Velocity</span>
+        <span class="math">v = dx/dt</span>
+      </div>
+      <div class="equation-card">
+        <span class="small">Acceleration</span>
+        <span class="math">a = −ω²x</span>
+      </div>
+      <div class="equation-card">
+        <span class="small">Total energy</span>
+        <span class="math" id="energyEquation">E = ½kA²</span>
+      </div>
+    </div>
+
+    <p class="note">In “normalised amplitudes” mode, each curve is divided by its own maximum magnitude so that the phase relationships are easy to compare. The numerical readouts always show the physical values.</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+
+  const motionCanvas = $("motionCanvas");
+  const graphCanvas = $("graphCanvas");
+  const motionCtx = motionCanvas.getContext("2d");
+  const graphCtx = graphCanvas.getContext("2d");
+
+  const controls = {
+    mass: $("massSlider"),
+    spring: $("springSlider"),
+    x0: $("x0Slider"),
+    v0: $("v0Slider"),
+    time: $("timeSlider"),
+    play: $("playButton"),
+    reset: $("resetButton"),
+    stepBack: $("stepBackButton"),
+    stepForward: $("stepForwardButton"),
+    preset: $("presetSelect"),
+    periodCount: $("periodCountSelect"),
+    scaleMode: $("scaleModeSelect"),
+    speed: $("speedSelect"),
+    showX: $("showX"),
+    showV: $("showV"),
+    showA: $("showA"),
+    showVectors: $("showVectors")
+  };
+
+  const outputs = {
+    mass: $("massOutput"),
+    spring: $("springOutput"),
+    x0: $("x0Output"),
+    v0: $("v0Output"),
+    time: $("timeReadout"),
+    x: $("xReadout"),
+    v: $("vReadout"),
+    a: $("aReadout"),
+    amplitude: $("amplitudeReadout"),
+    omega: $("omegaReadout"),
+    period: $("periodReadout"),
+    energy: $("energyEquation")
+  };
+
+  const css = getComputedStyle(document.documentElement);
+  const colours = {
+    ink: css.getPropertyValue("--ink").trim(),
+    muted: css.getPropertyValue("--muted").trim(),
+    line: css.getPropertyValue("--line").trim(),
+    x: css.getPropertyValue("--x-colour").trim(),
+    v: css.getPropertyValue("--v-colour").trim(),
+    a: css.getPropertyValue("--a-colour").trim(),
+    accent: css.getPropertyValue("--accent").trim()
+  };
+
+  let playing = false;
+  let simTime = 0;
+  let lastFrame = performance.now();
+  let dragActive = false;
+  let dragGeometry = null;
+
+  function params() {
+    const m = Number(controls.mass.value);
+    const k = Number(controls.spring.value);
+    const x0 = Number(controls.x0.value);
+    const v0 = Number(controls.v0.value);
+    const omega = Math.sqrt(k / m);
+    const period = 2 * Math.PI / omega;
+    const amplitude = Math.hypot(x0, v0 / omega);
+    const phase = amplitude > 1e-12 ? Math.atan2(-v0 / omega, x0) : 0;
+    const vmax = omega * amplitude;
+    const amax = omega * omega * amplitude;
+    return { m, k, x0, v0, omega, period, amplitude, phase, vmax, amax };
+  }
+
+  function stateAt(t) {
+    const p = params();
+    const c = Math.cos(p.omega * t);
+    const s = Math.sin(p.omega * t);
+    const x = p.x0 * c + (p.v0 / p.omega) * s;
+    const v = -p.x0 * p.omega * s + p.v0 * c;
+    const a = -p.omega * p.omega * x;
+    return { ...p, x, v, a };
+  }
+
+  function graphEndTime() {
+    return Number(controls.periodCount.value) * params().period;
+  }
+
+  function clampTime() {
+    const maxTime = graphEndTime();
+    simTime = Math.max(0, Math.min(simTime, maxTime));
+    controls.time.max = maxTime.toFixed(6);
+    controls.time.value = String(simTime);
+  }
+
+  function resetTime(keepPlaying = true) {
+    simTime = 0;
+    clampTime();
+    if (!keepPlaying) setPlaying(false);
+    updateAll();
+  }
+
+  function setPlaying(value) {
+    playing = value;
+    controls.play.textContent = playing ? "❚❚ Pause" : "▶ Play";
+    lastFrame = performance.now();
+  }
+
+  function formatSigned(value, decimals = 3) {
+    const safe = Math.abs(value) < Math.pow(10, -decimals) / 2 ? 0 : value;
+    return safe.toFixed(decimals);
+  }
+
+  function updateOutputs() {
+    const s = stateAt(simTime);
+    outputs.mass.textContent = `${s.m.toFixed(2)} kg`;
+    outputs.spring.textContent = `${s.k.toFixed(1)} N m⁻¹`;
+    outputs.x0.textContent = `${formatSigned(s.x0, 2)} m`;
+    outputs.v0.textContent = `${formatSigned(s.v0, 2)} m s⁻¹`;
+    outputs.time.textContent = `t = ${simTime.toFixed(3)} s`;
+    outputs.x.textContent = `${formatSigned(s.x)} m`;
+    outputs.v.textContent = `${formatSigned(s.v)} m s⁻¹`;
+    outputs.a.textContent = `${formatSigned(s.a)} m s⁻²`;
+    outputs.amplitude.textContent = `${s.amplitude.toFixed(3)} m`;
+    outputs.omega.textContent = `${s.omega.toFixed(3)} rad s⁻¹`;
+    outputs.period.textContent = `${s.period.toFixed(3)} s`;
+    outputs.energy.textContent = `E = ${(0.5 * s.k * s.amplitude * s.amplitude).toFixed(3)} J`;
+  }
+
+  function fitCanvas(canvas, ctx) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const w = Math.max(1, Math.round(rect.width));
+    const h = Math.max(1, Math.round(rect.height));
+    const pixelW = Math.round(w * dpr);
+    const pixelH = Math.round(h * dpr);
+    if (canvas.width !== pixelW || canvas.height !== pixelH) {
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h };
+  }
+
+  function roundedRect(ctx, x, y, w, h, r) {
+    const radius = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+  }
+
+  function drawArrow(ctx, x1, y1, x2, y2, colour, label) {
+    const length = Math.hypot(x2 - x1, y2 - y1);
+    if (length < 5) return;
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    ctx.save();
+    ctx.strokeStyle = colour;
+    ctx.fillStyle = colour;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const head = 9;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+
+    if (label) {
+      ctx.font = "700 13px Segoe UI, Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(label, (x1 + x2) / 2, Math.min(y1, y2) - 5);
+    }
+    ctx.restore();
+  }
+
+  function drawSpring(ctx, x1, y, x2, coils, amplitude) {
+    const lead = Math.min(30, Math.max(14, (x2 - x1) * 0.09));
+    const springStart = x1 + lead;
+    const springEnd = x2 - 10;
+    const length = Math.max(20, springEnd - springStart);
+    const points = coils * 2;
+
+    ctx.save();
+    ctx.strokeStyle = "#536277";
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(springStart, y);
+    for (let i = 0; i <= points; i++) {
+      const f = i / points;
+      const px = springStart + f * length;
+      const py = y + (i === 0 || i === points ? 0 : (i % 2 === 0 ? -amplitude : amplitude));
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(x2, y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawMotion() {
+    const { w, h } = fitCanvas(motionCanvas, motionCtx);
+    const ctx = motionCtx;
+    const s = stateAt(simTime);
+
+    ctx.clearRect(0, 0, w, h);
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, "#f9fbff");
+    bg.addColorStop(1, "#edf4fb");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const floorY = Math.round(h * 0.69);
+    const wallX = Math.max(42, w * 0.09);
+    const eqX = w * 0.61;
+    const massW = Math.max(72, Math.min(118, w * 0.18));
+    const massH = Math.max(70, Math.min(105, h * 0.24));
+    const halfTravel = Math.max(80, Math.min(w * 0.27, 180));
+    const displayScale = halfTravel / 1.25;
+    const massCentreX = eqX + s.x * displayScale;
+    const massX = massCentreX - massW / 2;
+    const massY = floorY - massH;
+    const springY = massY + massH * 0.48;
+
+    dragGeometry = { eqX, displayScale, massX, massY, massW, massH };
+
+    // floor
+    ctx.fillStyle = "#dbe4ef";
+    ctx.fillRect(0, floorY, w, h - floorY);
+    ctx.strokeStyle = "#8291a7";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, floorY);
+    ctx.lineTo(w, floorY);
+    ctx.stroke();
+
+    // wall
+    ctx.fillStyle = "#b8c5d6";
+    ctx.fillRect(wallX - 22, h * 0.18, 22, floorY - h * 0.18);
+    ctx.strokeStyle = "#75859b";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(wallX - 22, h * 0.18, 22, floorY - h * 0.18);
+
+    // wall hatching
+    ctx.strokeStyle = "rgba(71,85,105,0.35)";
+    ctx.lineWidth = 1;
+    for (let y = h * 0.2; y < floorY - 6; y += 16) {
+      ctx.beginPath();
+      ctx.moveTo(wallX - 22, y + 10);
+      ctx.lineTo(wallX, y - 6);
+      ctx.stroke();
+    }
+
+    // equilibrium line
+    ctx.save();
+    ctx.setLineDash([7, 6]);
+    ctx.strokeStyle = "#8795a9";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(eqX, massY - 54);
+    ctx.lineTo(eqX, floorY + 34);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = colours.muted;
+    ctx.font = "12px Segoe UI, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("equilibrium", eqX, massY - 61);
+
+    // spring
+    drawSpring(ctx, wallX, springY, massX, 13, 12);
+
+    // mass shadow
+    ctx.save();
+    ctx.fillStyle = "rgba(15,23,42,0.12)";
+    roundedRect(ctx, massX + 5, massY + 7, massW, massH, 10);
+    ctx.fill();
+    ctx.restore();
+
+    // mass
+    const mg = ctx.createLinearGradient(massX, massY, massX, massY + massH);
+    mg.addColorStop(0, "#4f83e3");
+    mg.addColorStop(1, "#2453a6");
+    ctx.fillStyle = mg;
+    roundedRect(ctx, massX, massY, massW, massH, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#173b78";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${Math.max(17, Math.min(25, massW * 0.22))}px Segoe UI, Arial, sans-serif`;
+    ctx.fillText(`${s.m.toFixed(2)} kg`, massCentreX, massY + massH / 2);
+
+    // displacement bracket
+    const bracketY = floorY + 38;
+    ctx.strokeStyle = colours.x;
+    ctx.fillStyle = colours.x;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(eqX, bracketY);
+    ctx.lineTo(massCentreX, bracketY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(eqX, bracketY - 6);
+    ctx.lineTo(eqX, bracketY + 6);
+    ctx.moveTo(massCentreX, bracketY - 6);
+    ctx.lineTo(massCentreX, bracketY + 6);
+    ctx.stroke();
+    ctx.font = "700 13px Segoe UI, Arial, sans-serif";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "center";
+    ctx.fillText(`x = ${formatSigned(s.x)} m`, (eqX + massCentreX) / 2, bracketY + 7);
+
+    if (controls.showVectors.checked) {
+      const vScale = s.vmax > 1e-9 ? 62 / s.vmax : 0;
+      const aScale = s.amax > 1e-9 ? 62 / s.amax : 0;
+      const vLen = s.v * vScale;
+      const aLen = s.a * aScale;
+      drawArrow(ctx, massCentreX, massY - 22, massCentreX + vLen, massY - 22, colours.v, "v");
+      drawArrow(ctx, massCentreX, massY - 48, massCentreX + aLen, massY - 48, colours.a, "a");
+    }
+
+    // restoring force label
+    ctx.fillStyle = colours.muted;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "13px Segoe UI, Arial, sans-serif";
+    ctx.fillText("Restoring force:  F = −kx", 14, 25);
+
+    // energy bar
+    const energyTotal = 0.5 * s.k * s.amplitude * s.amplitude;
+    const potential = 0.5 * s.k * s.x * s.x;
+    const kinetic = 0.5 * s.m * s.v * s.v;
+    const barX = 14;
+    const barY = 43;
+    const barW = Math.min(220, w * 0.44);
+    const barH = 14;
+    ctx.fillStyle = "#e2e8f0";
+    roundedRect(ctx, barX, barY, barW, barH, 5);
+    ctx.fill();
+    if (energyTotal > 1e-12) {
+      const pW = barW * potential / energyTotal;
+      ctx.fillStyle = "#8b5cf6";
+      roundedRect(ctx, barX, barY, pW, barH, 5);
+      ctx.fill();
+      ctx.fillStyle = "#f59e0b";
+      roundedRect(ctx, barX + pW, barY, Math.max(0, barW - pW), barH, 5);
+      ctx.fill();
+    }
+    ctx.font = "11px Segoe UI, Arial, sans-serif";
+    ctx.fillStyle = "#6d28d9";
+    ctx.textAlign = "left";
+    ctx.fillText("elastic PE", barX, barY + 29);
+    ctx.fillStyle = "#b45309";
+    ctx.textAlign = "right";
+    ctx.fillText("KE", barX + barW, barY + 29);
+  }
+
+  function niceNumber(value) {
+    if (!Number.isFinite(value) || value <= 0) return 1;
+    const exponent = Math.floor(Math.log10(value));
+    const fraction = value / Math.pow(10, exponent);
+    let niceFraction;
+    if (fraction <= 1) niceFraction = 1;
+    else if (fraction <= 2) niceFraction = 2;
+    else if (fraction <= 5) niceFraction = 5;
+    else niceFraction = 10;
+    return niceFraction * Math.pow(10, exponent);
+  }
+
+  function drawGraph() {
+    const { w, h } = fitCanvas(graphCanvas, graphCtx);
+    const ctx = graphCtx;
+    const s = stateAt(simTime);
+    const endTime = graphEndTime();
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+
+    const margin = {
+      left: w < 520 ? 50 : 66,
+      right: 18,
+      top: 48,
+      bottom: 48
+    };
+    const plot = {
+      x: margin.left,
+      y: margin.top,
+      w: Math.max(80, w - margin.left - margin.right),
+      h: Math.max(80, h - margin.top - margin.bottom)
+    };
+
+    const normalised = controls.scaleMode.value === "normalised";
+    const actualMax = Math.max(
+      controls.showX.checked ? s.amplitude : 0,
+      controls.showV.checked ? s.vmax : 0,
+      controls.showA.checked ? s.amax : 0,
+      0.1
+    );
+    const yMax = normalised ? 1.15 : niceNumber(actualMax * 1.12);
+
+    const mapX = (t) => plot.x + (t / endTime) * plot.w;
+    const mapY = (value) => plot.y + plot.h / 2 - (value / yMax) * (plot.h / 2);
+
+    // grid
+    ctx.save();
+    ctx.strokeStyle = "#e3e8ef";
+    ctx.lineWidth = 1;
+    ctx.font = "11px Segoe UI, Arial, sans-serif";
+    ctx.fillStyle = colours.muted;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+
+    for (let i = -4; i <= 4; i++) {
+      const value = (i / 4) * yMax;
+      const y = mapY(value);
+      ctx.beginPath();
+      ctx.moveTo(plot.x, y);
+      ctx.lineTo(plot.x + plot.w, y);
+      ctx.stroke();
+      const label = normalised ? value.toFixed(value === 0 ? 0 : 2) : Number(value.toPrecision(3)).toString();
+      ctx.fillText(label, plot.x - 8, y);
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    const timeTicks = Math.max(4, Math.min(8, Math.round(plot.w / 95)));
+    for (let i = 0; i <= timeTicks; i++) {
+      const t = endTime * i / timeTicks;
+      const x = mapX(t);
+      ctx.beginPath();
+      ctx.moveTo(x, plot.y);
+      ctx.lineTo(x, plot.y + plot.h);
+      ctx.stroke();
+      ctx.fillText(t.toFixed(endTime < 4 ? 2 : 1), x, plot.y + plot.h + 9);
+    }
+    ctx.restore();
+
+    // axes
+    ctx.strokeStyle = "#7b8798";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(plot.x, plot.y);
+    ctx.lineTo(plot.x, plot.y + plot.h);
+    ctx.moveTo(plot.x, mapY(0));
+    ctx.lineTo(plot.x + plot.w, mapY(0));
+    ctx.stroke();
+
+    // labels
+    ctx.fillStyle = colours.ink;
+    ctx.font = "12px Segoe UI, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("time, t / s", plot.x + plot.w / 2, h - 26);
+
+    ctx.save();
+    ctx.translate(15, plot.y + plot.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(normalised ? "normalised value" : "numerical value (mixed units)", 0, 0);
+    ctx.restore();
+
+    const curves = [
+      {
+        enabled: controls.showX.checked,
+        colour: colours.x,
+        label: "x",
+        max: Math.max(s.amplitude, 1e-12),
+        value: (t) => {
+          const c = Math.cos(s.omega * t);
+          const sn = Math.sin(s.omega * t);
+          return s.x0 * c + (s.v0 / s.omega) * sn;
+        }
+      },
+      {
+        enabled: controls.showV.checked,
+        colour: colours.v,
+        label: "v",
+        max: Math.max(s.vmax, 1e-12),
+        value: (t) => {
+          const c = Math.cos(s.omega * t);
+          const sn = Math.sin(s.omega * t);
+          return -s.x0 * s.omega * sn + s.v0 * c;
+        }
+      },
+      {
+        enabled: controls.showA.checked,
+        colour: colours.a,
+        label: "a",
+        max: Math.max(s.amax, 1e-12),
+        value: (t) => {
+          const c = Math.cos(s.omega * t);
+          const sn = Math.sin(s.omega * t);
+          const x = s.x0 * c + (s.v0 / s.omega) * sn;
+          return -s.omega * s.omega * x;
+        }
+      }
+    ];
+
+    // curves
+    const samples = Math.max(500, Math.round(plot.w * 1.5));
+    for (const curve of curves) {
+      if (!curve.enabled) continue;
+      ctx.save();
+      ctx.strokeStyle = curve.colour;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i <= samples; i++) {
+        const t = endTime * i / samples;
+        let value = curve.value(t);
+        if (normalised) value /= curve.max;
+        const x = mapX(t);
+        const y = mapY(value);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // current time cursor
+    const cursorX = mapX(Math.min(simTime, endTime));
+    ctx.save();
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = "#111827";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cursorX, plot.y);
+    ctx.lineTo(cursorX, plot.y + plot.h);
+    ctx.stroke();
+    ctx.restore();
+
+    for (const curve of curves) {
+      if (!curve.enabled) continue;
+      let value = curve.value(simTime);
+      if (normalised) value /= curve.max;
+      ctx.beginPath();
+      ctx.fillStyle = curve.colour;
+      ctx.arc(cursorX, mapY(value), 4.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // legend
+    let legendX = plot.x + 8;
+    const legendY = 22;
+    ctx.font = "700 12px Segoe UI, Arial, sans-serif";
+    ctx.textBaseline = "middle";
+    for (const curve of curves) {
+      if (!curve.enabled) continue;
+      ctx.strokeStyle = curve.colour;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(legendX, legendY);
+      ctx.lineTo(legendX + 22, legendY);
+      ctx.stroke();
+      ctx.fillStyle = curve.colour;
+      ctx.textAlign = "left";
+      const label = curve.label === "x" ? "displacement x" : curve.label === "v" ? "velocity v" : "acceleration a";
+      ctx.fillText(label, legendX + 29, legendY);
+      legendX += ctx.measureText(label).width + 55;
+      if (legendX > w - 150) break;
+    }
+
+    ctx.fillStyle = colours.muted;
+    ctx.textAlign = "right";
+    ctx.font = "11px Segoe UI, Arial, sans-serif";
+    ctx.fillText(`cursor: ${simTime.toFixed(3)} s`, plot.x + plot.w, 22);
+  }
+
+  function updateAll() {
+    clampTime();
+    updateOutputs();
+    drawMotion();
+    drawGraph();
+  }
+
+  function onParameterChange() {
+    simTime = 0;
+    updateAll();
+  }
+
+  controls.play.addEventListener("click", () => setPlaying(!playing));
+  controls.reset.addEventListener("click", () => resetTime(false));
+
+  controls.stepBack.addEventListener("click", () => {
+    setPlaying(false);
+    simTime -= 0.05;
+    updateAll();
+  });
+
+  controls.stepForward.addEventListener("click", () => {
+    setPlaying(false);
+    simTime += 0.05;
+    updateAll();
+  });
+
+  [controls.mass, controls.spring, controls.x0, controls.v0].forEach((input) => {
+    input.addEventListener("input", onParameterChange);
+  });
+
+  controls.time.addEventListener("input", () => {
+    simTime = Number(controls.time.value);
+    setPlaying(false);
+    updateAll();
+  });
+
+  controls.periodCount.addEventListener("change", () => {
+    clampTime();
+    updateAll();
+  });
+
+  [
+    controls.scaleMode, controls.showX, controls.showV,
+    controls.showA, controls.showVectors
+  ].forEach((input) => input.addEventListener("change", updateAll));
+
+  controls.preset.addEventListener("change", () => {
+    const presets = {
+      released: { m: 2, k: 18, x0: 0.6, v0: 0 },
+      kick: { m: 2, k: 18, x0: 0, v0: 1.8 },
+      mixed: { m: 2.5, k: 20, x0: -0.45, v0: 1.4 },
+      slow: { m: 7, k: 6, x0: 0.8, v0: 0 },
+      fast: { m: 0.8, k: 70, x0: 0.45, v0: 0 }
+    };
+    const p = presets[controls.preset.value];
+    controls.mass.value = p.m;
+    controls.spring.value = p.k;
+    controls.x0.value = p.x0;
+    controls.v0.value = p.v0;
+    resetTime(false);
+  });
+
+  function pointerPosition(event, canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const source = event.touches ? event.touches[0] : event;
+    return { x: source.clientX - rect.left, y: source.clientY - rect.top };
+  }
+
+  function startDrag(event) {
+    if (playing || !dragGeometry) return;
+    const p = pointerPosition(event, motionCanvas);
+    const g = dragGeometry;
+    const inside = p.x >= g.massX - 8 && p.x <= g.massX + g.massW + 8 &&
+                   p.y >= g.massY - 8 && p.y <= g.massY + g.massH + 8;
+    if (!inside) return;
+    dragActive = true;
+    motionCanvas.style.cursor = "grabbing";
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function moveDrag(event) {
+    if (!dragActive || !dragGeometry) return;
+    const p = pointerPosition(event, motionCanvas);
+    const x0 = Math.max(-1.2, Math.min(1.2, (p.x - dragGeometry.eqX) / dragGeometry.displayScale));
+    controls.x0.value = x0.toFixed(2);
+    simTime = 0;
+    updateAll();
+    if (event.cancelable) event.preventDefault();
+  }
+
+  function endDrag() {
+    dragActive = false;
+    motionCanvas.style.cursor = playing ? "default" : "grab";
+  }
+
+  motionCanvas.addEventListener("mousedown", startDrag);
+  window.addEventListener("mousemove", moveDrag);
+  window.addEventListener("mouseup", endDrag);
+  motionCanvas.addEventListener("touchstart", startDrag, { passive: false });
+  window.addEventListener("touchmove", moveDrag, { passive: false });
+  window.addEventListener("touchend", endDrag);
+  motionCanvas.addEventListener("mouseenter", () => {
+    if (!playing) motionCanvas.style.cursor = "grab";
+  });
+
+  window.addEventListener("resize", updateAll);
+
+  function animate(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
+
+    if (playing) {
+      simTime += dt * Number(controls.speed.value);
+      const endTime = graphEndTime();
+      if (simTime > endTime) simTime %= endTime;
+      updateAll();
+    }
+    requestAnimationFrame(animate);
+  }
+
+  updateAll();
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>
