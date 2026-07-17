@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rectangular Pontoon Stability</title>
+  <style>
+    :root {
+      --ink: #16324f;
+      --muted: #566b82;
+      --panel: #ffffff;
+      --page: #f4f7fb;
+      --line: #cbd8e7;
+      --accent: #1f6fbf;
+      --accent-soft: #edf5ff;
+      --water: #dcecff;
+      --hull: #fff7df;
+      --hull-line: #a97b1f;
+      --gravity: #c9362b;
+      --buoyancy: #1769d2;
+      --meta: #16804a;
+      --stable-bg: #e7f7ed;
+      --stable-fg: #116334;
+      --neutral-bg: #fff6dc;
+      --neutral-fg: #805d00;
+      --unstable-bg: #fde9e8;
+      --unstable-fg: #92251f;
+      --shadow: 0 8px 24px rgba(21, 50, 79, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--page);
+    }
+
+    .widget {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(310px, 0.9fr) minmax(430px, 1.35fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls-panel { padding: 18px; }
+    .visual-panel { padding: 14px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      line-height: 1.2;
+      color: #0e3c70;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+      color: var(--accent);
+    }
+
+    .intro {
+      margin: 8px 0 14px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .section {
+      padding-top: 12px;
+      margin-top: 12px;
+      border-top: 1px solid #e7eef6;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .segmented label,
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #f9fbfe;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .segmented label:has(input:checked),
+    .check-row:has(input:checked) {
+      border-color: #75a9dc;
+      background: var(--accent-soft);
+    }
+
+    input[type="radio"],
+    input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
+    .control {
+      margin-top: 11px;
+    }
+
+    .control label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .value {
+      min-width: 70px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: #0f4f8c;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="range"]:disabled {
+      opacity: 0.45;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 9px;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--accent);
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid rgba(31, 111, 191, 0.24);
+      outline-offset: 2px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px 12px;
+      margin-top: 10px;
+      font-size: 0.81rem;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 8px;
+      background: #f7fafd;
+      border-radius: 7px;
+    }
+
+    .metric strong {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .status,
+    .warning {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border-radius: 9px;
+      font-size: 0.81rem;
+      line-height: 1.35;
+    }
+
+    .status { font-weight: 700; text-align: center; }
+    .status.stable { background: var(--stable-bg); color: var(--stable-fg); border: 1px solid #82c99c; }
+    .status.neutral { background: var(--neutral-bg); color: var(--neutral-fg); border: 1px solid #e1c36c; }
+    .status.unstable { background: var(--unstable-bg); color: var(--unstable-fg); border: 1px solid #e39893; }
+
+    .warning {
+      display: none;
+      background: var(--neutral-bg);
+      color: var(--neutral-fg);
+      border: 1px solid #e1c36c;
+    }
+
+    details {
+      margin-top: 10px;
+      font-size: 0.79rem;
+      color: var(--muted);
+    }
+
+    summary {
+      cursor: pointer;
+      color: #285f96;
+      font-weight: 650;
+    }
+
+    details p { margin: 8px 0 0; line-height: 1.45; }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: #f8fbff;
+    }
+
+    #view { aspect-ratio: 1.2 / 1; }
+    #curve { aspect-ratio: 3.1 / 1; margin-top: 12px; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px 14px;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .line-key {
+      width: 18px;
+      height: 0;
+      border-top: 2px solid currentColor;
+      display: inline-block;
+    }
+
+    .small-note {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 0.74rem;
+      line-height: 1.4;
+    }
+
+    .dynamic-only { display: none; }
+
+    .mode-explanation {
+      margin: 8px 0 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f7fafd;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 850px) {
+      .widget { grid-template-columns: 1fr; }
+      .visual-panel { order: -1; }
+    }
+
+    @media (max-width: 520px) {
+      body { padding: 8px; }
+      .controls-panel, .visual-panel { padding: 12px; }
+      .metrics { grid-template-columns: 1fr; }
+      .segmented { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="widget" aria-label="Interactive pontoon stability model">
+    <section class="panel controls-panel">
+      <h1>Rectangular Pontoon: Buoyancy, Heel and Stability</h1>
+      <p class="intro">
+        The hull rotates about its centre of gravity. Its vertical position is recalculated at every angle so that the displaced area remains constant. The heeled centre of buoyancy, <strong>B′</strong>, is the centroid of the actual submerged section.
+      </p>
+
+      <div class="segmented" role="group" aria-label="Water density">
+        <label><input type="radio" name="water" value="1025" checked> Seawater, 1025 kg/m³</label>
+        <label><input type="radio" name="water" value="1000"> Fresh water, 1000 kg/m³</label>
+      </div>
+
+      <div class="section">
+        <h2>Geometry and loading</h2>
+
+        <div class="control">
+          <label for="beam">Beam, B <span class="value" id="beamVal"></span></label>
+          <input type="range" id="beam" min="2" max="16" step="0.1" value="8">
+        </div>
+
+        <div class="control">
+          <label for="depth">Depth, D <span class="value" id="depthVal"></span></label>
+          <input type="range" id="depth" min="1" max="8" step="0.1" value="4">
+        </div>
+
+        <div class="control">
+          <label for="weight">Weight per metre, W <span class="value" id="weightVal"></span></label>
+          <input type="range" id="weight" min="25" max="900" step="5" value="200">
+        </div>
+
+        <div class="control">
+          <label for="og">OG <span class="value" id="ogVal"></span></label>
+          <input type="range" id="og" min="0.1" max="7" step="0.05" value="2">
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="lockG" checked>
+          Lock G at mid-depth
+        </label>
+      </div>
+
+      <div class="section">
+        <h2>Animation</h2>
+
+        <div class="segmented" role="group" aria-label="Animation mode">
+          <label><input type="radio" name="animationMode" value="sweep" checked> Guided heel sweep</label>
+          <label><input type="radio" name="animationMode" value="free"> Free stability response</label>
+        </div>
+
+        <p id="modeExplanation" class="mode-explanation">
+          The guided sweep moves through a prescribed range of heel angles so the changing buoyancy geometry can be inspected.
+        </p>
+
+        <div class="control">
+          <label for="heel"><span id="heelLabelText">Heel angle, φ</span> <span class="value" id="heelVal"></span></label>
+          <input type="range" id="heel" min="-20" max="20" step="0.1" value="0">
+        </div>
+
+        <div class="control dynamic-only" id="dampingControl">
+          <label for="damping">Damping ratio, ζ <span class="value" id="dampingVal"></span></label>
+          <input type="range" id="damping" min="0" max="0.6" step="0.02" value="0.12">
+        </div>
+
+        <div class="control">
+          <label for="speed">Animation speed <span class="value" id="speedVal"></span></label>
+          <input type="range" id="speed" min="0.4" max="2" step="0.1" value="1">
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" id="showGhost" checked>
+          Show upright reference outline
+        </label>
+
+        <div class="button-row">
+          <button type="button" id="playBtn">Play heel animation</button>
+          <button type="button" id="resetBtn" class="secondary">Reset</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Hydrostatics</h2>
+        <div class="metrics">
+          <div class="metric"><span>Draft, T</span><strong id="draftOut"></strong></div>
+          <div class="metric"><span>OB</span><strong id="obOut"></strong></div>
+          <div class="metric"><span>BM</span><strong id="bmOut"></strong></div>
+          <div class="metric"><span>OG</span><strong id="ogOut"></strong></div>
+          <div class="metric"><span>GM</span><strong id="gmOut"></strong></div>
+          <div class="metric"><span>Exact GZ</span><strong id="gzOut"></strong></div>
+          <div class="metric"><span>GM sinφ</span><strong id="gzApproxOut"></strong></div>
+          <div class="metric"><span>Moment / metre</span><strong id="momentOut"></strong></div>
+          <div class="metric"><span>Estimated roll period</span><strong id="periodOut"></strong></div>
+        </div>
+
+        <div id="status" class="status stable" aria-live="polite"></div>
+        <div id="warning" class="warning" aria-live="polite"></div>
+
+        <details>
+          <summary>Model assumptions</summary>
+          <p>
+            The pontoon is a closed rectangular prism of unit length. The water surface remains horizontal, displacement is conserved, and B′ is calculated from the submerged polygon. The metacentre M and the relation GZ ≈ GM sinφ are small-angle approximations; the exact GZ shown by the widget comes from the calculated position of B′. In free-response mode, roll motion is calculated from the exact righting moment together with a simplified effective roll inertia and linear damping model. The displayed roll period is therefore illustrative rather than a vessel-design prediction.
+          </p>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel visual-panel">
+      <h2>Body-fixed section view</h2>
+      <div class="canvas-wrap">
+        <canvas id="view" width="720" height="600" aria-label="Heeling pontoon diagram"></canvas>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--gravity)"></i> G</span>
+        <span><i class="dot" style="background:var(--buoyancy)"></i> B′, actual buoyancy centre</span>
+        <span><i class="dot" style="background:#fff;border:2px solid var(--buoyancy)"></i> B, upright reference</span>
+        <span><i class="dot" style="background:var(--meta)"></i> M</span>
+        <span style="color:#444"><i class="line-key"></i> exact GZ</span>
+      </div>
+      <p class="small-note">
+        Positive φ lowers the right-hand side. The line B′–M should be nearly vertical for small angles; departures become visible as the angle grows.
+      </p>
+
+      <h2 id="graphTitle" style="margin-top:14px;">Righting-arm curve</h2>
+      <canvas id="curve" width="720" height="230" aria-label="Righting arm against heel angle"></canvas>
+      <div class="legend" id="graphLegend">
+        <span style="color:var(--buoyancy)"><i class="line-key"></i> exact GZ</span>
+        <span style="color:var(--meta)"><i class="line-key" style="border-top-style:dashed"></i> GM sinφ</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const g = 9.81;
+    const MAX_HEEL_DEG = 20;
+
+    const controls = {
+      beam: document.getElementById('beam'),
+      depth: document.getElementById('depth'),
+      weight: document.getElementById('weight'),
+      og: document.getElementById('og'),
+      lockG: document.getElementById('lockG'),
+      heel: document.getElementById('heel'),
+      speed: document.getElementById('speed'),
+      damping: document.getElementById('damping'),
+      showGhost: document.getElementById('showGhost'),
+      water: [...document.querySelectorAll('input[name="water"]')],
+      animationMode: [...document.querySelectorAll('input[name="animationMode"]')]
+    };
+
+    const labels = {
+      beam: document.getElementById('beamVal'),
+      depth: document.getElementById('depthVal'),
+      weight: document.getElementById('weightVal'),
+      og: document.getElementById('ogVal'),
+      heel: document.getElementById('heelVal'),
+      speed: document.getElementById('speedVal'),
+      damping: document.getElementById('dampingVal')
+    };
+
+    const outputs = {
+      draft: document.getElementById('draftOut'),
+      ob: document.getElementById('obOut'),
+      bm: document.getElementById('bmOut'),
+      og: document.getElementById('ogOut'),
+      gm: document.getElementById('gmOut'),
+      gz: document.getElementById('gzOut'),
+      gzApprox: document.getElementById('gzApproxOut'),
+      moment: document.getElementById('momentOut'),
+      period: document.getElementById('periodOut'),
+      status: document.getElementById('status'),
+      warning: document.getElementById('warning')
+    };
+
+    const playBtn = document.getElementById('playBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const heelLabelText = document.getElementById('heelLabelText');
+    const dampingControl = document.getElementById('dampingControl');
+    const modeExplanation = document.getElementById('modeExplanation');
+    const graphTitle = document.getElementById('graphTitle');
+    const graphLegend = document.getElementById('graphLegend');
+    const viewCanvas = document.getElementById('view');
+    const curveCanvas = document.getElementById('curve');
+    const viewCtx = viewCanvas.getContext('2d');
+    const curveCtx = curveCanvas.getContext('2d');
+
+    let animationTimer = null;
+    let animationDirection = 1;
+    let dynamicState = null;
+    let motionHistory = [];
+    const MOTION_HISTORY_SECONDS = 20;
+
+    function valueOfWaterDensity() {
+      return Number(controls.water.find(radio => radio.checked).value);
+    }
+
+    function animationMode() {
+      return controls.animationMode.find(radio => radio.checked).value;
+    }
+
+    function format(value, dp = 2) {
+      return Number.isFinite(value) ? value.toFixed(dp) : '—';
+    }
+
+    function polygonAreaCentroid(poly) {
+      if (poly.length < 3) return { area: 0, cx: NaN, cz: NaN };
+
+      let twiceArea = 0;
+      let cxNumerator = 0;
+      let czNumerator = 0;
+
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i];
+        const b = poly[(i + 1) % poly.length];
+        const cross = a.x * b.z - b.x * a.z;
+        twiceArea += cross;
+        cxNumerator += (a.x + b.x) * cross;
+        czNumerator += (a.z + b.z) * cross;
+      }
+
+      const signedArea = twiceArea / 2;
+      if (Math.abs(signedArea) < 1e-12) return { area: 0, cx: NaN, cz: NaN };
+
+      return {
+        area: Math.abs(signedArea),
+        cx: cxNumerator / (6 * signedArea),
+        cz: czNumerator / (6 * signedArea)
+      };
+    }
+
+    function clipBelowWaterline(poly) {
+      const result = [];
+      const inside = p => p.z <= 1e-10;
+
+      for (let i = 0; i < poly.length; i++) {
+        const current = poly[i];
+        const next = poly[(i + 1) % poly.length];
+        const currentInside = inside(current);
+        const nextInside = inside(next);
+
+        if (currentInside && nextInside) {
+          result.push(next);
+        } else if (currentInside && !nextInside) {
+          const t = (0 - current.z) / (next.z - current.z);
+          result.push({ x: current.x + t * (next.x - current.x), z: 0 });
+        } else if (!currentInside && nextInside) {
+          const t = (0 - current.z) / (next.z - current.z);
+          result.push({ x: current.x + t * (next.x - current.x), z: 0 });
+          result.push(next);
+        }
+      }
+
+      return result;
+    }
+
+    function transformBodyPoint(xBody, zBody, heelRad, og, gHeight) {
+      const theta = -heelRad; // positive heel lowers the right-hand side
+      const c = Math.cos(theta);
+      const s = Math.sin(theta);
+      const zRelativeToG = zBody - og;
+
+      return {
+        x: xBody * c - zRelativeToG * s,
+        z: xBody * s + zRelativeToG * c + gHeight
+      };
+    }
+
+    function hullPolygon(B, D, heelRad, og, gHeight) {
+      const halfB = B / 2;
+      return [
+        transformBodyPoint(-halfB, 0, heelRad, og, gHeight),
+        transformBodyPoint( halfB, 0, heelRad, og, gHeight),
+        transformBodyPoint( halfB, D, heelRad, og, gHeight),
+        transformBodyPoint(-halfB, D, heelRad, og, gHeight)
+      ];
+    }
+
+    function submergedGeometry(B, D, heelRad, og, gHeight) {
+      const hull = hullPolygon(B, D, heelRad, og, gHeight);
+      const submerged = clipBelowWaterline(hull);
+      const centroid = polygonAreaCentroid(submerged);
+      return { hull, submerged, ...centroid };
+    }
+
+    function solveFloatingPosition(B, D, heelRad, og, targetArea) {
+      const span = Math.max(B, D) * 4 + D + 2;
+      let low = -span;
+      let high = span;
+
+      let lowArea = submergedGeometry(B, D, heelRad, og, low).area;
+      let highArea = submergedGeometry(B, D, heelRad, og, high).area;
+
+      for (let i = 0; i < 12 && lowArea < targetArea; i++) {
+        low *= 2;
+        lowArea = submergedGeometry(B, D, heelRad, og, low).area;
+      }
+      for (let i = 0; i < 12 && highArea > targetArea; i++) {
+        high *= 2;
+        highArea = submergedGeometry(B, D, heelRad, og, high).area;
+      }
+
+      for (let i = 0; i < 70; i++) {
+        const mid = (low + high) / 2;
+        const area = submergedGeometry(B, D, heelRad, og, mid).area;
+
+        if (area > targetArea) {
+          low = mid; // hull is too low; move it upward
+        } else {
+          high = mid;
+        }
+      }
+
+      const gHeight = (low + high) / 2;
+      return { gHeight, ...submergedGeometry(B, D, heelRad, og, gHeight) };
+    }
+
+    function getInputs() {
+      const B = Number(controls.beam.value);
+      const D = Number(controls.depth.value);
+      const W = Number(controls.weight.value);
+      const rho = valueOfWaterDensity();
+
+      controls.og.max = String(D + 3);
+      if (controls.lockG.checked) {
+        controls.og.value = String(D / 2);
+        controls.og.disabled = true;
+      } else {
+        controls.og.disabled = false;
+        if (Number(controls.og.value) > D + 3) controls.og.value = String(D + 3);
+      }
+
+      const OG = Number(controls.og.value);
+      const heelDeg = Number(controls.heel.value);
+      const heelRad = heelDeg * Math.PI / 180;
+      const displacedArea = (W * 1000 / g) / rho;
+      const hullArea = B * D;
+
+      return { B, D, W, rho, OG, heelDeg, heelRad, displacedArea, hullArea };
+    }
+
+    function calculateState(inputs) {
+      const { B, D, W, OG, heelRad, displacedArea, hullArea } = inputs;
+      const floating = displacedArea > 0 && displacedArea < hullArea;
+
+      if (!floating) {
+        return { ...inputs, floating: false };
+      }
+
+      const T = displacedArea / B;
+      const OB = T / 2;
+      const I = B ** 3 / 12;
+      const BM = I / displacedArea;
+      const OM = OB + BM;
+      const GM = OM - OG;
+      const geometry = solveFloatingPosition(B, D, heelRad, OG, displacedArea);
+
+      const G = { x: 0, z: geometry.gHeight };
+      const O = transformBodyPoint(0, 0, heelRad, OG, geometry.gHeight);
+      const BReference = transformBodyPoint(0, OB, heelRad, OG, geometry.gHeight);
+      const M = transformBodyPoint(0, OM, heelRad, OG, geometry.gHeight);
+      const BPrime = { x: geometry.cx, z: geometry.cz };
+      const exactGZ = BPrime.x - G.x;
+      const approximateGZ = GM * Math.sin(heelRad);
+      const momentPerMetre = W * exactGZ;
+      const deckImmersed = geometry.hull.some((point, index) => index >= 2 && point.z < 0);
+
+      return {
+        ...inputs,
+        floating: true,
+        T, OB, BM, OM, GM,
+        ...geometry,
+        G, O, BReference, M, BPrime,
+        exactGZ, approximateGZ, momentPerMetre, deckImmersed
+      };
+    }
+
+    function rollDynamicsParameters(state) {
+      if (!state.floating) {
+        return { inertia: NaN, naturalFrequency: NaN, period: NaN, dampingCoefficient: NaN };
+      }
+
+      const massPerMetre = state.W * 1000 / g;
+      const dryRollInertia = massPerMetre * (state.B ** 2 + state.D ** 2) / 12;
+      const addedInertiaFactor = 1.6;
+      const inertia = dryRollInertia * addedInertiaFactor;
+      const stiffness = state.W * 1000 * state.GM;
+      const referenceStiffness = state.W * 1000 * Math.max(Math.abs(state.GM), 0.05);
+      const naturalFrequency = state.GM > 0 ? Math.sqrt(stiffness / inertia) : NaN;
+      const period = Number.isFinite(naturalFrequency) && naturalFrequency > 0
+        ? 2 * Math.PI / naturalFrequency
+        : NaN;
+      const referenceFrequency = Math.sqrt(referenceStiffness / inertia);
+      const dampingRatio = Number(controls.damping.value);
+      const dampingCoefficient = 2 * dampingRatio * inertia * referenceFrequency;
+
+      return { inertia, naturalFrequency, period, dampingCoefficient };
+    }
+
+    function dynamicAcceleration(phi, omega, baseInputs) {
+      const angleDeg = phi * 180 / Math.PI;
+      const state = stateAtAngle(baseInputs, angleDeg);
+      if (!state.floating) return { acceleration: 0, state };
+
+      const dynamics = rollDynamicsParameters(state);
+      const restoringMoment = -state.W * 1000 * state.exactGZ;
+      const dampingMoment = -dynamics.dampingCoefficient * omega;
+      const acceleration = (restoringMoment + dampingMoment) / dynamics.inertia;
+      return { acceleration, state };
+    }
+
+    function rk4DynamicStep(phi, omega, dt, baseInputs) {
+      const a1 = dynamicAcceleration(phi, omega, baseInputs).acceleration;
+      const k1Phi = omega;
+      const k1Omega = a1;
+
+      const a2 = dynamicAcceleration(
+        phi + 0.5 * dt * k1Phi,
+        omega + 0.5 * dt * k1Omega,
+        baseInputs
+      ).acceleration;
+      const k2Phi = omega + 0.5 * dt * k1Omega;
+      const k2Omega = a2;
+
+      const a3 = dynamicAcceleration(
+        phi + 0.5 * dt * k2Phi,
+        omega + 0.5 * dt * k2Omega,
+        baseInputs
+      ).acceleration;
+      const k3Phi = omega + 0.5 * dt * k2Omega;
+      const k3Omega = a3;
+
+      const a4 = dynamicAcceleration(
+        phi + dt * k3Phi,
+        omega + dt * k3Omega,
+        baseInputs
+      ).acceleration;
+      const k4Phi = omega + dt * k3Omega;
+      const k4Omega = a4;
+
+      return {
+        phi: phi + dt * (k1Phi + 2 * k2Phi + 2 * k3Phi + k4Phi) / 6,
+        omega: omega + dt * (k1Omega + 2 * k2Omega + 2 * k3Omega + k4Omega) / 6
+      };
+    }
+
+    function resizeCanvasToDisplaySize(canvas, ctx) {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.max(1, window.devicePixelRatio || 1);
+      const width = Math.round(rect.width * ratio);
+      const height = Math.round(rect.height * ratio);
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return { width: rect.width, height: rect.height };
+    }
+
+    function drawPoint(ctx, point, map, fill, label, options = {}) {
+      const p = map(point);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, options.radius || 5, 0, Math.PI * 2);
+      ctx.fillStyle = options.hollow ? '#ffffff' : fill;
+      ctx.fill();
+      ctx.lineWidth = options.hollow ? 2.3 : 1;
+      ctx.strokeStyle = fill;
+      ctx.stroke();
+      ctx.fillStyle = fill;
+      ctx.font = '600 12px system-ui';
+      ctx.fillText(label, p.x + (options.dx ?? 8), p.y + (options.dy ?? 4));
+      ctx.restore();
+    }
+
+    function drawArrowLine(ctx, from, to, label) {
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const length = Math.hypot(dx, dy);
+
+      ctx.save();
+      ctx.strokeStyle = '#333333';
+      ctx.fillStyle = '#333333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+
+      if (length > 10) {
+        const ux = dx / length;
+        const uy = dy / length;
+        const px = -uy;
+        const py = ux;
+        ctx.beginPath();
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - 9 * ux + 4 * px, to.y - 9 * uy + 4 * py);
+        ctx.lineTo(to.x - 9 * ux - 4 * px, to.y - 9 * uy - 4 * py);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.font = '600 11px system-ui';
+      ctx.fillText(label, (from.x + to.x) / 2 - 8, (from.y + to.y) / 2 - 7);
+      ctx.restore();
+    }
+
+    function drawMainView(state) {
+      const { width, height } = resizeCanvasToDisplaySize(viewCanvas, viewCtx);
+      const ctx = viewCtx;
+      ctx.clearRect(0, 0, width, height);
+
+      if (!state.floating) {
+        ctx.fillStyle = '#7a2d28';
+        ctx.font = '600 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('No floating equilibrium for these settings.', width / 2, height / 2);
+        ctx.textAlign = 'start';
+        return;
+      }
+
+      const maxAngle = MAX_HEEL_DEG * Math.PI / 180;
+      const extraX = state.D * Math.sin(maxAngle) + Math.abs(state.GM) * Math.sin(maxAngle) + 0.7;
+      const worldWidth = state.B + 2 * extraX;
+      const upperExtent = Math.max(state.D - state.OG, state.OM - state.OG) + 1.1;
+      const lowerExtent = Math.max(state.OG, state.T) + 1.1;
+      const scale = Math.min((width - 70) / worldWidth, (height - 70) / (upperExtent + lowerExtent));
+      const originX = width / 2;
+      const waterY = height * 0.61;
+
+      const map = point => ({ x: originX + point.x * scale, y: waterY - point.z * scale });
+
+      // Water background.
+      ctx.fillStyle = '#dcecff';
+      ctx.fillRect(0, waterY, width, height - waterY);
+
+      // Waterline.
+      ctx.strokeStyle = '#1f6fbf';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, waterY);
+      ctx.lineTo(width, waterY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#315f8a';
+      ctx.font = '11px system-ui';
+      ctx.fillText('waterline', 10, waterY - 7);
+
+      // Upright reference outline.
+      if (controls.showGhost.checked) {
+        const upright = solveFloatingPosition(state.B, state.D, 0, state.OG, state.displacedArea);
+        const ghost = upright.hull.map(map);
+        ctx.save();
+        ctx.strokeStyle = '#9fb1c3';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(ghost[0].x, ghost[0].y);
+        ghost.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Hull.
+      const hull = state.hull.map(map);
+      ctx.beginPath();
+      ctx.moveTo(hull[0].x, hull[0].y);
+      hull.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      ctx.fillStyle = '#fff7df';
+      ctx.fill();
+      ctx.strokeStyle = '#a97b1f';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // Actual submerged part.
+      if (state.submerged.length >= 3) {
+        const submerged = state.submerged.map(map);
+        ctx.beginPath();
+        ctx.moveTo(submerged[0].x, submerged[0].y);
+        submerged.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(93, 153, 219, 0.28)';
+        ctx.fill();
+      }
+
+      // Body-fixed centreline.
+      const centreBottom = map(state.O);
+      const centreTop = map(transformBodyPoint(0, Math.max(state.D, state.OM) + 0.6, state.heelRad, state.OG, state.gHeight));
+      ctx.strokeStyle = '#95a6b8';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(centreBottom.x, centreBottom.y);
+      ctx.lineTo(centreTop.x, centreTop.y);
+      ctx.stroke();
+
+      // B′–M line.
+      const bPrimeCanvas = map(state.BPrime);
+      const mCanvas = map(state.M);
+      ctx.save();
+      ctx.strokeStyle = '#16804a';
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(bPrimeCanvas.x, bPrimeCanvas.y);
+      ctx.lineTo(mCanvas.x, mCanvas.y);
+      ctx.stroke();
+      ctx.restore();
+
+      // Exact GZ, horizontal from G to the vertical through B′.
+      const gCanvas = map(state.G);
+      const zPoint = map({ x: state.BPrime.x, z: state.G.z });
+      if (Math.abs(zPoint.x - gCanvas.x) > 3) {
+        drawArrowLine(ctx, gCanvas, zPoint, 'GZ');
+      }
+
+      // Points and labels. B and B′ coincide when the pontoon is upright.
+      drawPoint(ctx, state.O, map, '#3a4d61', 'O', { radius: 3.2, dx: 7, dy: 3 });
+      if (Math.abs(state.heelDeg) < 0.05) {
+        drawPoint(ctx, state.BPrime, map, '#1769d2', 'B = B′', { dx: 8, dy: 4 });
+      } else {
+        drawPoint(ctx, state.BReference, map, '#1769d2', 'B', { hollow: true, dx: 8, dy: 4 });
+        drawPoint(ctx, state.BPrime, map, '#1769d2', 'B′', { dx: 8, dy: 4 });
+      }
+      drawPoint(ctx, state.G, map, '#c9362b', 'G', { dx: 8, dy: 4 });
+      drawPoint(ctx, state.M, map, '#16804a', 'M', { dx: 8, dy: 4 });
+
+      // Heel angle marker.
+      const markerX = width - 78;
+      const markerY = 54;
+      const radius = 28;
+      const phi = state.heelRad;
+      ctx.save();
+      ctx.strokeStyle = '#4d647c';
+      ctx.fillStyle = '#4d647c';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(markerX - radius, markerY);
+      ctx.lineTo(markerX + radius, markerY);
+      ctx.stroke();
+      ctx.translate(markerX, markerY);
+      // Canvas uses a downward-positive y-axis, so a positive canvas rotation
+      // matches the visual clockwise heel used by the hull drawing.
+      ctx.rotate(phi);
+      ctx.beginPath();
+      ctx.moveTo(-radius, 0);
+      ctx.lineTo(radius, 0);
+      ctx.stroke();
+      ctx.restore();
+      ctx.font = '11px system-ui';
+      ctx.fillText(`φ = ${format(state.heelDeg, 1)}°`, markerX - 24, markerY + 20);
+    }
+
+    function stateAtAngle(baseInputs, angleDeg) {
+      const inputs = {
+        ...baseInputs,
+        heelDeg: angleDeg,
+        heelRad: angleDeg * Math.PI / 180
+      };
+      return calculateState(inputs);
+    }
+
+    function drawRightingCurve(state) {
+      const { width, height } = resizeCanvasToDisplaySize(curveCanvas, curveCtx);
+      const ctx = curveCtx;
+      ctx.clearRect(0, 0, width, height);
+
+      if (!state.floating) return;
+
+      const margin = { left: 50, right: 16, top: 18, bottom: 36 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const baseInputs = {
+        B: state.B,
+        D: state.D,
+        W: state.W,
+        rho: state.rho,
+        OG: state.OG,
+        displacedArea: state.displacedArea,
+        hullArea: state.hullArea
+      };
+
+      const samples = [];
+      let maxAbsGZ = 0.05;
+      for (let deg = -MAX_HEEL_DEG; deg <= MAX_HEEL_DEG + 1e-9; deg += 1) {
+        const s = stateAtAngle(baseInputs, deg);
+        samples.push(s);
+        maxAbsGZ = Math.max(maxAbsGZ, Math.abs(s.exactGZ), Math.abs(s.approximateGZ));
+      }
+      maxAbsGZ *= 1.15;
+
+      const xMap = deg => margin.left + (deg + MAX_HEEL_DEG) / (2 * MAX_HEEL_DEG) * plotW;
+      const yMap = gz => margin.top + (maxAbsGZ - gz) / (2 * maxAbsGZ) * plotH;
+
+      ctx.strokeStyle = '#d1dce8';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yMap(0));
+      ctx.lineTo(width - margin.right, yMap(0));
+      ctx.moveTo(xMap(0), margin.top);
+      ctx.lineTo(xMap(0), height - margin.bottom);
+      ctx.stroke();
+
+      ctx.fillStyle = '#596f85';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      [-20, -10, 0, 10, 20].forEach(deg => {
+        const x = xMap(deg);
+        ctx.fillText(String(deg), x, height - 17);
+        ctx.beginPath();
+        ctx.moveTo(x, yMap(0) - 3);
+        ctx.lineTo(x, yMap(0) + 3);
+        ctx.stroke();
+      });
+      ctx.fillText('heel angle φ (degrees)', margin.left + plotW / 2, height - 3);
+
+      ctx.textAlign = 'right';
+      [-maxAbsGZ, 0, maxAbsGZ].forEach(value => {
+        ctx.fillText(format(value, 2), margin.left - 7, yMap(value) + 3);
+      });
+      ctx.save();
+      ctx.translate(12, margin.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('GZ (m)', 0, 0);
+      ctx.restore();
+
+      // Exact curve.
+      ctx.strokeStyle = '#1769d2';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      samples.forEach((s, index) => {
+        const x = xMap(s.heelDeg);
+        const y = yMap(s.exactGZ);
+        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Approximation.
+      ctx.strokeStyle = '#16804a';
+      ctx.lineWidth = 1.7;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      samples.forEach((s, index) => {
+        const x = xMap(s.heelDeg);
+        const y = yMap(s.approximateGZ);
+        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Current angle marker.
+      const currentX = xMap(state.heelDeg);
+      const currentY = yMap(state.exactGZ);
+      ctx.fillStyle = '#1769d2';
+      ctx.beginPath();
+      ctx.arc(currentX, currentY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawMotionHistory(state) {
+      const { width, height } = resizeCanvasToDisplaySize(curveCanvas, curveCtx);
+      const ctx = curveCtx;
+      ctx.clearRect(0, 0, width, height);
+
+      const margin = { left: 50, right: 16, top: 18, bottom: 36 };
+      const plotW = width - margin.left - margin.right;
+      const plotH = height - margin.top - margin.bottom;
+      const latestTime = motionHistory.length ? motionHistory[motionHistory.length - 1].t : 0;
+      const timeMax = Math.max(8, latestTime);
+      const timeMin = Math.max(0, timeMax - MOTION_HISTORY_SECONDS);
+      const visible = motionHistory.filter(point => point.t >= timeMin);
+      const maxAbsAngle = Math.max(5, ...visible.map(point => Math.abs(point.phiDeg))) * 1.12;
+
+      const xMap = time => margin.left + (time - timeMin) / Math.max(1e-9, timeMax - timeMin) * plotW;
+      const yMap = angle => margin.top + (maxAbsAngle - angle) / (2 * maxAbsAngle) * plotH;
+
+      ctx.strokeStyle = '#d1dce8';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, yMap(0));
+      ctx.lineTo(width - margin.right, yMap(0));
+      ctx.stroke();
+
+      ctx.fillStyle = '#596f85';
+      ctx.font = '10px system-ui';
+      ctx.textAlign = 'center';
+      for (let i = 0; i <= 4; i++) {
+        const time = timeMin + (timeMax - timeMin) * i / 4;
+        ctx.fillText(format(time, 1), xMap(time), height - 17);
+      }
+      ctx.fillText('time (s)', margin.left + plotW / 2, height - 3);
+
+      ctx.textAlign = 'right';
+      [-maxAbsAngle, 0, maxAbsAngle].forEach(value => {
+        ctx.fillText(`${format(value, 1)}°`, margin.left - 7, yMap(value) + 3);
+      });
+      ctx.save();
+      ctx.translate(12, margin.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('heel angle φ', 0, 0);
+      ctx.restore();
+
+      if (visible.length > 1) {
+        ctx.strokeStyle = state.GM >= 0 ? '#1769d2' : '#c9362b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        visible.forEach((point, index) => {
+          const x = xMap(point.t);
+          const y = yMap(point.phiDeg);
+          if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#687d91';
+        ctx.textAlign = 'center';
+        ctx.font = '12px system-ui';
+        ctx.fillText('Set a release angle, then press “Release pontoon”.', margin.left + plotW / 2, margin.top + plotH / 2);
+      }
+    }
+
+    function drawGraph(state) {
+      if (animationMode() === 'free') {
+        drawMotionHistory(state);
+      } else {
+        drawRightingCurve(state);
+      }
+    }
+
+    function updateLabels(inputs) {
+      labels.beam.textContent = `${format(inputs.B, 1)} m`;
+      labels.depth.textContent = `${format(inputs.D, 1)} m`;
+      labels.weight.textContent = `${format(inputs.W, 0)} kN/m`;
+      labels.og.textContent = `${format(inputs.OG, 2)} m`;
+      labels.heel.textContent = `${format(inputs.heelDeg, 1)}°`;
+      labels.speed.textContent = `${format(Number(controls.speed.value), 1)}×`;
+      labels.damping.textContent = format(Number(controls.damping.value), 2);
+    }
+
+    function updateOutputs(state) {
+      if (!state.floating) {
+        outputs.draft.textContent = '—';
+        outputs.ob.textContent = '—';
+        outputs.bm.textContent = '—';
+        outputs.og.textContent = `${format(state.OG, 3)} m`;
+        outputs.gm.textContent = '—';
+        outputs.gz.textContent = '—';
+        outputs.gzApprox.textContent = '—';
+        outputs.moment.textContent = '—';
+        outputs.period.textContent = '—';
+        outputs.status.textContent = 'No floating equilibrium';
+        outputs.status.className = 'status unstable';
+        outputs.warning.style.display = 'block';
+        outputs.warning.textContent = 'The required displacement is at least as large as the full hull volume. Reduce the weight or increase the beam/depth.';
+        return;
+      }
+
+      outputs.draft.textContent = `${format(state.T, 3)} m`;
+      outputs.ob.textContent = `${format(state.OB, 3)} m`;
+      outputs.bm.textContent = `${format(state.BM, 3)} m`;
+      outputs.og.textContent = `${format(state.OG, 3)} m`;
+      outputs.gm.textContent = `${format(state.GM, 3)} m`;
+      outputs.gz.textContent = `${format(state.exactGZ, 3)} m`;
+      outputs.gzApprox.textContent = `${format(state.approximateGZ, 3)} m`;
+      outputs.moment.textContent = `${format(state.momentPerMetre, 1)} kN·m/m`;
+      const dynamics = rollDynamicsParameters(state);
+      outputs.period.textContent = Number.isFinite(dynamics.period)
+        ? `${format(dynamics.period, 2)} s`
+        : (Math.abs(state.GM) <= 0.02 ? 'very long / neutral' : 'not oscillatory');
+
+      const tolerance = 0.02;
+      if (state.GM > tolerance) {
+        outputs.status.textContent = state.heelDeg === 0
+          ? 'Stable for small angles: M lies above G'
+          : (state.exactGZ * state.heelRad >= 0
+              ? 'Restoring moment: the pontoon tends to return upright'
+              : 'Overturning moment at this angle');
+        outputs.status.className = 'status stable';
+      } else if (state.GM < -tolerance) {
+        outputs.status.textContent = 'Unstable for small angles: M lies below G';
+        outputs.status.className = 'status unstable';
+      } else {
+        outputs.status.textContent = 'Approximately neutral stability: GM is close to zero';
+        outputs.status.className = 'status neutral';
+      }
+
+      const warnings = [];
+      if (state.deckImmersed) warnings.push('A deck edge is below the waterline at this heel angle.');
+      const approximationError = Math.abs(state.exactGZ - state.approximateGZ);
+      if (Math.abs(state.heelDeg) >= 12 && approximationError > 0.03) {
+        warnings.push('The small-angle approximation is beginning to differ noticeably from the exact submerged-area calculation.');
+      }
+
+      if (warnings.length) {
+        outputs.warning.style.display = 'block';
+        outputs.warning.textContent = warnings.join(' ');
+      } else {
+        outputs.warning.style.display = 'none';
+        outputs.warning.textContent = '';
+      }
+    }
+
+    function update() {
+      const inputs = getInputs();
+      updateLabels(inputs);
+      const state = calculateState(inputs);
+      updateOutputs(state);
+      drawMainView(state);
+      drawGraph(state);
+    }
+
+    function setModeUI() {
+      const free = animationMode() === 'free';
+      dampingControl.style.display = free ? 'block' : 'none';
+      heelLabelText.textContent = free
+        ? (animationTimer !== null ? 'Current heel, φ' : 'Release angle, φ₀')
+        : 'Heel angle, φ';
+      modeExplanation.textContent = free
+        ? 'Release the pontoon from rest. Positive GM produces a restoring moment and damped oscillation; negative GM makes the disturbance grow.'
+        : 'The guided sweep moves through a prescribed range of heel angles so the changing buoyancy geometry can be inspected.';
+      graphTitle.textContent = free ? 'Heel response with time' : 'Righting-arm curve';
+      curveCanvas.setAttribute('aria-label', free ? 'Heel angle against time' : 'Righting arm against heel angle');
+      graphLegend.innerHTML = free
+        ? '<span style="color:var(--buoyancy)"><i class="line-key"></i> heel angle φ(t)</span>'
+        : '<span style="color:var(--buoyancy)"><i class="line-key"></i> exact GZ</span><span style="color:var(--meta)"><i class="line-key" style="border-top-style:dashed"></i> GM sinφ</span>';
+      playBtn.textContent = free ? 'Release pontoon' : 'Play heel animation';
+    }
+
+    function stopAnimation() {
+      if (animationTimer !== null) {
+        clearInterval(animationTimer);
+        animationTimer = null;
+      }
+      dynamicState = null;
+      playBtn.setAttribute('aria-pressed', 'false');
+      setModeUI();
+    }
+
+    function baseInputsForDynamics() {
+      const inputs = getInputs();
+      return {
+        B: inputs.B, D: inputs.D, W: inputs.W, rho: inputs.rho, OG: inputs.OG,
+        displacedArea: inputs.displacedArea, hullArea: inputs.hullArea
+      };
+    }
+
+    function startSweepAnimation() {
+      playBtn.textContent = 'Pause heel animation';
+      playBtn.setAttribute('aria-pressed', 'true');
+      animationTimer = setInterval(() => {
+        let angle = Number(controls.heel.value);
+        const step = 0.35 * Number(controls.speed.value) * animationDirection;
+        angle += step;
+
+        if (angle >= MAX_HEEL_DEG) {
+          angle = MAX_HEEL_DEG;
+          animationDirection = -1;
+        } else if (angle <= -MAX_HEEL_DEG) {
+          angle = -MAX_HEEL_DEG;
+          animationDirection = 1;
+        }
+
+        controls.heel.value = String(angle);
+        update();
+      }, 40);
+    }
+
+    function startFreeResponse() {
+      const initialAngle = Number(controls.heel.value);
+      const initialInputs = getInputs();
+      const initialState = calculateState(initialInputs);
+      if (!initialState.floating) return;
+
+      const baseInputs = baseInputsForDynamics();
+      dynamicState = {
+        phi: initialAngle * Math.PI / 180,
+        omega: 0,
+        time: 0,
+        baseInputs
+      };
+      motionHistory = [{ t: 0, phiDeg: initialAngle }];
+      playBtn.textContent = 'Pause response';
+      playBtn.setAttribute('aria-pressed', 'true');
+      heelLabelText.textContent = 'Current heel, φ';
+
+      animationTimer = setInterval(() => {
+        const totalDt = 0.025 * Number(controls.speed.value);
+        const substeps = Math.max(1, Math.ceil(totalDt / 0.004));
+        const dt = totalDt / substeps;
+
+        for (let i = 0; i < substeps; i++) {
+          const stepped = rk4DynamicStep(dynamicState.phi, dynamicState.omega, dt, dynamicState.baseInputs);
+          dynamicState.phi = stepped.phi;
+          dynamicState.omega = stepped.omega;
+          dynamicState.time += dt;
+        }
+
+        let angleDeg = dynamicState.phi * 180 / Math.PI;
+        const reachedLimit = Math.abs(angleDeg) >= MAX_HEEL_DEG;
+        angleDeg = Math.max(-MAX_HEEL_DEG, Math.min(MAX_HEEL_DEG, angleDeg));
+        controls.heel.value = String(angleDeg);
+        motionHistory.push({ t: dynamicState.time, phiDeg: angleDeg });
+        while (motionHistory.length > 2 && motionHistory[0].t < dynamicState.time - MOTION_HISTORY_SECONDS) {
+          motionHistory.shift();
+        }
+        update();
+
+        const settled = Math.abs(angleDeg) < 0.03 && Math.abs(dynamicState.omega) < 0.0008 && dynamicState.time > 1;
+        if (settled || reachedLimit) {
+          stopAnimation();
+          update();
+          if (reachedLimit) {
+            outputs.warning.style.display = 'block';
+            outputs.warning.textContent = 'The heel reached the display limit, indicating divergence towards capsize in this simplified model.';
+          }
+        }
+      }, 25);
+    }
+
+    function toggleAnimation() {
+      if (animationTimer !== null) {
+        stopAnimation();
+        update();
+        return;
+      }
+
+      if (animationMode() === 'free') {
+        startFreeResponse();
+      } else {
+        startSweepAnimation();
+      }
+    }
+
+    function reset() {
+      stopAnimation();
+      controls.beam.value = '8';
+      controls.depth.value = '4';
+      controls.weight.value = '200';
+      controls.og.value = '2';
+      controls.lockG.checked = true;
+      controls.heel.value = '0';
+      controls.speed.value = '1';
+      controls.damping.value = '0.12';
+      controls.showGhost.checked = true;
+      controls.water.forEach(radio => { radio.checked = radio.value === '1025'; });
+      controls.animationMode.forEach(radio => { radio.checked = radio.value === 'sweep'; });
+      animationDirection = 1;
+      motionHistory = [];
+      setModeUI();
+      update();
+    }
+
+    function geometryChanged() {
+      stopAnimation();
+      motionHistory = [];
+      update();
+    }
+
+    [controls.beam, controls.depth, controls.weight, controls.og]
+      .forEach(control => control.addEventListener('input', geometryChanged));
+    controls.heel.addEventListener('input', () => {
+      if (animationTimer !== null) stopAnimation();
+      if (animationMode() === 'free') motionHistory = [];
+      update();
+    });
+    [controls.speed, controls.damping].forEach(control => control.addEventListener('input', update));
+    [controls.lockG, ...controls.water].forEach(control => control.addEventListener('change', geometryChanged));
+    controls.showGhost.addEventListener('change', update);
+    controls.animationMode.forEach(control => control.addEventListener('change', () => {
+      stopAnimation();
+      motionHistory = [];
+      if (animationMode() === 'free' && Math.abs(Number(controls.heel.value)) < 0.05) {
+        controls.heel.value = '10';
+      }
+      setModeUI();
+      update();
+    }));
+
+    playBtn.addEventListener('click', toggleAnimation);
+    resetBtn.addEventListener('click', reset);
+    window.addEventListener('resize', update);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopAnimation();
+    });
+
+    reset();
+  </script>
+</body>
+</html>
