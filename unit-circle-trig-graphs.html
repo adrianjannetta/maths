@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>From the unit circle to trig graphs</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --ink: #183247;
+      --muted: #587084;
+      --page: #eef4f8;
+      --panel: #ffffff;
+      --line: #c9d7e2;
+      --grid: #dfe8ef;
+      --sin: #c0266d;
+      --cos: #1769aa;
+      --tan: #b34d00;
+      --angle: #7656c9;
+      --focus: #ffbf47;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #f6fafc 0, var(--page) 100%);
+      color: var(--ink);
+    }
+
+    button, input { font: inherit; }
+
+    .app {
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      padding: clamp(0.75rem, 2vw, 1.5rem);
+    }
+
+    .hero {
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.55rem, 3vw, 2.25rem);
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .hero p, .notice p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: minmax(15rem, 1.6fr) auto auto;
+      gap: 0.85rem 1.1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+      padding: 0.9rem 1rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 5px 20px rgba(24, 50, 71, 0.06);
+    }
+
+    .angle-control label {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.38rem;
+      font-weight: 700;
+    }
+
+    output {
+      min-width: 5.8rem;
+      text-align: right;
+      color: var(--angle);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      min-height: 2rem;
+      margin: 0;
+      accent-color: var(--angle);
+    }
+
+    fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    legend {
+      margin-bottom: 0.4rem;
+      padding: 0;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .segmented, .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+    }
+
+    .segmented label {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .segmented input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    .segmented span, button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.55rem;
+      padding: 0.55rem 0.82rem;
+      border: 1px solid #9db1c1;
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    .segmented input:checked + span {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .segmented input:focus-visible + span,
+    button:focus-visible,
+    input[type="range"]:focus-visible,
+    canvas:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    button:hover { background: #eef4f8; }
+    button.primary {
+      border-color: var(--angle);
+      background: var(--angle);
+      color: #fff;
+    }
+    button.primary:hover { background: #6245b0; }
+
+    .visual-grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.82fr) minmax(430px, 1.3fr);
+      gap: 1rem;
+      align-items: stretch;
+    }
+
+    .panel {
+      min-width: 0;
+      padding: 1rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 5px 20px rgba(24, 50, 71, 0.06);
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: baseline;
+      margin-bottom: 0.65rem;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.83rem;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      border: 1px solid #aebfcd;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    #circleCanvas {
+      min-height: 390px;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    #circleCanvas.dragging { cursor: grabbing; }
+
+    #graphCanvas {
+      min-height: 390px;
+    }
+
+    .values {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+
+    .value-card {
+      min-width: 0;
+      padding: 0.62rem 0.68rem;
+      border: 1px solid var(--line);
+      border-left-width: 5px;
+      border-radius: 9px;
+      background: #f9fbfc;
+    }
+
+    .value-card.sin { border-left-color: var(--sin); }
+    .value-card.cos { border-left-color: var(--cos); }
+    .value-card.tan { border-left-color: var(--tan); }
+
+    .value-name {
+      display: block;
+      margin-bottom: 0.15rem;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--muted);
+    }
+
+    .value-number {
+      display: block;
+      overflow: hidden;
+      font-size: clamp(0.95rem, 2vw, 1.15rem);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .curve-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .curve-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .curve-controls input { width: 1rem; height: 1rem; }
+    .curve-controls .sin-label { color: var(--sin); }
+    .curve-controls .cos-label { color: var(--cos); }
+    .curve-controls .tan-label { color: var(--tan); }
+
+    .notice {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border: 1px solid #c8bbe9;
+      border-radius: 12px;
+      background: #f7f3ff;
+    }
+
+    .notice strong { color: #51359d; }
+
+    @media (max-width: 860px) {
+      .controls { grid-template-columns: 1fr auto; }
+      .angle-control { grid-column: 1 / -1; }
+      .visual-grid { grid-template-columns: 1fr; }
+      #circleCanvas, #graphCanvas { min-height: 340px; }
+    }
+
+    @media (max-width: 520px) {
+      .controls { grid-template-columns: 1fr; align-items: stretch; }
+      .angle-control { grid-column: auto; }
+      .values { grid-template-columns: 1fr; }
+      .panel-heading { align-items: flex-start; flex-direction: column; gap: 0.15rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <h1>From the unit circle to trig graphs</h1>
+      <p>Move the point around the circle and watch its coordinates become the heights of the sine, cosine and tangent graphs.</p>
+    </header>
+
+    <section class="controls" aria-label="Widget controls">
+      <div class="angle-control">
+        <label for="angleSlider">
+          <span>Angle, θ</span>
+          <output id="angleOutput" for="angleSlider">45°</output>
+        </label>
+        <input id="angleSlider" type="range" min="0" max="360" step="1" value="45">
+      </div>
+
+      <fieldset>
+        <legend>Angle units</legend>
+        <div class="segmented">
+          <label>
+            <input type="radio" name="units" value="degrees" checked>
+            <span>Degrees</span>
+          </label>
+          <label>
+            <input type="radio" name="units" value="radians">
+            <span>Radians</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="button-row" aria-label="Animation controls">
+        <button id="playButton" class="primary" type="button">▶ Play</button>
+        <button id="resetButton" type="button">Reset</button>
+      </div>
+    </section>
+
+    <div class="visual-grid">
+      <section class="panel" aria-labelledby="circleHeading">
+        <div class="panel-heading">
+          <h2 id="circleHeading">1. Read the unit-circle lengths</h2>
+          <span class="hint">Drag the purple point</span>
+        </div>
+        <canvas
+          id="circleCanvas"
+          tabindex="0"
+          role="slider"
+          aria-label="Angle on the unit circle"
+          aria-valuemin="0"
+          aria-valuemax="360"
+          aria-valuenow="45"
+          aria-valuetext="45 degrees"></canvas>
+
+        <div class="values" aria-live="polite">
+          <div class="value-card sin">
+            <span class="value-name">vertical: sin θ</span>
+            <span class="value-number" id="sinValue">0.707</span>
+          </div>
+          <div class="value-card cos">
+            <span class="value-name">horizontal: cos θ</span>
+            <span class="value-number" id="cosValue">0.707</span>
+          </div>
+          <div class="value-card tan">
+            <span class="value-name">ratio: tan θ = sin θ/cos θ</span>
+            <span class="value-number" id="tanValue">1.000</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="graphHeading">
+        <div class="panel-heading">
+          <h2 id="graphHeading">2. Transfer the values to the graphs</h2>
+          <span class="hint">One complete turn: 0 to 360°</span>
+        </div>
+        <canvas id="graphCanvas" aria-label="Graphs of sine, cosine and tangent over one complete turn"></canvas>
+        <fieldset class="curve-controls">
+          <legend>Show curves</legend>
+          <label class="sin-label"><input id="showSin" type="checkbox" checked> sin θ</label>
+          <label class="cos-label"><input id="showCos" type="checkbox" checked> cos θ</label>
+          <label class="tan-label"><input id="showTan" type="checkbox" checked> tan θ</label>
+        </fieldset>
+      </section>
+    </div>
+
+    <aside class="notice">
+      <p><strong>What to notice:</strong> the point has coordinates <span>(cos θ, sin θ)</span>. As θ increases, its horizontal and vertical coordinates repeat, producing the cosine and sine waves. Tangent is their ratio, so it is undefined whenever cos θ = 0.</p>
+    </aside>
+  </main>
+
+  <script>
+    "use strict";
+
+    const TAU = 2 * Math.PI;
+    const initialState = Object.freeze({
+      theta: Math.PI / 4,
+      units: "degrees",
+      playing: false,
+      showSin: true,
+      showCos: true,
+      showTan: true
+    });
+    const state = { ...initialState };
+
+    const colours = Object.freeze({
+      ink: "#183247",
+      muted: "#587084",
+      line: "#aebfcd",
+      grid: "#dfe8ef",
+      sin: "#c0266d",
+      cos: "#1769aa",
+      tan: "#b34d00",
+      angle: "#7656c9",
+      point: "#5d35ba"
+    });
+
+    const circleCanvas = document.querySelector("#circleCanvas");
+    const graphCanvas = document.querySelector("#graphCanvas");
+    const circleContext = circleCanvas.getContext("2d");
+    const graphContext = graphCanvas.getContext("2d");
+    const angleSlider = document.querySelector("#angleSlider");
+    const angleOutput = document.querySelector("#angleOutput");
+    const playButton = document.querySelector("#playButton");
+    const resetButton = document.querySelector("#resetButton");
+    const sinValue = document.querySelector("#sinValue");
+    const cosValue = document.querySelector("#cosValue");
+    const tanValue = document.querySelector("#tanValue");
+    const graphHint = document.querySelector("#graphHeading + .hint");
+    const curveInputs = {
+      showSin: document.querySelector("#showSin"),
+      showCos: document.querySelector("#showCos"),
+      showTan: document.querySelector("#showTan")
+    };
+
+    let circleGeometry = null;
+    let dragging = false;
+    let animationFrame = 0;
+    let lastFrameTime = 0;
+
+    function normaliseAngle(theta) {
+      const wrapped = theta % TAU;
+      return wrapped < 0 ? wrapped + TAU : wrapped;
+    }
+
+    function cleanValue(value) {
+      return Math.abs(value) < 5e-4 ? 0 : value;
+    }
+
+    function formatValue(value) {
+      return cleanValue(value).toFixed(3);
+    }
+
+    function formatRadians(theta, compact = false) {
+      const multiples = [
+        [0, "0"],
+        [Math.PI / 6, "π/6"],
+        [Math.PI / 4, "π/4"],
+        [Math.PI / 3, "π/3"],
+        [Math.PI / 2, "π/2"],
+        [2 * Math.PI / 3, "2π/3"],
+        [3 * Math.PI / 4, "3π/4"],
+        [5 * Math.PI / 6, "5π/6"],
+        [Math.PI, "π"],
+        [7 * Math.PI / 6, "7π/6"],
+        [5 * Math.PI / 4, "5π/4"],
+        [4 * Math.PI / 3, "4π/3"],
+        [3 * Math.PI / 2, "3π/2"],
+        [5 * Math.PI / 3, "5π/3"],
+        [7 * Math.PI / 4, "7π/4"],
+        [11 * Math.PI / 6, "11π/6"],
+        [TAU, "2π"]
+      ];
+      const match = multiples.find(([value]) => Math.abs(theta - value) < 0.005);
+      if (match) return match[1];
+      return compact ? theta.toFixed(2) : `${theta.toFixed(3)} rad`;
+    }
+
+    function displayAngle(theta) {
+      if (state.units === "degrees") {
+        return `${(theta * 180 / Math.PI).toFixed(0)}°`;
+      }
+      return formatRadians(theta);
+    }
+
+    function configureSlider() {
+      if (state.units === "degrees") {
+        angleSlider.min = "0";
+        angleSlider.max = "360";
+        angleSlider.step = "1";
+        angleSlider.value = String(state.theta * 180 / Math.PI);
+        graphHint.textContent = "One complete turn: 0 to 360°";
+      } else {
+        angleSlider.min = "0";
+        angleSlider.max = String(TAU);
+        angleSlider.step = "0.01";
+        angleSlider.value = String(state.theta);
+        graphHint.textContent = "One complete turn: 0 to 2π radians";
+      }
+    }
+
+    function sizeCanvas(canvas, context, minimumHeight) {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.max(1, window.devicePixelRatio || 1);
+      const cssWidth = Math.max(280, rect.width);
+      const cssHeight = Math.max(minimumHeight, Math.min(470, cssWidth * 0.78));
+      const pixelWidth = Math.round(cssWidth * ratio);
+      const pixelHeight = Math.round(cssHeight * ratio);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+      canvas.style.height = `${cssHeight}px`;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return { width: cssWidth, height: cssHeight };
+    }
+
+    function line(context, x1, y1, x2, y2, colour, width = 1, dash = []) {
+      context.save();
+      context.beginPath();
+      context.moveTo(x1, y1);
+      context.lineTo(x2, y2);
+      context.strokeStyle = colour;
+      context.lineWidth = width;
+      context.setLineDash(dash);
+      context.stroke();
+      context.restore();
+    }
+
+    function label(context, text, x, y, options = {}) {
+      context.save();
+      context.font = options.font || "600 13px system-ui, sans-serif";
+      context.fillStyle = options.colour || colours.ink;
+      const textAlign = options.align || "center";
+      context.textAlign = textAlign;
+      context.textBaseline = options.baseline || "middle";
+      if (options.background) {
+        const metrics = context.measureText(text);
+        const padX = 4;
+        const backgroundX = textAlign === "left"
+          ? x - padX
+          : textAlign === "right"
+            ? x - metrics.width - padX
+            : x - metrics.width / 2 - padX;
+        context.fillStyle = options.background;
+        context.fillRect(backgroundX, y - 9, metrics.width + 2 * padX, 18);
+        context.fillStyle = options.colour || colours.ink;
+      }
+      context.fillText(text, x, y);
+      context.restore();
+    }
+
+    function drawArrowHead(context, x, y, angle, colour) {
+      context.save();
+      context.translate(x, y);
+      context.rotate(angle);
+      context.beginPath();
+      context.moveTo(0, 0);
+      context.lineTo(-8, -4);
+      context.lineTo(-8, 4);
+      context.closePath();
+      context.fillStyle = colour;
+      context.fill();
+      context.restore();
+    }
+
+    function renderCircle() {
+      const size = sizeCanvas(circleCanvas, circleContext, 390);
+      const { width, height } = size;
+      const context = circleContext;
+      context.clearRect(0, 0, width, height);
+
+      const radius = Math.min(width * 0.31, height * 0.32);
+      const cx = width * 0.48;
+      const cy = height * 0.51;
+      const px = cx + radius * Math.cos(state.theta);
+      const py = cy - radius * Math.sin(state.theta);
+      circleGeometry = { cx, cy, radius, px, py };
+
+      line(context, 22, cy, width - 18, cy, colours.line, 1.2);
+      line(context, cx, height - 20, cx, 18, colours.line, 1.2);
+      drawArrowHead(context, width - 18, cy, 0, colours.line);
+      drawArrowHead(context, cx, 18, -Math.PI / 2, colours.line);
+      label(context, "x", width - 20, cy - 15, { colour: colours.muted });
+      label(context, "y", cx + 15, 20, { colour: colours.muted });
+
+      context.save();
+      context.beginPath();
+      context.arc(cx, cy, radius, 0, TAU);
+      context.strokeStyle = colours.ink;
+      context.lineWidth = 2.2;
+      context.stroke();
+      context.restore();
+
+      [[1, "1"], [-1, "−1"]].forEach(([value, text]) => {
+        const x = cx + value * radius;
+        line(context, x, cy - 5, x, cy + 5, colours.ink, 1);
+        label(context, text, x, cy + 18, { colour: colours.muted, font: "12px system-ui, sans-serif" });
+        const y = cy - value * radius;
+        line(context, cx - 5, y, cx + 5, y, colours.ink, 1);
+        label(context, text, cx - 14, y, { colour: colours.muted, font: "12px system-ui, sans-serif", align: "right" });
+      });
+
+      context.save();
+      context.beginPath();
+      context.moveTo(cx, cy);
+      context.arc(cx, cy, radius * 0.24, 0, -state.theta, true);
+      context.closePath();
+      context.fillStyle = "rgba(118, 86, 201, 0.13)";
+      context.fill();
+      context.strokeStyle = colours.angle;
+      context.lineWidth = 2;
+      context.stroke();
+      context.restore();
+
+      const angleLabelRadius = radius * 0.35;
+      label(
+        context,
+        "θ",
+        cx + angleLabelRadius * Math.cos(state.theta / 2),
+        cy - angleLabelRadius * Math.sin(state.theta / 2),
+        { colour: colours.angle, font: "700 15px Georgia, serif", background: "#ffffff" }
+      );
+
+      line(context, cx, cy, px, py, colours.angle, 2.3);
+      line(context, cx, cy, px, cy, colours.cos, 6);
+      line(context, px, cy, px, py, colours.sin, 6);
+
+      const cosLabelY = cy + (py < cy ? 18 : -18);
+      label(context, "cos θ", (cx + px) / 2, cosLabelY, {
+        colour: colours.cos,
+        background: "#ffffff"
+      });
+      label(context, "sin θ", px + (px > cx ? 29 : -29), (cy + py) / 2, {
+        colour: colours.sin,
+        background: "#ffffff"
+      });
+
+      const tangent = Math.tan(state.theta);
+      const tangentX = cx + radius;
+      if (Math.abs(Math.cos(state.theta)) > 0.035 && Math.abs(tangent) <= 2.25) {
+        const tangentY = cy - radius * tangent;
+        line(context, tangentX, cy, tangentX, tangentY, colours.tan, 4);
+        line(context, cx, cy, tangentX, tangentY, colours.tan, 1.6, [5, 4]);
+        context.save();
+        context.beginPath();
+        context.arc(tangentX, tangentY, 4, 0, TAU);
+        context.fillStyle = colours.tan;
+        context.fill();
+        context.restore();
+        label(context, "tan θ", tangentX + 8, (cy + tangentY) / 2, {
+          colour: colours.tan,
+          align: "left",
+          background: "#ffffff"
+        });
+      } else {
+        label(context, "tan θ is off-scale", width - 10, height - 16, {
+          colour: colours.tan,
+          align: "right",
+          font: "600 12px system-ui, sans-serif"
+        });
+      }
+
+      context.save();
+      context.beginPath();
+      context.arc(px, py, 10, 0, TAU);
+      context.fillStyle = "#ffffff";
+      context.fill();
+      context.lineWidth = 7;
+      context.strokeStyle = "rgba(93, 53, 186, 0.2)";
+      context.stroke();
+      context.beginPath();
+      context.arc(px, py, 6.5, 0, TAU);
+      context.fillStyle = colours.point;
+      context.fill();
+      context.restore();
+
+      const pointToRight = px < width * 0.68;
+      label(context, "P(cos θ, sin θ)", px + (pointToRight ? 14 : -14), py - 17, {
+        colour: colours.angle,
+        align: pointToRight ? "left" : "right",
+        background: "#ffffff"
+      });
+    }
+
+    function graphX(theta, bounds) {
+      return bounds.left + (theta / TAU) * (bounds.right - bounds.left);
+    }
+
+    function graphY(value, bounds) {
+      const yMin = -1.6;
+      const yMax = 1.6;
+      return bounds.top + ((yMax - value) / (yMax - yMin)) * (bounds.bottom - bounds.top);
+    }
+
+    function drawCurve(context, fn, bounds, colour, width, dash = []) {
+      const samples = Math.max(500, Math.round((bounds.right - bounds.left) * 1.5));
+      const clipLimit = 1.58;
+      context.save();
+      context.beginPath();
+      context.rect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
+      context.clip();
+      context.beginPath();
+      let drawing = false;
+      let previousValue = null;
+      for (let i = 0; i <= samples; i += 1) {
+        const theta = (i / samples) * TAU;
+        const value = fn(theta);
+        const visible = Number.isFinite(value) && Math.abs(value) <= clipLimit;
+        const discontinuity = previousValue !== null && Math.abs(value - previousValue) > 0.4;
+        if (!visible || discontinuity) {
+          drawing = false;
+        } else {
+          const x = graphX(theta, bounds);
+          const y = graphY(value, bounds);
+          if (!drawing) context.moveTo(x, y);
+          else context.lineTo(x, y);
+          drawing = true;
+        }
+        previousValue = value;
+      }
+      context.strokeStyle = colour;
+      context.lineWidth = width;
+      context.setLineDash(dash);
+      context.lineJoin = "round";
+      context.stroke();
+      context.restore();
+    }
+
+    function drawMarker(context, theta, value, bounds, colour, name) {
+      if (!Number.isFinite(value) || Math.abs(value) > 1.58) return;
+      const x = graphX(theta, bounds);
+      const y = graphY(value, bounds);
+      context.save();
+      context.beginPath();
+      context.arc(x, y, 5.5, 0, TAU);
+      context.fillStyle = "#ffffff";
+      context.fill();
+      context.lineWidth = 3;
+      context.strokeStyle = colour;
+      context.stroke();
+      context.restore();
+
+      const align = x > bounds.right - 60 ? "right" : "left";
+      const labelX = align === "right" ? x - 9 : x + 9;
+      label(context, name, labelX, y - 11, {
+        colour,
+        align,
+        font: "700 12px system-ui, sans-serif",
+        background: "#ffffff"
+      });
+    }
+
+    function renderGraph() {
+      const size = sizeCanvas(graphCanvas, graphContext, 390);
+      const { width, height } = size;
+      const context = graphContext;
+      context.clearRect(0, 0, width, height);
+
+      const bounds = {
+        left: width < 430 ? 43 : 52,
+        right: width - 16,
+        top: 28,
+        bottom: height - 48
+      };
+
+      [-1, 0, 1].forEach(value => {
+        const y = graphY(value, bounds);
+        line(context, bounds.left, y, bounds.right, y, value === 0 ? colours.line : colours.grid, value === 0 ? 1.4 : 1);
+        label(context, String(value).replace("-", "−"), bounds.left - 10, y, {
+          colour: colours.muted,
+          align: "right",
+          font: "12px system-ui, sans-serif"
+        });
+      });
+
+      const ticks = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2, TAU];
+      ticks.forEach(theta => {
+        const x = graphX(theta, bounds);
+        line(context, x, bounds.top, x, bounds.bottom, colours.grid, 1);
+        const tickText = state.units === "degrees"
+          ? `${Math.round(theta * 180 / Math.PI)}°`
+          : formatRadians(theta, true);
+        const align = theta === 0 ? "left" : theta === TAU ? "right" : "center";
+        label(context, tickText, x, bounds.bottom + 18, {
+          colour: colours.muted,
+          align,
+          font: "12px system-ui, sans-serif"
+        });
+      });
+
+      [Math.PI / 2, 3 * Math.PI / 2].forEach(theta => {
+        const x = graphX(theta, bounds);
+        line(context, x, bounds.top, x, bounds.bottom, colours.tan, 1.2, [5, 5]);
+      });
+
+      line(context, bounds.left, bounds.top, bounds.left, bounds.bottom, colours.ink, 1.6);
+      line(context, bounds.left, graphY(0, bounds), bounds.right, graphY(0, bounds), colours.ink, 1.6);
+      label(context, "value", bounds.left, 13, { colour: colours.muted, align: "left", font: "12px system-ui, sans-serif" });
+      label(context, "θ", bounds.right, graphY(0, bounds) - 14, { colour: colours.muted, align: "right", font: "italic 14px Georgia, serif" });
+
+      if (state.showSin) drawCurve(context, Math.sin, bounds, colours.sin, 3.2);
+      if (state.showCos) drawCurve(context, Math.cos, bounds, colours.cos, 3.2, [10, 4]);
+      if (state.showTan) drawCurve(context, Math.tan, bounds, colours.tan, 2.8);
+
+      const currentX = graphX(state.theta, bounds);
+      line(context, currentX, bounds.top, currentX, bounds.bottom, colours.angle, 2, [4, 4]);
+      const guideLabel = displayAngle(state.theta);
+      label(context, guideLabel, Math.min(bounds.right - 27, Math.max(bounds.left + 27, currentX)), bounds.top + 11, {
+        colour: colours.angle,
+        font: "700 12px system-ui, sans-serif",
+        background: "#ffffff"
+      });
+
+      if (state.showSin) drawMarker(context, state.theta, Math.sin(state.theta), bounds, colours.sin, "sin");
+      if (state.showCos) drawMarker(context, state.theta, Math.cos(state.theta), bounds, colours.cos, "cos");
+      if (state.showTan) drawMarker(context, state.theta, Math.tan(state.theta), bounds, colours.tan, "tan");
+    }
+
+    function updateReadouts() {
+      const sine = cleanValue(Math.sin(state.theta));
+      const cosine = cleanValue(Math.cos(state.theta));
+      const tangentUndefined = Math.abs(cosine) < 0.0005;
+
+      angleOutput.value = displayAngle(state.theta);
+      angleOutput.textContent = displayAngle(state.theta);
+      sinValue.textContent = formatValue(sine);
+      cosValue.textContent = formatValue(cosine);
+      tanValue.textContent = tangentUndefined ? "undefined" : formatValue(sine / cosine);
+
+      if (state.units === "degrees") {
+        angleSlider.value = String(state.theta * 180 / Math.PI);
+      } else {
+        angleSlider.value = String(state.theta);
+      }
+
+      const degrees = Math.round(state.theta * 180 / Math.PI);
+      circleCanvas.setAttribute("aria-valuenow", String(degrees));
+      circleCanvas.setAttribute(
+        "aria-valuetext",
+        state.units === "degrees" ? `${degrees} degrees` : `${state.theta.toFixed(3)} radians`
+      );
+      playButton.textContent = state.playing ? "❚❚ Pause" : "▶ Play";
+      playButton.setAttribute("aria-pressed", String(state.playing));
+    }
+
+    function render() {
+      updateReadouts();
+      renderCircle();
+      renderGraph();
+    }
+
+    function setAngle(theta) {
+      state.theta = Math.min(TAU, Math.max(0, theta));
+      render();
+    }
+
+    function stopAnimation() {
+      state.playing = false;
+      lastFrameTime = 0;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      updateReadouts();
+    }
+
+    function animate(timestamp) {
+      if (!state.playing) return;
+      if (lastFrameTime) {
+        const elapsed = Math.min(0.05, (timestamp - lastFrameTime) / 1000);
+        state.theta = normaliseAngle(state.theta + elapsed * Math.PI / 3);
+        render();
+      }
+      lastFrameTime = timestamp;
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    function toggleAnimation() {
+      if (state.playing) {
+        stopAnimation();
+      } else {
+        state.playing = true;
+        lastFrameTime = 0;
+        updateReadouts();
+        animationFrame = requestAnimationFrame(animate);
+      }
+    }
+
+    function pointerAngle(event) {
+      if (!circleGeometry) return state.theta;
+      const rect = circleCanvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      return normaliseAngle(Math.atan2(circleGeometry.cy - y, x - circleGeometry.cx));
+    }
+
+    angleSlider.addEventListener("input", () => {
+      const value = Number(angleSlider.value);
+      stopAnimation();
+      setAngle(state.units === "degrees" ? value * Math.PI / 180 : value);
+    });
+
+    document.querySelectorAll('input[name="units"]').forEach(input => {
+      input.addEventListener("change", () => {
+        state.units = input.value;
+        configureSlider();
+        render();
+      });
+    });
+
+    Object.entries(curveInputs).forEach(([key, input]) => {
+      input.addEventListener("change", () => {
+        state[key] = input.checked;
+        renderGraph();
+      });
+    });
+
+    playButton.addEventListener("click", toggleAnimation);
+
+    resetButton.addEventListener("click", () => {
+      stopAnimation();
+      Object.assign(state, initialState);
+      document.querySelector('input[name="units"][value="degrees"]').checked = true;
+      Object.entries(curveInputs).forEach(([key, input]) => {
+        input.checked = state[key];
+      });
+      configureSlider();
+      render();
+      circleCanvas.focus();
+    });
+
+    circleCanvas.addEventListener("pointerdown", event => {
+      if (!circleGeometry) return;
+      const rect = circleCanvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const distance = Math.hypot(x - circleGeometry.px, y - circleGeometry.py);
+      if (distance > 32) return;
+      stopAnimation();
+      dragging = true;
+      circleCanvas.classList.add("dragging");
+      circleCanvas.setPointerCapture(event.pointerId);
+      setAngle(pointerAngle(event));
+    });
+
+    circleCanvas.addEventListener("pointermove", event => {
+      if (!dragging) return;
+      setAngle(pointerAngle(event));
+    });
+
+    function endDrag(event) {
+      if (!dragging) return;
+      dragging = false;
+      circleCanvas.classList.remove("dragging");
+      if (circleCanvas.hasPointerCapture(event.pointerId)) {
+        circleCanvas.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    circleCanvas.addEventListener("pointerup", endDrag);
+    circleCanvas.addEventListener("pointercancel", endDrag);
+
+    circleCanvas.addEventListener("keydown", event => {
+      const step = (event.shiftKey ? 10 : 1) * Math.PI / 180;
+      if (event.key === "ArrowRight" || event.key === "ArrowUp") {
+        event.preventDefault();
+        stopAnimation();
+        setAngle(state.theta + step);
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowDown") {
+        event.preventDefault();
+        stopAnimation();
+        setAngle(state.theta - step);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        stopAnimation();
+        setAngle(0);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        stopAnimation();
+        setAngle(TAU);
+      }
+    });
+
+    const resizeObserver = new ResizeObserver(() => render());
+    resizeObserver.observe(circleCanvas.parentElement);
+    resizeObserver.observe(graphCanvas.parentElement);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && state.playing) stopAnimation();
+    });
+
+    configureSlider();
+    render();
+  </script>
+</body>
+</html>
