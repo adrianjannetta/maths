@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f6f7fb">
+<title>Fourier Coefficients Playground</title>
+<style>
+:root{color-scheme:light;--ink:#202335;--muted:#566075;--border:#dce0e9;--grid:#e8eaf1;--blue:#4846c8;--pale:#eeedff;--target:#ad521d;--green:#167368;--compare:#853a81;--surface:#fff;font-family:"Inter","DM Sans","Segoe UI",Arial,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#f6f7fb;color:var(--ink);font-size:15px;line-height:1.45}
+main{max-width:1500px;margin:auto;padding:34px clamp(16px,3.6vw,58px) 30px}
+header,.row,.title-row,.brand,.tabs,.actions,.legend,.tabs-line,.card-heading,.co-head,.value-line,.stepper{display:flex;align-items:center}
+header,.title-row,.card-heading,.co-head,.tabs-line{justify-content:space-between}
+header{gap:18px;margin-bottom:26px}
+.brand{gap:16px}.brand-icon{width:54px;height:54px;flex-shrink:0;background:#4846c8;border-radius:15px;display:grid;place-items:center;color:#fff}.brand-icon svg{width:43px;height:40px}
+h1,h2,h3,p{margin:0}h1{letter-spacing:-.045em;line-height:1.15;font-size:clamp(24px,2.3vw,37px);font-weight:680}
+header p{margin-top:4px;color:var(--muted);font-size:15px}
+h2{font-size:19px;letter-spacing:-.035em;font-weight:670}h3{font-size:15px;letter-spacing:-.015em}.support,.minor{color:var(--muted);font-size:13px}.support{margin-top:5px}
+button,select,input{font:inherit;color:inherit}button,a.btn,select{background:white;border:1px solid #cdd1df;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;line-height:1.35}
+button,a.btn,select,summary,input[type=range]{cursor:pointer}
+button,a.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}
+button:hover:not(:disabled),a.btn:hover{border-color:#a6a8c0;background:#f5f5fc}button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.primary:hover:not(:disabled){background:#3432a4}
+button.on,button[aria-pressed=true]{background:var(--pale);border-color:#a6a2dd;color:#3936a7}
+button:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #6f6aee;outline-offset:3px}
+.ico{display:inline-block;width:17px;height:17px;vertical-align:middle;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.header-actions,.actions,.legend,.stepper{gap:9px;flex-wrap:wrap}.header-actions{display:flex}.icon-button{padding:8px}.tabs-line{gap:14px;flex-wrap:wrap;border-bottom:1px solid #cfd4e0;margin:0 0 21px;padding:0 0 0}
+.tabs{gap:24px;align-self:stretch}.tab{border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;padding:11px 1px 13px;color:var(--muted);font-size:14px}
+.tab[aria-selected=true]{border-bottom-color:var(--blue);color:var(--blue)}.target-field{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);padding-bottom:8px}.target-field select{color:var(--ink);min-width:152px}
+.layout{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(330px,1fr);gap:18px;align-items:start}.left{min-width:0;display:grid;gap:13px;position:sticky;top:12px}.card,details.panel{min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:13px;box-shadow:0 2px 5px #23274305;overflow:hidden}
+.card-pad{padding:20px 21px}.plot-head{align-items:flex-start;gap:12px}.legend{gap:8px 15px;margin:8px 0 0;color:var(--muted);font-size:12px}.swatch{display:inline-block;width:22px;height:0;vertical-align:middle;margin-right:5px;border-top:3px solid var(--blue)}.swatch.target{border-color:var(--target);border-top-style:dashed}.swatch.extra{border-color:var(--compare);border-top-style:dotted}.swatch.term{border-color:var(--green);border-top-style:dashed}
+.score{text-align:right;white-space:nowrap;line-height:1.2}.score small{font-size:11px;color:var(--muted);display:block}.score strong,.mono,.error-text,output,input[type=number]{font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}.score strong{font-size:22px;letter-spacing:-.065em;color:var(--blue);font-weight:550}
+.chart-wrap{padding:0 12px 4px 6px}canvas{display:block;width:100%}#main-plot{height:clamp(236px,23vw,335px)}.chart-alt{margin:0 20px 8px;color:var(--target);font-size:12px}.formula-box{padding:14px 21px;background:#f9f9fe;border-top:1px solid #e2e1ee}.formula-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.section-label{font-size:12px;font-weight:650;color:var(--muted)}
+.math{font-family:"STIX Two Text","Cambria Math",Cambria,Georgia,serif;font-size:20px;line-height:1.55;font-variant-numeric:lining-nums}.math sub{font-size:.68em}.math i{font-style:italic}.equation{max-width:100%;overflow-x:auto;white-space:nowrap;padding:3px 0 5px}.equation mark{padding:2px 4px;border-radius:4px;background:#e3dffe;color:#343098}.eq-expand{font-size:12px;padding:3px 7px;background:transparent}.plot-actions{padding:12px 21px;border-top:1px solid var(--border)}.compare-info{font-size:12px;color:var(--compare);margin-left:auto}
+details.panel>summary{padding:14px 19px;font-weight:630;font-size:14px;display:flex;align-items:center;gap:9px;list-style:none}summary::-webkit-details-marker{display:none}details>summary::after{content:'+';font-size:19px;margin-left:auto;color:var(--muted);font-weight:400}details[open]>summary::after{content:'−'}.detail-body{padding:0 20px 16px}.detail-body p+p{margin-top:6px}.smallplot{height:178px}.area-meta{display:flex;flex-wrap:wrap;gap:8px 20px;color:var(--muted);font-size:12px;margin-top:6px}
+.control-head{padding:18px 18px 14px;border-bottom:1px solid var(--border)}.control-head .actions{margin-top:13px}.sym{font-family:"STIX Two Text","Cambria Math",Cambria,Georgia,serif;font-size:17px;font-style:italic}.sym sub{font-size:.7em}
+.mean,.filter-tools,.harmonics,.con-controls{padding:13px 18px}.mean{border-bottom:1px solid var(--border)}.mean .value-line{margin-top:6px}.co-head{gap:10px}.mean .minor{font-size:12px}
+.value-line{gap:7px}.value-line input[type=range]{min-width:28px;flex:1;width:100%}input[type=range]{accent-color:var(--blue);height:18px}
+input[type=number]{width:63px;text-align:right;font-size:12px;border:1px solid #cbd0dd;background:white;border-radius:5px;padding:5px 4px;color:#36376c}
+.controls-foot{padding:10px 18px 13px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:9px}.controls-foot button{font-size:12px;padding:6px 8px}.filter-tools{padding-bottom:0}.filter-tools summary{font-size:12px;display:flex;align-items:center;gap:6px;list-style:none;color:var(--muted)}.filter-tools summary::after{font-size:16px}.filter-grid{display:flex;gap:9px;margin:8px 0}.filter-grid label{flex:1;font-size:12px;color:var(--muted)}.filter-grid select{display:block;width:100%;font-size:12px;margin-top:3px;padding:5px}
+.harmonics{padding-top:10px;padding-bottom:9px}.harmonics-head,.harmonic-row{display:grid;grid-template-columns:23px minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:center}.harmonics-head{font-size:12px;color:var(--muted);padding:0 4px 7px}.harmonic-scroll{max-height:234px;overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain;scrollbar-color:#b8b8d1 #f5f5fb}
+.harmonic-row{border-top:1px solid var(--grid);padding:8px 4px}.harmonic-row .value-line{gap:4px}.harmonic-row input[type=number]{width:51px;appearance:textfield}.harmonic-row input::-webkit-inner-spin-button{appearance:none}.index{font-size:12px;color:var(--muted)}.edit-cell{border-radius:5px;position:relative}.edit-cell.selected{outline:1px solid #beb9ed;outline-offset:2px;background:#f5f3ff}.edit-cell.disabled{opacity:.33}
+.inline-status{color:var(--muted);font-size:12px;min-height:18px}.notice{padding:7px 18px;color:#8c391b;font-size:13px;background:#fff7ed}.con-controls>*+*{margin-top:16px}.con-range{width:100%;display:block}.n-box input[type=number]{font-size:17px;width:61px;border-color:#aaa6e3;color:var(--blue)}.n-box{font-size:19px;font-weight:600;color:var(--blue)}.stepper button{padding:6px 9px}.stepper .primary{min-width:80px}.con-support{padding:14px 18px;background:#f8f9fc;border-top:1px solid var(--border)}#con-tools .row{justify-content:space-between;gap:8px}.divider{border-top:1px solid var(--border);padding-top:13px}.short{font-size:12px}.footnote{color:var(--muted);font-size:12px;line-height:1.45}.dialog{border:1px solid var(--border);border-radius:14px;color:var(--ink);padding:24px;width:min(470px,92vw);box-shadow:0 15px 100px #20233830}.dialog::backdrop{background:#1e223a62}.dialog h3{margin-top:16px}.dialog p{font-size:14px;margin-top:5px;color:var(--muted)}.dialog .actions{margin-top:20px}.sr{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+[hidden]{display:none!important}
+@media(min-width:1400px){main{padding-top:40px}.harmonic-scroll{max-height:265px}}
+@media(max-width:930px){main{padding:20px 16px}.layout{grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);gap:12px}.card-pad,.formula-box,.plot-actions{padding-left:14px;padding-right:14px}.control-head,.mean,.filter-tools,.harmonics,.con-controls,.controls-foot{padding-left:12px;padding-right:12px}.tabs{gap:14px}}
+@media(max-width:720px){.layout{grid-template-columns:1fr}.left{position:static}.harmonic-scroll{max-height:255px}.brand-icon{height:42px;width:42px;border-radius:11px}.brand-icon svg{width:34px}.brand{gap:10px}header{align-items:flex-start;margin-bottom:12px}.header-actions .label{display:none}.tabs-line{margin-bottom:12px}.tabs{order:2;width:100%;gap:20px}.target-field{padding:0}.tabs-line{gap:5px}.tab{padding-bottom:8px}.card-pad{padding-top:14px;padding-bottom:10px}header p{font-size:13px}#main-plot{height:205px}.score strong{font-size:20px}.plot-actions{padding:9px 13px}.formula-box{padding-top:9px;padding-bottom:8px}.math{font-size:18px}.left{gap:9px}.harmonics-head,.harmonic-row{grid-template-columns:25px minmax(0,1fr) minmax(0,1fr)}}
+@media(max-width:420px){main{padding:12px 9px}.brand-icon{display:none}.header-actions{gap:4px}.header-actions a{display:none}.tab{font-size:13px}.tabs{gap:12px}.plot-actions button{font-size:12px}h2{font-size:17px}.target-field select{padding:5px 8px}.filter-grid{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand"><div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 42 36"><path d="M2 18 C8 18 8 5 14 5 S21 31 28 31 S34 18 40 18" fill="none" stroke="white" stroke-width="2.7" stroke-linecap="round"/><path d="M2 22 C8 22 8 12 14 12 S21 27 28 27 S34 14 40 14" fill="none" stroke="#b9b9ff" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><h1>Fourier Coefficients Playground</h1><p>Build a periodic waveform from sines and cosines.</p></div></div><div class="header-actions"><button id="guide" aria-label="Activity guide"><span data-icon="book"></span><span class="label">Activity guide</span></button><a id="download" class="btn icon-button" download="Fourier_Coefficients_Playground.html" title="Download standalone HTML" aria-label="Download standalone HTML"><span data-icon="download"></span></a></div></header>
+<div class="tabs-line"><div class="tabs" role="tablist" aria-label="Activity"><button class="tab" role="tab" id="build-tab" aria-controls="workspace" aria-selected="true"><span data-icon="sliders"></span>Build a waveform</button><button class="tab" role="tab" id="con-tab" aria-controls="workspace" aria-selected="false" tabindex="-1"><span data-icon="layers"></span>Explore convergence</button></div><label class="target-field" for="target">Target waveform <select id="target"></select></label></div>
+<div class="layout" id="workspace" role="tabpanel" aria-labelledby="build-tab">
+<div class="left">
+<section class="card" aria-labelledby="plot-title"><div class="card-pad title-row plot-head"><div><h2 id="plot-title">Waveform comparison</h2><div id="legend" class="legend"></div></div><div class="score" title="Root mean square error over one full period. Smaller values mean a closer fit."><small>RMS error</small><strong id="rms">—</strong></div></div><div class="chart-wrap"><canvas id="main-plot" role="img" aria-label="Target and Fourier approximation over two periods"></canvas></div><p id="clip-note" class="chart-alt" hidden>Part of the sum extends beyond the fixed vertical scale.</p>
+<div class="formula-box"><div class="formula-head"><span class="section-label" id="equation-label">Your Fourier sum</span><button class="eq-expand" id="expand" aria-expanded="false">Show formula</button></div><div class="math equation" id="equation"></div><p class="math" id="general" hidden><i>S</i><sub>N</sub>(<i>t</i>) = <i>a</i><sub>0</sub>/2 + <span aria-label="sum from n equals 1 to N">∑<sub>n=1</sub><sup>N</sup></span> [<i>a</i><sub>n</sub> cos(<i>nt</i>) + <i>b</i><sub>n</sub> sin(<i>nt</i>)]</p></div>
+<div class="plot-actions actions" id="compare-actions"><button id="omit" aria-pressed="false"><span data-icon="compare"></span><span id="omit-text">Compare without term</span></button><span class="compare-info" id="comparison"></span></div></section>
+<details class="panel" id="why"><summary><span data-icon="integral"></span>Why this coefficient?</summary><div class="detail-body"><p class="minor" id="why-intro"></p><div class="math" id="integral"></div><canvas class="smallplot" id="area-plot" role="img" aria-label="Signed areas of the coefficient integrand over one period"></canvas><div class="area-meta" id="area-meta"></div><p class="support" id="why-explanation"></p></div></details>
+<section class="card" id="zoom-panel" hidden><div class="card-pad"><h2>Close-up at the jump</h2><p class="support" id="zoom-caption"></p></div><div class="chart-wrap"><canvas class="smallplot" id="zoom-plot" role="img" aria-label="Magnified target jump and partial sums"></canvas></div></section>
+</div>
+<aside class="card" id="build-tools"><div class="control-head"><h2>Coefficient controls</h2><p class="support">Move a slider to see its term on the graph.</p><div class="actions"><button class="primary" id="fit"><span data-icon="fit"></span>Best fit</button><button id="save"><span data-icon="bookmark"></span>Save my attempt</button><button id="restore" hidden>Load attempt</button></div><div class="inline-status" id="save-status" role="status" hidden></div></div>
+<div class="mean"><div class="co-head"><label class="section-label" for="slide-a-0">Mean level <span class="sym">a<sub>0</sub>/2</span></label><span class="minor" id="mean-read"></span></div><div id="mean-control"></div></div>
+<details class="filter-tools"><summary><span data-icon="filter"></span><span id="filter-label">Term filters · All terms</span></summary><div class="filter-grid"><label>Term family<select id="family"><option value="all">Sine and cosine</option><option value="b">Sine only</option><option value="a">Cosine only</option></select></label><label>Harmonic numbers<select id="parity"><option value="all">All harmonics</option><option value="odd">Odd n</option><option value="even">Even n</option></select></label></div><p class="footnote">Filters mute excluded harmonics. The mean stays active.</p></details>
+<div class="harmonics"><div class="harmonics-head"><span><i>n</i></span><span>Cosine <span class="sym">a<sub>n</sub></span></span><span>Sine <span class="sym">b<sub>n</sub></span></span></div><div class="harmonic-scroll" id="rows" role="group" aria-label="Harmonics 1 to 10"></div></div><div class="notice" role="alert" id="invalid" hidden></div><div class="controls-foot"><button id="hint" aria-expanded="false"><span data-icon="bulb"></span>Hint</button><button id="reset"><span data-icon="reset"></span>Reset build</button></div><p id="hint-body" class="detail-body minor" hidden></p></aside>
+<aside class="card" id="con-tools" hidden><div class="control-head"><h2>Convergence controls</h2><p class="support">Use the target’s Fourier coefficients to add harmonics in order.</p></div><div class="con-controls"><div><div class="row"><label class="section-label" for="order">Highest harmonic</label><label class="n-box" for="order-number"><i>N</i> = <input type="number" id="order-number" aria-label="Highest harmonic number" min="1" max="200" step="1" value="5"></label></div><input class="con-range" type="range" id="order" min="1" max="200" step="1" value="5"><div class="row footnote"><span>1</span><span>200</span></div></div><div class="notice" role="alert" id="order-error" hidden></div><div class="stepper"><button id="prev" aria-label="Previous harmonic">−1</button><button id="play" class="primary">Play</button><button id="next" aria-label="Next harmonic">+1</button><button id="restart" aria-label="Reset convergence"><span data-icon="reset"></span>Reset</button></div><div class="divider"><div class="actions"><button id="pin"><span data-icon="pin"></span>Pin this curve</button><button id="unpin" hidden>Unpin</button></div><p class="support" id="pin-info">Pin a curve, then change N to compare the two sums.</p></div><div class="divider" id="zoom-control"><button id="zoom" aria-pressed="false"><span data-icon="zoom"></span>Magnify jump</button></div></div><div class="con-support"><h3>Try a comparison</h3><p class="support" id="investigate"></p></div></aside>
+</div>
+<dialog id="guide-dialog" class="dialog"><h2>Activity guide</h2><h3>Build a waveform</h3><p>Choose a target and adjust the coefficients. The dashed line is the target. A smaller RMS error means a closer fit over one period.</p><p>Save your attempt, then select <b>Best fit</b> to compare curves and errors. Choose <b>Load attempt</b> to edit your saved coefficients again.</p><h3>Explore convergence</h3><p>Pin a partial sum at N = 5, increase N to 25 and compare. On a square wave, magnify the jump and look at the height and width of the first ripple.</p><div class="actions"><button id="close-guide" class="primary">Close guide</button></div></dialog>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const π = Math.PI, τ = 2*π, BUILD_N = 10, LIMIT = 200;
+const wrap = t => ((t+π)%τ+τ)%τ-π;
+const odd = n => n%2 === 1;
+const zeros = N => Array(N+1).fill(0);
+const blank = (N=BUILD_N) => ({a:zeros(N), b:zeros(N)});
+const copy = c => ({a:[...c.a], b:[...c.b]});
+const fmt = (x,d=3) => (Math.abs(x)<0.5*10**-d ? 0 : x).toFixed(d).replaceAll('-','−');
+const compact = (x,d=3) => String(Number(x.toFixed(d))).replaceAll('-','−');
+const sub = n => String(n).replace(/\d/g,k=>'₀₁₂₃₄₅₆₇₈₉'[k]);
+const targets = {
+ square1:{name:'Square wave 1', y:t=>t<0?-π/4:π/4, breaks:[-π,0], jump:0, meanSquare:π*π/16, a0:0, a:n=>0, b:n=>odd(n)?1/n:0, hint:'Start with a sine term and watch the height of the positive plateau.'},
+ square2:{name:'Square wave 2', y:t=>Math.abs(t)<π/2?π/4:-π/4, breaks:[-π/2,π/2], jump:π/2, meanSquare:π*π/16, a0:0, a:n=>odd(n)?(-1)**((n-1)/2)/n:0, b:n=>0, hint:'Try cosine terms. Watch the flat section centred on t = 0.'},
+ saw:{name:'Sawtooth wave', y:t=>t/2, breaks:[-π], jump:π, meanSquare:π*π/12, a0:0, a:n=>0, b:n=>odd(n)?1/n:-1/n, hint:'Try sine terms and follow the rising ramp through the origin.'},
+ absolute:{name:'Absolute value wave', y:t=>Math.abs(t), breaks:[-π,0], jump:null, meanSquare:π*π/3, a0:π, a:n=>odd(n)?-4/(π*n*n):0, b:n=>0, hint:'Set the mean level, then use cosine terms to shape the valley.'},
+ triangle:{name:'Triangle wave', y:t=>π-Math.abs(t), breaks:[-π,0], jump:null, meanSquare:π*π/3, a0:π, a:n=>odd(n)?4/(π*n*n):0, b:n=>0, hint:'Set the mean level, then use cosine terms to shape the peak.'},
+ half:{name:'Half-step wave', y:t=>t<0?0:π/2, breaks:[-π,0], jump:0, meanSquare:π*π/8, a0:π/2, a:n=>0, b:n=>odd(n)?1/n:0, hint:'Shift the mean level first, then try sine terms.'}
+};
+const basis = (k,n) => n===0?'1':(k==='a'?'cos':'sin')+'('+(n===1?'':n)+'t)';
+const exact = (tg,N) => {
+ const c=blank(N);c.a[0]=tg.a0;
+ for(let n=1;n<=N;n++){c.a[n]=tg.a(n);c.b[n]=tg.b(n);}
+ return c;
+};
+function startingBuild(){
+ const c=blank();c.b[1]=1;
+ return {c,sel:{k:'b',n:1},family:'all',parity:'all',saved:null,fit:false,omit:false,hint:false};
+}
+const sessions=new Map();
+let key='square1', mode='build', order=5, pinned=null, zoom=false, dragging=false, running=false, timer=0, lastStep=0;
+let build=startingBuild();sessions.set(key,build);
+const target=()=>targets[key];
+function allowed(k,n){
+ return n===0||(build.family==='all'||build.family===k)&&(build.parity==='all'||(build.parity==='odd')===odd(n));
+}
+function filtered(c){
+ const result=copy(c);
+ for(let n=1;n<result.a.length;n++)for(const k of ['a','b'])if(!allowed(k,n))result[k][n]=0;
+ return result;
+}
+// Parseval's identity, with the constant contribution given by a0/2.
+function errorRMS(tg,c){
+ let e=tg.meanSquare+c.a[0]*c.a[0]/4-c.a[0]*tg.a0/2;
+ for(let n=1;n<c.a.length;n++)e+=(c.a[n]*c.a[n]+c.b[n]*c.b[n])/2-c.a[n]*tg.a(n)-c.b[n]*tg.b(n);
+ return Math.sqrt(Math.max(0,e));
+}
+function evaluator(c){
+ const terms=[];
+ for(let n=1;n<c.a.length;n++)if(c.a[n]||c.b[n])terms.push([n,c.a[n],c.b[n]]);
+ return t=>{let s=c.a[0]/2;for(const [n,a,b] of terms){if(a)s+=a*Math.cos(n*t);if(b)s+=b*Math.sin(n*t);}return s;};
+}
+function periodicCuts(tg,lo,hi){
+ const cuts=[lo,hi];
+ for(let j=Math.floor(lo/τ)-1;j<=Math.ceil(hi/τ)+1;j++)for(const p of tg.breaks){const t=p+j*τ;if(t>lo+1e-9&&t<hi-1e-9)cuts.push(t);}
+ return cuts.sort((a,b)=>a-b);
+}
+const icons={book:'M3 4c4-1 6 0 9 2 3-2 6-3 9-2v14c-4-1-6 0-9 2-3-2-6-3-9-2z M12 6v14',download:'M12 3v11m-5-5 5 5 5-5 M4 15v5h16v-5',sliders:'M4 7h5m4 0h7M4 17h9m4 0h3 M9 4v6m7 4v6',layers:'m3 8 9-5 9 5-9 5z M3 12l9 5 9-5 M3 16l9 5 9-5',compare:'M3 8h17m-4-4 4 4-4 4M21 17H4m4-4-4 4 4 4',integral:'M17 4c-5-3-6 1-7 8s-2 10-6 7',fit:'M3 18c4 0 4-12 9-12s5 12 9 12 M3 14h3m11 0h4',bookmark:'M6 3h12v18l-6-5-6 5z',filter:'M3 6h18M6 12h12m-9 6h6',reset:'M4 10a8 8 0 1 1 1 8 M4 4v6h6',bulb:'M9 17c0-3-4-4-4-8a7 7 0 0 1 14 0c0 4-4 5-4 8z M9 20h6',pin:'m8 3 9 2-2 5 3 4-1 2-6-1-4 7 1-8-5-2 1-2 4-2z',zoom:'M16 16l5 5 M10 3a7 7 0 1 0 .1 0 M7 10h6 M10 7v6'};
+document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML='<svg class="ico" aria-hidden="true" viewBox="0 0 24 24"><path d="'+icons[el.dataset.icon]+'"/></svg>';});
+for(const [value,tg] of Object.entries(targets))$('target').add(new Option(tg.name,value));
+$('download').href=location.href.split('#')[0];
+const live = (id,s) => {$(id).textContent=s;$(id).hidden=!s;};
+function persist(){
+ try{const db=JSON.parse(localStorage.getItem('fourier-playground-attempts-v1')||'{}');if(build.saved)db[key]=build.saved;else delete db[key];localStorage.setItem('fourier-playground-attempts-v1',JSON.stringify(db));}catch{}
+}
+function readAttempt(){
+ try{const o=JSON.parse(localStorage.getItem('fourier-playground-attempts-v1')||'{}')[key];
+ if(o&&['a','b'].every(k=>Array.isArray(o.c[k])&&o.c[k].length===BUILD_N+1&&o.c[k].every(v=>Number.isFinite(v)&&Math.abs(v)<=4))&&['a','b','all'].includes(o.family)&&['all','odd','even'].includes(o.parity))return o;
+ }catch{}return null;
+}
+build.saved=readAttempt();
+function inputCell(k,n){
+ const s=k+sub(n),label=n===0?'Constant coefficient a0':(k==='a'?'Cosine':'Sine')+' coefficient '+k+n;
+ return '<div class="value-line edit-cell" id="cell-'+k+'-'+n+'">'+(n===0?'<span class="sym">a<sub>0</sub></span>':'')+
+ '<label class="sr" for="slide-'+k+'-'+n+'">'+label+' slider</label><input type="range" min="-4" max="4" step=".001" id="slide-'+k+'-'+n+'" data-k="'+k+'" data-n="'+n+'">'+
+ '<label class="sr" for="num-'+k+'-'+n+'">'+label+' value</label><input type="number" inputmode="decimal" min="-4" max="4" step="any" title="'+s+' (−4 to 4)" id="num-'+k+'-'+n+'" data-k="'+k+'" data-n="'+n+'"></div>';
+}
+$('mean-control').innerHTML=inputCell('a',0);
+for(let n=1;n<=BUILD_N;n++)$('rows').insertAdjacentHTML('beforeend','<div class="harmonic-row" id="row-'+n+'"><span class="index">'+n+'</span>'+inputCell('a',n)+inputCell('b',n)+'</div>');
+function selectTerm(k,n){
+ if(!allowed(k,n))return;
+ build.sel={k,n};
+}
+function normalizeSelection(){
+ if(allowed(build.sel.k,build.sel.n))return;
+ for(let n=1;n<=BUILD_N;n++)for(const k of ['a','b'])if(allowed(k,n)){selectTerm(k,n);return;}
+ selectTerm('a',0);
+}
+function updateControls(){
+ $('family').value=build.family;$('parity').value=build.parity;
+ const flabel=[{all:'',a:'Cosine',b:'Sine'}[build.family],{all:'',odd:'Odd n',even:'Even n'}[build.parity]].filter(Boolean).join(' · ');
+ $('filter-label').textContent='Term filters · '+(flabel||'All terms');
+ for(let n=0;n<=BUILD_N;n++){
+  if(n)$('row-'+n).hidden=!allowed('a',n)&&!allowed('b',n);
+  for(const k of n?['a','b']:['a']){
+   const cell=$('cell-'+k+'-'+n), range=$('slide-'+k+'-'+n), num=$('num-'+k+'-'+n);
+   cell.classList.toggle('selected',build.sel.n===n&&build.sel.k===k);
+   cell.classList.toggle('disabled',!allowed(k,n));range.disabled=num.disabled=!allowed(k,n);
+   range.value=build.c[k][n];
+   if(num!==document.activeElement)num.value=Number(build.c[k][n].toFixed(4));
+  }
+ }
+ $('mean-read').textContent='Mean = '+compact(build.c.a[0]/2,4);
+ $('restore').hidden=!build.saved;$('hint-body').hidden=!build.hint;$('hint-body').textContent=target().hint;
+ $('hint').setAttribute('aria-expanded',build.hint);$('omit').setAttribute('aria-pressed',build.omit);
+ $('omit-text').textContent='Compare without '+build.sel.k+sub(build.sel.n);
+}
+const palette={target:'#ae551f',sum:'#4846c8',extra:'#853a81',term:'#167368',axis:'#8e95a8',grid:'#e3e6ef',text:'#565e73'};
+let view=null,frame=0;
+function newView(){
+ const tg=target(),building=mode==='build';
+ const c=building?filtered(build.c):exact(tg,order);
+ const v={c,fn:evaluator(c),name:building?(build.fit?'Best fit':'Your sum'):'Sum · N = '+order};
+ if(building&&build.omit){const changed=copy(c);changed[build.sel.k][build.sel.n]=0;v.overlay={name:'Without '+build.sel.k+sub(build.sel.n),c:changed};}
+ else if(building&&build.fit&&build.saved)v.overlay={name:'Saved attempt',c:filtered(build.saved.c)};
+ else if(!building&&pinned!==null)v.overlay={name:'Pinned · N = '+pinned,c:exact(tg,pinned)};
+ if(v.overlay)v.overlay.fn=evaluator(v.overlay.c);
+ if(building&&dragging){const {k,n}=build.sel,val=c[k][n];v.term={name:n===0?'Mean term':k+sub(n)+' '+basis(k,n),fn:t=>n===0?val/2:val*(k==='a'?Math.cos(n*t):Math.sin(n*t))};}
+ return v;
+}
+function drawFormula(c){
+ const members=[];
+ function add(k,n,value){
+  const selected=mode==='build'&&k===build.sel.k&&n===build.sel.n;
+  if(Math.abs(value)<1e-12&&!selected)return;
+  const magnitude=Math.abs(value);
+  const number=String(Number(magnitude.toPrecision(4))),sign=value<0?'−':'+';
+  const piece=n===0?number:(Math.abs(Math.abs(value)-1)<1e-12?'':number+' ')+basis(k,n).replace('t','<i>t</i>');
+  members.push({selected,sign,piece,rounded:Number(number)!==magnitude});
+ }
+ add('a',0,c.a[0]/2);for(let n=1;n<c.a.length;n++){add('a',n,c.a[n]);add('b',n,c.b[n]);}
+ const expanded=$('expand').getAttribute('aria-expanded')==='true';
+ const visible=mode==='con'&&!expanded?members.slice(0,4):members;
+ let html=visible.map((m,i)=>(m.selected?'<mark>':'')+((i||m.sign==='−')?m.sign+' ':'')+m.piece+(m.selected?'</mark>':'')).join(' ');
+ if(visible.length<members.length)html+=' + ⋯';
+ $('equation').innerHTML='<i>S</i><sub>'+(mode==='build'?'10':order)+'</sub>(<i>t</i>) '+(members.some(m=>m.rounded)||visible.length<members.length?'≈':'=')+' '+(html||'0');
+}
+function render(){
+ const building=mode==='build';
+ $('build-tools').hidden=!building;$('con-tools').hidden=building;$('why').hidden=!building;
+ $('compare-actions').hidden=!building;$('zoom-panel').hidden=building||!zoom||target().jump===null;
+ $('zoom-control').hidden=target().jump===null;$('zoom').setAttribute('aria-pressed',zoom);
+ $('plot-title').textContent=building?'Waveform comparison':'Partial sums';
+ $('equation-label').textContent=building?(build.fit?'Best-fit Fourier sum':'Your Fourier sum'):'Partial sum with Fourier coefficients';
+ if(building)updateControls();
+ else{
+  $('order').value=order;if(document.activeElement!==$('order-number'))$('order-number').value=order;$('prev').disabled=order<=1;$('next').disabled=order>=LIMIT;
+  $('play').textContent=running?'Pause':'Play';$('unpin').hidden=pinned===null;
+  $('pin-info').textContent=pinned===null?'Pin a curve, then change N to compare the two sums.':'Pinned at N = '+pinned+'. Change N to inspect the difference.';
+  $('investigate').textContent=target().jump===null?'Pin N = 5 and move to N = 25. Where does the sharp corner change most?':'Pin N = 5 and move to N = 25. Magnify the jump and compare the first ripple on each curve.';
+  $('zoom-caption').textContent='Fixed window, centred at t = '+(target().jump===0?'0':target().jump===π?'π':'π/2')+'. Compare the width and height of the ripples.';
+ }
+ view=newView();const entries=[['target','Target'],['sum',view.name]];
+ if(view.overlay)entries.push(['extra',view.overlay.name]);if(view.term)entries.push(['term',view.term.name]);
+ $('legend').innerHTML=entries.map(([v,s])=>'<span><i class="swatch '+v+'"></i>'+s+'</span>').join('');
+ const score=fmt(errorRMS(target(),view.c),4);$('rms').textContent=score;
+ $('main-plot').setAttribute('aria-label',target().name+' and '+view.name+' over two periods. RMS error '+score+'.'+(view.overlay?' Comparison with '+view.overlay.name+'.':''));
+ $('comparison').textContent=view.overlay?view.overlay.name+' RMS '+fmt(errorRMS(target(),view.overlay.c),4):'';
+ if(!building&&view.overlay)$('pin-info').textContent+=' Pinned RMS error '+fmt(errorRMS(target(),view.overlay.c),4)+'.';
+ drawFormula(view.c);queueDraw();
+}
+function queueDraw(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;drawAll();});}
+function piLabel(t){
+ const q=Math.round(t/π*4);
+ if(!q)return '0';
+ const sign=q<0?'−':'',n=Math.abs(q);
+ if(n%4===0)return sign+(n===4?'':n/4)+'π';
+ if(n%2===0)return sign+(n===2?'':n/2)+'π/2';
+ return sign+(n===1?'':n)+'π/4';
+}
+function makeAxes(id,lo,hi,bottom,top,xTicks,yTicks,yTitle){
+ const cv=$(id),box=cv.getBoundingClientRect(),w=box.width,h=box.height;
+ if(!w||!h)return null;
+ const d=Math.min(window.devicePixelRatio||1,3);
+ if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d);}
+ const ctx=cv.getContext('2d');ctx.setTransform(d,0,0,d,0,0);ctx.clearRect(0,0,w,h);
+ const l=42,r=w-24,u=20,b=h-32;
+ const x=t=>l+(t-lo)*(r-l)/(hi-lo), y=v=>b-(v-bottom)*(b-u)/(top-bottom);
+ ctx.font='12px "Segoe UI",Arial,sans-serif';ctx.fillStyle=palette.text;ctx.lineWidth=1;
+ for(const t of xTicks){ctx.strokeStyle=Math.abs(t)<1e-10?palette.axis:palette.grid;ctx.beginPath();ctx.moveTo(x(t),u);ctx.lineTo(x(t),b);ctx.stroke();ctx.textAlign='center';ctx.fillText(piLabel(t),x(t),b+17);}
+ for(const v of yTicks){ctx.strokeStyle=Math.abs(v)<1e-10?palette.axis:palette.grid;ctx.beginPath();ctx.moveTo(l,y(v));ctx.lineTo(r,y(v));ctx.stroke();ctx.textAlign='right';ctx.fillText(compact(v,2),l-8,y(v)+4);}
+ ctx.textAlign='left';ctx.fillStyle='#40485a';ctx.font='italic 14px Georgia,serif';ctx.fillText(yTitle,l-3,13);ctx.fillText('t',r+11,b+4);
+ ctx.save();ctx.beginPath();ctx.rect(l,u,r-l,b-u);ctx.clip();
+ return {ctx,x,y,lo,hi,bottom,top,l,r,finish:()=>ctx.restore()};
+}
+function strokeGraph(g,fn,colour,dash,width,breaks,points){
+ const {ctx,x,y,lo,hi,bottom,top}=g;ctx.strokeStyle=colour;ctx.setLineDash(dash);ctx.lineWidth=width;ctx.lineJoin='round';ctx.lineCap='round';
+ let clipped=false;ctx.beginPath();
+ for(let i=0;i<breaks.length-1;i++){
+  const p=breaks[i],q=breaks[i+1],steps=Math.max(2,Math.ceil(points*(q-p)/(hi-lo)));
+  for(let j=0;j<=steps;j++){
+   const t=p+(q-p)*j/steps;
+   const v=fn(t+(j===0?1e-10:j===steps?-1e-10:0));
+   if(v<bottom||v>top)clipped=true;
+   if(!j)ctx.moveTo(x(t),y(v));else ctx.lineTo(x(t),y(v));
+  }
+ }
+ ctx.stroke();ctx.setLineDash([]);return clipped;
+}
+function wavePlot(id,detail=false){
+ const tg=target(),center=tg.jump||0;
+ const lo=detail?center-π/4:-τ,hi=detail?center+π/4:τ;
+ let yl=-4,yh=4,yt=[-4,-2,0,2,4];
+ if(detail){const l=tg.y(wrap(center-1e-8)),r=tg.y(wrap(center+1e-8)),jump=Math.abs(r-l);
+ yl=Math.min(l,r)-jump*.23;yh=Math.max(l,r)+jump*.23;yt=[Math.min(l,r),Math.max(l,r)];if(yl<0&&yh>0&&Math.min(...yt.map(Math.abs))>.01)yt.splice(1,0,0);}
+ const ticks=detail?[lo,center,hi]:[-τ,-π,0,π,τ];
+ const g=makeAxes(id,lo,hi,yl,yh,ticks,yt,'f(t)');if(!g)return;
+ const cuts=periodicCuts(tg,lo,hi),points=Math.max(4*(g.r-g.l),mode==='con'?Math.max(order,pinned||0)*(hi-lo)/τ*18:100);
+ strokeGraph(g,t=>tg.y(wrap(t)),palette.target,[6,5],2,cuts,Math.max(30,g.r-g.l));
+ const clipped=strokeGraph(g,view.fn,palette.sum,[],2.6,[lo,hi],points);
+ if(view.overlay)strokeGraph(g,view.overlay.fn,palette.extra,[1,5],2.3,[lo,hi],points);
+ if(view.term)strokeGraph(g,view.term.fn,palette.term,[8,3,2,3],2,[lo,hi],points);
+ g.finish();if(!detail)$('clip-note').hidden=!clipped;
+}
+function coefficientPlot(){
+ const tg=target(),{k,n}=build.sel,label=k+sub(n),name=basis(k,n);
+ const fn=t=>tg.y(wrap(t))*(n===0?1:k==='a'?Math.cos(n*t):Math.sin(n*t));
+ $('why-intro').textContent=n===0?'Integrate the target over one period to find the constant coefficient.':'Multiply the target by '+name+', then integrate over one period.';
+ const coeff=n===0?tg.a0:tg[k](n);
+ $('integral').innerHTML='<math display="inline" aria-label="'+label+' equals one over pi times the integral from minus pi to pi of the product, approximately '+fmt(coeff,4)+'"><mrow><msub><mi>'+k+'</mi><mn>'+n+'</mn></msub><mo>=</mo><mfrac><mn>1</mn><mi>π</mi></mfrac><msubsup><mo>∫</mo><mrow><mo>−</mo><mi>π</mi></mrow><mi>π</mi></msubsup><mi>f</mi><mo>(</mo><mi>t</mi><mo>)</mo>'+(n===0?'':'<mi mathvariant="normal">'+(k==='a'?'cos':'sin')+'</mi><mo>(</mo>'+(n===1?'':'<mn>'+n+'</mn>')+'<mi>t</mi><mo>)</mo>')+'<mspace width=".15em"/><mi mathvariant="normal">d</mi><mi>t</mi><mo>'+(Number(coeff.toFixed(4))===coeff?'=':'≈')+'</mo><mn>'+compact(coeff,4)+'</mn></mrow></math>';
+ const height=['absolute','triangle'].includes(key)?4:key==='saw'||key==='half'?2:1;
+ const g=makeAxes('area-plot',-π,π,-height,height,[-π,-π/2,0,π/2,π],[-height,0,height],n===0?'f(t)':'product');
+ if(!g)return;
+ const cuts=[...periodicCuts(tg,-π,π),0];
+ // Include every sign change so each shaded segment has one sign.
+ if(n){const shift=k==='a'?.5:0;for(let j=-n-1;j<=n;j++){const t=(j+shift)*π/n;if(t>-π&&t<π)cuts.push(t);}}
+ cuts.sort((a,b)=>a-b);const unique=cuts.filter((v,i)=>!i||v-cuts[i-1]>1e-9);
+ let pos=0,neg=0;
+ for(let i=1;i<unique.length;i++){
+  const start=unique[i-1],end=unique[i];let signed=0;
+  const segments=Math.max(12,Math.ceil((end-start)/τ*3000));
+  const {ctx,x,y}=g;ctx.beginPath();ctx.moveTo(x(start),y(0));
+  for(let j=0;j<=segments;j++){
+   const t=start+(end-start)*j/segments;
+   ctx.lineTo(x(t),y(fn(t+(j===0?1e-10:j===segments?-1e-10:0))));
+   if(j<segments)signed+=fn(t+(end-start)/(2*segments))*(end-start)/segments;
+  }
+  ctx.lineTo(x(end),y(0));ctx.closePath();ctx.fillStyle=signed>=0?'#b5dcd5':'#ead0dd';ctx.fill();
+  if(signed>=0)pos+=signed;else neg+=signed;
+ }
+ strokeGraph(g,fn,'#414a68',[],1.6,periodicCuts(tg,-π,π),600);g.finish();
+ $('area-meta').innerHTML='<span>Positive area <b>'+fmt(pos)+'</b></span><span>Negative contribution <b>'+fmt(neg)+'</b></span>';
+ $('why-explanation').textContent=coeff===0?'The signed areas cancel, so this target’s coefficient is zero.':(n===0?'Divide the signed area by π to get a₀. The mean level is half of a₀.':'Add the signed areas and divide by π to get the target’s coefficient.');
+}
+function drawAll(){
+ if(!view)return;wavePlot('main-plot');if(!$('zoom-panel').hidden)wavePlot('zoom-plot',true);
+ if(mode==='build'&&$('why').open)coefficientPlot();
+}
+for(const id of ['main-plot','zoom-plot','area-plot'])new ResizeObserver(queueDraw).observe($(id));
+$('why').addEventListener('toggle',queueDraw);
+function stop(){running=false;cancelAnimationFrame(timer);timer=0;}
+function setMode(m){
+ stop();dragging=false;mode=m;
+ for(const [id,s] of [['build-tab','build'],['con-tab','con']]){$(id).setAttribute('aria-selected',s===m);$(id).tabIndex=s===m?0:-1;}
+ $('workspace').setAttribute('aria-labelledby',m+'-tab');render();
+}
+$('build-tab').onclick=()=>setMode('build');$('con-tab').onclick=()=>setMode('con');
+document.querySelector('[role=tablist]').onkeydown=e=>{
+ if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();
+ const m=e.key==='Home'?'build':e.key==='End'?'con':mode==='build'?'con':'build';setMode(m);$(m+'-tab').focus();
+};
+$('target').onchange=e=>{
+ stop();dragging=false;key=e.target.value;
+ if(!sessions.has(key)){const initial=startingBuild();initial.saved=readAttempt();sessions.set(key,initial);}
+ build=sessions.get(key);pinned=null;zoom=false;order=5;
+ live('invalid','');live('save-status','');$('rows').scrollTop=0;render();
+};
+for(const id of ['family','parity'])$(id).onchange=e=>{
+ build[id]=e.target.value;build.fit=false;normalizeSelection();live('save-status','');render();
+};
+const toolbox=$('build-tools');
+toolbox.addEventListener('focusin',e=>{
+ if(!e.target.dataset.k)return;
+ selectTerm(e.target.dataset.k,Number(e.target.dataset.n));render();
+});
+toolbox.addEventListener('pointerdown',e=>{
+ if(e.target.type!=='range')return;
+ dragging=true;selectTerm(e.target.dataset.k,Number(e.target.dataset.n));render();
+});
+function endDrag(){if(dragging){dragging=false;render();}}
+window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);window.addEventListener('blur',endDrag);
+toolbox.addEventListener('keydown',e=>{
+ if(e.target.type==='range'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){dragging=true;render();}
+ if(e.target.type==='number'&&e.key==='Enter'){e.preventDefault();e.target.blur();}
+});
+toolbox.addEventListener('keyup',endDrag);
+toolbox.addEventListener('input',e=>{
+ const field=e.target,k=field.dataset.k;if(!k)return;
+ const n=Number(field.dataset.n),x=field.valueAsNumber;selectTerm(k,n);
+ if(!Number.isFinite(x)||Math.abs(x)>4){live('invalid','Enter a coefficient between −4 and 4. The graph keeps the last valid value.');return;}
+ live('invalid','');build.c[k][n]=x;build.fit=false;live('save-status','');render();
+});
+toolbox.addEventListener('focusout',e=>{
+ const field=e.target;if(!field.dataset.k)return;endDrag();
+ if(field.type==='number'){field.value=Number(build.c[field.dataset.k][Number(field.dataset.n)].toFixed(4));live('invalid','');}
+});
+$('omit').onclick=()=>{build.omit=!build.omit;render();};
+$('fit').onclick=()=>{
+ const fit=exact(target(),BUILD_N);
+ for(let n=0;n<=BUILD_N;n++)for(const k of ['a','b'])if(allowed(k,n))build.c[k][n]=fit[k][n];
+ if(!build.c[build.sel.k][build.sel.n]){
+  let first=null;
+  for(let n=1;n<=BUILD_N&&!first;n++)for(const k of ['a','b'])if(allowed(k,n)&&fit[k][n]){first={k,n};break;}
+  build.sel=first||{k:'a',n:0};
+ }
+ build.fit=true;build.omit=false;live('save-status',build.saved?'Showing both curves with the current term filters.':'Using the best coefficients for the active terms.');render();
+};
+$('save').onclick=()=>{
+ build.saved={c:copy(build.c),family:build.family,parity:build.parity};persist();build.fit=false;
+ live('save-status','Attempt saved. Select Best fit to compare.');render();
+};
+$('restore').onclick=()=>{
+ if(!build.saved)return;build.c=copy(build.saved.c);build.family=build.saved.family;build.parity=build.saved.parity;build.fit=false;build.omit=false;
+ normalizeSelection();live('save-status','Saved coefficients and filters restored.');render();
+};
+$('reset').onclick=()=>{
+ const kept=build.saved;build=startingBuild();build.saved=kept;sessions.set(key,build);
+ live('invalid','');live('save-status',kept?'Build reset. Your saved attempt is available.':'');$('rows').scrollTop=0;render();
+};
+$('hint').onclick=()=>{build.hint=!build.hint;render();};
+$('expand').onclick=()=>{const show=$('general').hidden;$('general').hidden=!show;$('expand').setAttribute('aria-expanded',show);$('expand').textContent=show?'Hide formula':'Show formula';render();};
+function changeOrder(v){stop();order=Math.max(1,Math.min(LIMIT,v));live('order-error','');render();}
+$('order-number').oninput=e=>{
+ const val=e.target.valueAsNumber;
+ if(!Number.isInteger(val)||val<1||val>LIMIT){live('order-error','Enter a whole number from 1 to 200.');return;}
+ changeOrder(val);
+};
+$('order-number').onblur=e=>{e.target.value=order;live('order-error','');};
+$('order-number').onkeydown=e=>{if(e.key==='Enter')e.target.blur();};
+$('order').oninput=e=>changeOrder(Number(e.target.value));$('prev').onclick=()=>changeOrder(order-1);$('next').onclick=()=>changeOrder(order+1);
+function animate(now){
+ if(!running)return;
+ if(now-lastStep>=450){order++;lastStep=now;if(order>=LIMIT)stop();render();}
+ if(running)timer=requestAnimationFrame(animate);
+}
+$('play').onclick=()=>{if(running)stop();else{if(order>=LIMIT)order=1;running=true;lastStep=performance.now();timer=requestAnimationFrame(animate);}render();};
+$('restart').onclick=()=>{pinned=null;zoom=false;changeOrder(5);};
+$('pin').onclick=()=>{pinned=order;render();};$('unpin').onclick=()=>{pinned=null;render();};$('zoom').onclick=()=>{zoom=!zoom;render();};
+$('guide').onclick=()=>{if(running){stop();render();}$('guide-dialog').showModal();};$('close-guide').onclick=()=>$('guide-dialog').close();
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&running){stop();render();}});
+render();
+</script>
+</body>
+</html>
