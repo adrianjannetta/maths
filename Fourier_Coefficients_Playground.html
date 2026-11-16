@@ -101,7 +101,8 @@ function startingBuild(){
  return {c,sel:{k:'b',n:1},family:'all',parity:'all',saved:null,fit:false,omit:false,hint:false};
 }
 const sessions=new Map();
-let key='square1', mode='build', order=5, pinned=null, zoom=false, dragging=false, running=false, timer=0, lastStep=0;
+let key='square1', mode='build', order=5, pinned=null, zoom=false, running=false, timer=0, lastStep=0;
+let sliderEdit=null;
 let build=startingBuild();sessions.set(key,build);
 const target=()=>targets[key];
 function allowed(k,n){
@@ -188,7 +189,10 @@ function newView(){
  else if(building&&build.fit&&build.saved)v.overlay={name:'Saved attempt',c:filtered(build.saved.c)};
  else if(!building&&pinned!==null)v.overlay={name:'Pinned · N = '+pinned,c:exact(tg,pinned)};
  if(v.overlay)v.overlay.fn=evaluator(v.overlay.c);
- if(building&&dragging){const {k,n}=build.sel,val=c[k][n];v.term={name:n===0?'Mean term':k+sub(n)+' '+basis(k,n),fn:t=>n===0?val/2:val*(k==='a'?Math.cos(n*t):Math.sin(n*t))};}
+ if(building&&sliderEdit){
+  const {k,n}=sliderEdit, val=c[k][n];
+  v.term={name:n===0?'Mean term':k+sub(n)+' '+basis(k,n),fn:t=>n===0?val/2:val*(k==='a'?Math.cos(n*t):Math.sin(n*t))};
+ }
  return v;
 }
 function drawFormula(c){
@@ -323,7 +327,7 @@ for(const id of ['main-plot','zoom-plot','area-plot'])new ResizeObserver(queueDr
 $('why').addEventListener('toggle',queueDraw);
 function stop(){running=false;cancelAnimationFrame(timer);timer=0;}
 function setMode(m){
- stop();dragging=false;mode=m;
+ stop();sliderEdit=null;mode=m;
  for(const [id,s] of [['build-tab','build'],['con-tab','con']]){$(id).setAttribute('aria-selected',s===m);$(id).tabIndex=s===m?0:-1;}
  $('workspace').setAttribute('aria-labelledby',m+'-tab');render();
 }
@@ -333,7 +337,7 @@ document.querySelector('[role=tablist]').onkeydown=e=>{
  const m=e.key==='Home'?'build':e.key==='End'?'con':mode==='build'?'con':'build';setMode(m);$(m+'-tab').focus();
 };
 $('target').onchange=e=>{
- stop();dragging=false;key=e.target.value;
+ stop();sliderEdit=null;key=e.target.value;
  if(!sessions.has(key)){const initial=startingBuild();initial.saved=readAttempt();sessions.set(key,initial);}
  build=sessions.get(key);pinned=null;zoom=false;order=5;
  live('invalid','');live('save-status','');$('rows').scrollTop=0;render();
@@ -346,17 +350,34 @@ toolbox.addEventListener('focusin',e=>{
  if(!e.target.dataset.k)return;
  selectTerm(e.target.dataset.k,Number(e.target.dataset.n));render();
 });
+const sliderKeys=new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End']);
+function beginSliderEdit(field,pointerId=null){
+ const k=field.dataset.k, n=Number(field.dataset.n);
+ sliderEdit={field,k,n,pointerId};
+ selectTerm(k,n);
+ render();
+}
+function endSliderEdit(){
+ if(!sliderEdit)return;
+ sliderEdit=null;
+ render();
+}
 toolbox.addEventListener('pointerdown',e=>{
- if(e.target.type!=='range')return;
- dragging=true;selectTerm(e.target.dataset.k,Number(e.target.dataset.n));render();
+ if(e.target.type==='range'&&e.isPrimary&&e.button===0)beginSliderEdit(e.target,e.pointerId);
 });
-function endDrag(){if(dragging){dragging=false;render();}}
-window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);window.addEventListener('blur',endDrag);
+function endPointerEdit(e){
+ if(sliderEdit?.pointerId===e.pointerId)endSliderEdit();
+}
+window.addEventListener('pointerup',endPointerEdit,true);
+window.addEventListener('pointercancel',endPointerEdit,true);
+window.addEventListener('blur',endSliderEdit);
 toolbox.addEventListener('keydown',e=>{
- if(e.target.type==='range'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown','Home','End'].includes(e.key)){dragging=true;render();}
+ if(e.target.type==='range'&&sliderKeys.has(e.key)&&!sliderEdit)beginSliderEdit(e.target);
  if(e.target.type==='number'&&e.key==='Enter'){e.preventDefault();e.target.blur();}
 });
-toolbox.addEventListener('keyup',endDrag);
+toolbox.addEventListener('keyup',e=>{
+ if(sliderEdit?.field===e.target&&sliderEdit.pointerId===null&&sliderKeys.has(e.key))endSliderEdit();
+});
 toolbox.addEventListener('input',e=>{
  const field=e.target,k=field.dataset.k;if(!k)return;
  const n=Number(field.dataset.n),x=field.valueAsNumber;selectTerm(k,n);
@@ -364,7 +385,9 @@ toolbox.addEventListener('input',e=>{
  live('invalid','');build.c[k][n]=x;build.fit=false;live('save-status','');render();
 });
 toolbox.addEventListener('focusout',e=>{
- const field=e.target;if(!field.dataset.k)return;endDrag();
+ const field=e.target;if(!field.dataset.k)return;
+ // Pressing the next slider starts its edit before the previous field loses focus.
+ if(sliderEdit?.field===field)endSliderEdit();
  if(field.type==='number'){field.value=Number(build.c[field.dataset.k][Number(field.dataset.n)].toFixed(4));live('invalid','');}
 });
 $('omit').onclick=()=>{build.omit=!build.omit;render();};
